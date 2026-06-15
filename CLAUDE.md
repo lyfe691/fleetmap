@@ -73,3 +73,9 @@ Env: see `.env.example` — `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_AN
 - [ ] M4 — routing: OSRM container + `/api/route` proxy + click-to-route + ETA.
 - [ ] M5 — polish: smooth marker interpolation, offline/stale flags, TV kiosk mode, lock down RLS.
 - Later: orders/deliveries model, auto-assigned dropoffs + status, geofenced "arrived" events, route replay.
+
+## Workflow
+
+- Claude can update this as we progress.
+- We follow core progamming principles such as YAGNI, KISS and DRY.
+- Claude invokes skills if needed.
