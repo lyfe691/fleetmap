@@ -4,8 +4,6 @@ Real-time map of a delivery fleet. Each vehicle's phone streams GPS to the backe
 
 Full design doc: `live-tracking-spec.md` — that's the source of truth. This file is the working brief.
 
-**Status:** M1 done (schema + ingest endpoint + fake-GPS poster). M2 is next.
-
 ## Stack
 
 - **Next.js** (App Router, TypeScript) — API route handlers now, the dashboard later.
