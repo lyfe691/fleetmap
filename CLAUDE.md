@@ -67,7 +67,7 @@ Env: see `.env.example` — `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_AN
 
 ## Milestones
 
-- [x] **M1 — pipe:** schema + `POST /api/location` + fake-GPS poster.
+- [ ] **M1 — pipe:** schema + `POST /api/location` + fake-GPS poster.
 - [ ] **M2 — see it move: dashboard map + Realtime subscription + markers updating live off the fake feed. ← next**
 - [ ] M3 — driver PWA: auth + watchPosition + wake lock + POST loop + offline buffer.
 - [ ] M4 — routing: OSRM container + `/api/route` proxy + click-to-route + ETA.

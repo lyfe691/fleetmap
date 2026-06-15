@@ -8,7 +8,7 @@ Real-time map of the delivery fleet: each vehicle's phone streams GPS to the bac
 
 - **Driver client — PWA.** Web app on the mounted phone. `navigator.geolocation.watchPosition` + the Screen Wake Lock API to keep the screen on. Kiosk / full-screen is *recommended* (stops the OS backgrounding the tab and dropping the wake lock) but not required. Reliable because the phone is mounted and foregrounded — the one condition under which web GPS holds. *Escape hatch:* when phones go in pockets, sleep, or run nav up front, switch the client to a native Expo app with background geolocation. The backend doesn't change.
 - **API + WebSocket service — dedicated persistent process** (Node + Fastify + `ws`, or Go). Ingests positions, fans them out to dashboards over WebSocket, proxies OSRM. Kept separate from the frontend because a WS server needs a long-lived process — which Next.js route handlers fight.
-- **Dashboard — Next.js or a Vite + React SPA**, served as a static build. MapLibre GL (`react-map-gl`) for the map. A TV wall display needs no SSR, so a static SPA behind the proxy is leanest.
+- **Dashboard — Next.js or React(Vite)**, served as a static build. MapLibre GL (`react-map-gl`) for the map. A TV wall display needs no SSR, so a static SPA behind the proxy is leanest.
 - **Storage — Postgres** (container). Position history + vehicle state.
 - **Live bus — Redis** (container). A `vehicle:latest` hash for instant dashboard snapshots, plus a pub/sub channel the API uses to fan live updates to every connected dashboard (and across API replicas).
 - **Routing — OSRM** (container), Switzerland extract.
