@@ -1,0 +1,22 @@
+# M4 routing — self-hosted OSRM serving the Switzerland extract.
+#
+# One-time dataset build (see docs/specs/live-tracking-spec.md "OSRM build"):
+#   wget https://download.geofabrik.de/europe/switzerland-latest.osm.pbf -P ./osrm
+#   docker run -t -v "${PWD}/osrm:/data" osrm/osrm-backend osrm-extract   -p /opt/car.lua /data/switzerland-latest.osm.pbf
+#   docker run -t -v "${PWD}/osrm:/data" osrm/osrm-backend osrm-partition           /data/switzerland-latest.osrm
+#   docker run -t -v "${PWD}/osrm:/data" osrm/osrm-backend osrm-customize           /data/switzerland-latest.osrm
+#
+# Then: docker compose up -d osrm   (serves on http://localhost:5000)
+# The Next app reaches it via OSRM_URL (http://localhost:5000 in dev,
+# http://osrm:5000 once the app joins this compose stack).
+
+services:
+  osrm:
+    image: osrm/osrm-backend
+    # MLD matches the partition + customize build above.
+    command: osrm-routed --algorithm mld /data/switzerland-latest.osrm
+    volumes:
+      - ./osrm:/data
+    ports:
+      - "5000:5000"
+    restart: unless-stopped

@@ -22,6 +22,9 @@
 .DS_Store
 *.pem
 
+# osrm dataset (large; built locally — see docker-compose.yml)
+/osrm
+
 # debug
 npm-debug.log*
 yarn-debug.log*

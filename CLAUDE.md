@@ -23,6 +23,8 @@ Keep the API thin: ingest + OSRM proxy only. It stays **stateless** — the live
 
 ```
 app/api/location/route.ts   ingest endpoint
+app/api/route/route.ts      OSRM proxy — route line + ETA (GET /api/route)
+docker-compose.yml          OSRM routing container (Switzerland extract)
 lib/supabase/server.ts      request-scoped Supabase client (runs as the user)
 lib/supabase/browser.ts     browser client (publishable key) — dashboard read/Realtime
 app/dashboard/page.tsx      TV dashboard (map + live markers)
@@ -76,6 +78,7 @@ pnpm dev                          # Next dev server
 pnpm fake-gps                     # dev-only: moving fake feed (dev server must be running)
 supabase db push                  # apply migrations
 pnpm exec tsc --noEmit            # typecheck
+docker compose up -d osrm         # routing engine (build the dataset first — see docker-compose.yml)
 ```
 
 Env: `.env.example` — `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`.
@@ -85,8 +88,8 @@ Env: `.env.example` — `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLIS
 - [x] **M1 — pipe:** schema + `POST /api/location` + fake-GPS poster.
 - [x] **M2 — see it move:** dashboard map + Realtime subscription + markers updating live off the fake feed.
 - [x] **M3 — driver PWA:** auth + watchPosition + wake lock + POST loop + offline buffer.
-- [ ] **M4 — routing:** OSRM container + `/api/route` proxy + click-to-route + ETA. ← next
-- [ ] M5 — polish: smooth marker interpolation, offline/stale flags, TV kiosk mode, lock down RLS.
+- [x] **M4 — routing:** OSRM container (`docker-compose.yml`) + `GET /api/route` proxy + click-to-route + ETA.
+- [ ] **M5 — polish:** smooth marker interpolation, offline/stale flags, TV kiosk mode, lock down RLS. ← next
 - Later: orders/deliveries model, auto-assigned dropoffs + status, geofenced "arrived" events, route replay.
 
 ## Workflow
