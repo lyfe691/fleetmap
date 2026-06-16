@@ -6,8 +6,8 @@ Full design doc: `live-tracking-spec.md` — that's the source of truth. This fi
 
 ## Stack
 
-- **Next.js** (App Router, TypeScript) — API route handlers now, the dashboard later.
-- **Supabase** — Postgres, Realtime (live push to the dashboard), Auth + RLS. Hosted now; self-hostable later — either is fine, the app doesn't care.
+- **Next.js** (App Router, TypeScript) — API route handlers + the dashboard.
+- **Supabase** — Postgres, Realtime (live push to the dashboard), Auth + RLS. Managed for V1; self-hosts as its own compose stack at handoff if the client requires on-prem — the app doesn't change.
 - **MapLibre GL** (`react-map-gl`) for the map. Tiles from MapTiler/Stadia — **never the public OSM tile server** (against their usage policy).
 - **OSRM**, self-hosted (Docker, Switzerland extract) for route lines + ETA — M4.
 - **Driver client:** PWA for V1 (`watchPosition` + Screen Wake Lock). Native Expo is the escape hatch if phones go in pockets or run nav up front — not now.
@@ -17,7 +17,7 @@ Full design doc: `live-tracking-spec.md` — that's the source of truth. This fi
 
 Phone → `POST /api/location` (authed) → upsert latest onto the vehicle row + append to history → Supabase Realtime broadcasts the vehicle-row change → dashboard moves that marker. Dashboard calls `GET /api/route` (→ OSRM) for routes + ETA.
 
-Keep the API thin: ingest + OSRM proxy only. It stays **stateless** — the live fan-out is Supabase Realtime's job, not the API's.
+Keep the API thin: ingest + OSRM proxy only. It stays **stateless** — the live fan-out is Supabase Realtime's job, not the API's. No Redis, no custom WebSocket server.
 
 ## Layout
 
@@ -28,6 +28,17 @@ supabase/migrations/        SQL migrations
 scripts/fake-gps.ts         dev-only fake GPS poster
 live-tracking-spec.md       full spec
 ```
+
+## Setup (first run)
+
+Package manager is **pnpm**. Project was scaffolded with shadcn CLI v4 (Next.js App Router + TypeScript, Base UI primitives, custom preset):
+
+```
+pnpm dlx shadcn@latest init --preset b1VlIttI --base base --template next --pointer
+# name it: fleetmap
+```
+
+Then from the project root: `pnpm add @supabase/supabase-js`, `pnpm add -D tsx`, copy `.env.example` → `.env` (fill the Supabase keys), apply `supabase/migrations/0001_init.sql`.
 
 ## Data model
 
@@ -43,30 +54,31 @@ live-tracking-spec.md       full spec
 - TypeScript throughout. Route handlers validate input and return `NextResponse.json` with explicit status codes (400 bad input, 401 no/invalid token, 409 no vehicle, 500 db error).
 - SQL: lowercase keywords, snake_case columns, `create ... if not exists`, policies named in plain English.
 - Import alias `@/*` → project root.
-- Typecheck (`npx tsc --noEmit`) before considering a change done; there's no test suite yet.
+- Typecheck (`pnpm exec tsc --noEmit`) before considering a change done; there's no test suite yet.
 
 ## Don'ts (already decided — don't relitigate)
 
 - Don't add a broad "read all vehicles" RLS policy. The TV read path (display token vs anon read) is a deliberate M2 decision.
 - Don't reach for the public OSM tile server.
 - Don't build a bespoke realtime/WebSocket layer — Supabase Realtime handles it.
-- Vendor-neutrality is not a goal. Don't rearchitect to avoid Supabase.
+- Don't add Redis. It only earns its place if a custom multi-instance socket layer ever exists, which it doesn't.
+- Vendor-neutrality is not a goal for V1. Don't rearchitect to avoid Supabase; self-hosting is a handoff-time deployment change.
 
 ## Commands
 
 ```
-npm run dev                    # Next dev server
-npx tsx scripts/fake-gps.ts    # dev-only: post a moving fake feed (server must be running)
-supabase db push               # apply migrations (or paste SQL into the dashboard)
-npx tsc --noEmit               # typecheck
+pnpm dev                          # Next dev server
+pnpm exec tsx scripts/fake-gps.ts # dev-only: moving fake feed (dev server must be running)
+supabase db push                  # apply migrations
+pnpm exec tsc --noEmit            # typecheck
 ```
 
-Env: see `.env.example` — `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`.
+Env: `.env.example` — `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`.
 
 ## Milestones
 
-- [ ] **M1 — pipe:** schema + `POST /api/location` + fake-GPS poster.
-- [ ] **M2 — see it move: dashboard map + Realtime subscription + markers updating live off the fake feed. ← next**
+- [ ] **M1 — pipe:** schema + `POST /api/location` + fake-GPS poster. ← next
+- [ ] M2 — see it move: dashboard map + Realtime subscription + markers updating live off the fake feed.
 - [ ] M3 — driver PWA: auth + watchPosition + wake lock + POST loop + offline buffer.
 - [ ] M4 — routing: OSRM container + `/api/route` proxy + click-to-route + ETA.
 - [ ] M5 — polish: smooth marker interpolation, offline/stale flags, TV kiosk mode, lock down RLS.
@@ -74,6 +86,6 @@ Env: see `.env.example` — `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_AN
 
 ## Workflow
 
-- Claude can update this as we progress.
-- We follow core progamming principles such as YAGNI, KISS and DRY.
-- Claude invokes skills if needed.
+- Claude can update this file as we progress.
+- We follow core programming principles: YAGNI, KISS, DRY.
+- Claude invokes skills when relevant.
