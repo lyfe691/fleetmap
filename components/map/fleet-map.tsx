@@ -2,6 +2,8 @@
 
 import "maplibre-gl/dist/maplibre-gl.css"
 import { Map, Marker } from "react-map-gl/maplibre"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Button } from "@/components/ui/button"
 import { clearDisplayCode } from "@/lib/dashboard-code"
 import { useLiveVehicles } from "@/lib/use-live-vehicles"
 
@@ -13,19 +15,24 @@ export function FleetMap({ displayCode }: { displayCode: string }) {
   return (
     <div className="relative h-full w-full">
       {error ? (
-        <div className="absolute top-4 left-4 z-10 flex items-center gap-3 rounded bg-red-600 px-3 py-2 text-sm text-white shadow">
-          <span>{error}</span>
-          <button
-            type="button"
-            className="rounded bg-white/20 px-2 py-0.5 text-xs"
-            onClick={() => {
-              clearDisplayCode()
-              window.location.reload()
-            }}
-          >
-            Change code
-          </button>
-        </div>
+        <Alert
+          variant="destructive"
+          className="absolute top-4 left-4 z-10 w-auto max-w-sm shadow-md"
+        >
+          <AlertDescription className="flex items-center gap-3">
+            <span>{error}</span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                clearDisplayCode()
+                window.location.reload()
+              }}
+            >
+              Change code
+            </Button>
+          </AlertDescription>
+        </Alert>
       ) : null}
       <Map
         initialViewState={{ longitude: 8.5417, latitude: 47.3769, zoom: 11 }}
