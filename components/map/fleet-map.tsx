@@ -1,15 +1,27 @@
 "use client"
 
 import "maplibre-gl/dist/maplibre-gl.css"
-import { useMemo, useState } from "react"
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ComponentProps,
+  type ReactNode,
+} from "react"
+import { MaximizeIcon, MinimizeIcon } from "lucide-react"
 import { Layer, Map, Marker, Source } from "react-map-gl/maplibre"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { clearDisplayCode } from "@/lib/dashboard-code"
 import { useLiveVehicles } from "@/lib/use-live-vehicles"
+import { useNow } from "@/lib/use-now"
 import { useRoute } from "@/lib/use-route"
 
 const MAP_STYLE = `https://api.maptiler.com/maps/streets-v2/style.json?key=${process.env.NEXT_PUBLIC_MAPTILER_KEY}`
+
+// Drivers post ~every 5s; 30s of silence (6 missed) means stale/offline.
+const STALE_AFTER_MS = 30_000
 
 function formatEta(seconds: number): string {
   const mins = Math.round(seconds / 60)
@@ -27,6 +39,7 @@ function formatDistance(metres: number): string {
 
 export function FleetMap({ displayCode }: { displayCode: string }) {
   const { vehicles, error } = useLiveVehicles(displayCode)
+  const now = useNow(5000)
 
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [dest, setDest] = useState<{ lat: number; lng: number } | null>(null)
@@ -75,6 +88,8 @@ export function FleetMap({ displayCode }: { displayCode: string }) {
           </AlertDescription>
         </Alert>
       ) : null}
+
+      <FullscreenButton />
 
       {selectedId ? (
         <RoutePanel
@@ -125,7 +140,7 @@ export function FleetMap({ displayCode }: { displayCode: string }) {
 
         {vehicles.map((v) =>
           v.last_lat != null && v.last_lng != null ? (
-            <Marker
+            <InterpolatedMarker
               key={v.id}
               longitude={v.last_lng}
               latitude={v.last_lat}
@@ -140,12 +155,43 @@ export function FleetMap({ displayCode }: { displayCode: string }) {
                 heading={v.last_heading ?? 0}
                 label={v.label}
                 selected={v.id === selectedId}
+                stale={
+                  v.last_seen_at == null ||
+                  now - new Date(v.last_seen_at).getTime() > STALE_AFTER_MS
+                }
               />
-            </Marker>
+            </InterpolatedMarker>
           ) : null
         )}
       </Map>
     </div>
+  )
+}
+
+function FullscreenButton() {
+  const [fs, setFs] = useState(false)
+  useEffect(() => {
+    const onChange = () => setFs(Boolean(document.fullscreenElement))
+    document.addEventListener("fullscreenchange", onChange)
+    return () => document.removeEventListener("fullscreenchange", onChange)
+  }, [])
+  return (
+    <Button
+      variant="secondary"
+      size="icon"
+      className="absolute right-4 bottom-4 z-10 shadow-md"
+      aria-label={fs ? "Exit fullscreen" : "Enter fullscreen"}
+      onClick={() => {
+        if (document.fullscreenElement) void document.exitFullscreen()
+        else void document.documentElement.requestFullscreen()
+      }}
+    >
+      {fs ? (
+        <MinimizeIcon className="size-4" />
+      ) : (
+        <MaximizeIcon className="size-4" />
+      )}
+    </Button>
   )
 }
 
@@ -194,17 +240,81 @@ function RoutePanel({
   )
 }
 
+// Tween the displayed position from where it is now toward each new target
+// over ~one update window, so markers glide instead of teleporting.
+function useGlide(targetLng: number, targetLat: number, durationMs: number) {
+  const [pos, setPos] = useState({ lng: targetLng, lat: targetLat })
+  const posRef = useRef(pos)
+  posRef.current = pos
+
+  useEffect(() => {
+    const from = { ...posRef.current }
+    const to = { lng: targetLng, lat: targetLat }
+    if (Math.abs(to.lng - from.lng) + Math.abs(to.lat - from.lat) < 1e-7) {
+      setPos(to)
+      return
+    }
+    let raf = 0
+    let start: number | null = null
+    const step = (ts: number) => {
+      start ??= ts
+      const t = Math.min(1, (ts - start) / durationMs)
+      setPos({
+        lng: from.lng + (to.lng - from.lng) * t,
+        lat: from.lat + (to.lat - from.lat) * t,
+      })
+      if (t < 1) raf = requestAnimationFrame(step)
+    }
+    raf = requestAnimationFrame(step)
+    return () => cancelAnimationFrame(raf)
+  }, [targetLng, targetLat, durationMs])
+
+  return pos
+}
+
+function InterpolatedMarker({
+  longitude,
+  latitude,
+  anchor,
+  onClick,
+  children,
+}: {
+  longitude: number
+  latitude: number
+  anchor?: ComponentProps<typeof Marker>["anchor"]
+  onClick?: ComponentProps<typeof Marker>["onClick"]
+  children: ReactNode
+}) {
+  const pos = useGlide(longitude, latitude, 5000)
+  return (
+    <Marker
+      longitude={pos.lng}
+      latitude={pos.lat}
+      anchor={anchor}
+      onClick={onClick}
+    >
+      {children}
+    </Marker>
+  )
+}
+
 function VehicleMarker({
   heading,
   label,
   selected,
+  stale,
 }: {
   heading: number
   label: string | null
   selected: boolean
+  stale: boolean
 }) {
+  const fill = selected ? "#dc2626" : stale ? "#9ca3af" : "#2563eb"
   return (
-    <div className="flex cursor-pointer flex-col items-center gap-0.5">
+    <div
+      className="flex cursor-pointer flex-col items-center gap-0.5"
+      style={{ opacity: stale && !selected ? 0.55 : 1 }}
+    >
       <svg
         width="22"
         height="22"
@@ -214,14 +324,14 @@ function VehicleMarker({
       >
         <path
           d="M12 2 L19 21 L12 17 L5 21 Z"
-          fill={selected ? "#dc2626" : "#2563eb"}
+          fill={fill}
           stroke="white"
           strokeWidth="1.5"
         />
       </svg>
       {label ? (
         <span className="rounded bg-black/70 px-1 text-[10px] leading-tight text-white">
-          {label}
+          {stale ? `${label} · stale` : label}
         </span>
       ) : null}
     </div>

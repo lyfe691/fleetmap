@@ -56,7 +56,7 @@ Then from the project root: `pnpm add @supabase/supabase-js`, `pnpm add -D tsx`,
 ## Conventions
 
 - **Auth + RLS is the security boundary.** App code accesses the DB as the authenticated user via `createUserClient(token)`, so RLS enforces ownership — the `.eq` filters are for clarity, not security. Every new table gets RLS enabled + explicit policies.
-- **Dashboard read path:** the TV reads via a dedicated `dashboard` Auth user carrying an `app_metadata.role='dashboard'` claim + a claim-scoped `select` policy on `vehicles`; its session is minted server-side (`POST /api/dashboard-session`) behind a display code — never anon read-all. Column-scoping (a `vehicles_public` view) and token refresh are M5.
+- **Dashboard read path:** the TV reads via a dedicated `dashboard` Auth user carrying an `app_metadata.role='dashboard'` claim + a claim-scoped `select` policy on `vehicles`; its session is minted server-side (`POST /api/dashboard-session`) behind a display code — never anon read-all. The snapshot reads the column-scoped `vehicles_public` view (0003); the browser client auto-refreshes the session and re-arms Realtime auth on refresh (M5). Caveat: live updates still ride `postgres_changes` on `vehicles`, which requires the table `select` policy — so column-scoping bounds the snapshot, not the Realtime payload.
 - **The secret key (service-role-equivalent) is dev-only** (`scripts/`). Never use it in a request handler or ship it in a deployed image.
 - TypeScript throughout. Route handlers validate input and return `NextResponse.json` with explicit status codes (400 bad input, 401 no/invalid token, 409 no vehicle, 500 db error).
 - SQL: lowercase keywords, snake_case columns, `create ... if not exists`, policies named in plain English.
@@ -89,8 +89,8 @@ Env: `.env.example` — `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLIS
 - [x] **M2 — see it move:** dashboard map + Realtime subscription + markers updating live off the fake feed.
 - [x] **M3 — driver PWA:** auth + watchPosition + wake lock + POST loop + offline buffer.
 - [x] **M4 — routing:** OSRM container (`docker-compose.yml`) + `GET /api/route` proxy + click-to-route + ETA.
-- [ ] **M5 — polish:** smooth marker interpolation, offline/stale flags, TV kiosk mode, lock down RLS. ← next
-- Later: orders/deliveries model, auto-assigned dropoffs + status, geofenced "arrived" events, route replay.
+- [x] **M5 — polish:** smooth marker interpolation, offline/stale flags, TV kiosk mode (fullscreen + session refresh), column-scoped read (`vehicles_public`).
+- Later: orders/deliveries model, auto-assigned dropoffs + status, geofenced "arrived" events, route replay. ← next
 
 ## Workflow
 

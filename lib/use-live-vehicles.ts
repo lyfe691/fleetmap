@@ -46,6 +46,14 @@ export function useLiveVehicles(displayCode: string) {
     let channel: RealtimeChannel | null = null
     let cancelled = false
 
+    // Re-arm Realtime when supabase-js refreshes the session, so the socket
+    // stays authed and the channel keeps delivering on a long-running TV.
+    const { data: authSub } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "TOKEN_REFRESHED" && session) {
+        void supabase.realtime.setAuth(session.access_token)
+      }
+    })
+
     const publish = () => {
       if (!cancelled) setVehicles(Array.from(byId.values()))
     }
@@ -59,8 +67,10 @@ export function useLiveVehicles(displayCode: string) {
     }
 
     const loadSnapshot = async () => {
+      // Column-scoped view (0003): the snapshot never pulls sensitive columns.
+      // Live updates still ride the vehicles-table Realtime channel below.
       const { data, error: selErr } = await supabase
-        .from("vehicles")
+        .from("vehicles_public")
         .select(COLUMNS)
       if (cancelled) return
       if (selErr) {
@@ -109,6 +119,7 @@ export function useLiveVehicles(displayCode: string) {
 
     return () => {
       cancelled = true
+      authSub.subscription.unsubscribe()
       if (channel) void supabase.removeChannel(channel)
     }
   }, [displayCode])
