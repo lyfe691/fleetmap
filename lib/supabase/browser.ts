@@ -12,7 +12,9 @@ export function getBrowserClient(): SupabaseClient {
     client = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
-      { auth: { persistSession: false, autoRefreshToken: false } }
+      // autoRefreshToken keeps an unattended kiosk alive past the ~1h token
+      // expiry; the Realtime socket is re-armed on TOKEN_REFRESHED.
+      { auth: { persistSession: false, autoRefreshToken: true } }
     )
   }
   return client
