@@ -2,7 +2,7 @@
 
 Real-time map of a delivery fleet. Each vehicle's phone streams GPS to the backend; an office TV shows every truck moving live, with on-demand route + ETA. Same shape as Uber, minus rider matching.
 
-Full design doc: `live-tracking-spec.md` — that's the source of truth. This file is the working brief.
+Full design doc: `docs/specs/live-tracking-spec.md` — that's the source of truth. This file is the working brief.
 
 ## Stack
 
@@ -26,7 +26,7 @@ app/api/location/route.ts   ingest endpoint
 lib/supabase/server.ts      request-scoped Supabase client (runs as the user)
 supabase/migrations/        SQL migrations
 scripts/fake-gps.ts         dev-only fake GPS poster
-live-tracking-spec.md       full spec
+docs/specs/live-tracking-spec.md  full spec
 ```
 
 ## Setup (first run)
@@ -50,7 +50,7 @@ Then from the project root: `pnpm add @supabase/supabase-js`, `pnpm add -D tsx`,
 ## Conventions
 
 - **Auth + RLS is the security boundary.** App code accesses the DB as the authenticated user via `createUserClient(token)`, so RLS enforces ownership — the `.eq` filters are for clarity, not security. Every new table gets RLS enabled + explicit policies.
-- **Service role is dev-only** (`scripts/`). Never use it in a request handler or ship it in a deployed image.
+- **The secret key (service-role-equivalent) is dev-only** (`scripts/`). Never use it in a request handler or ship it in a deployed image.
 - TypeScript throughout. Route handlers validate input and return `NextResponse.json` with explicit status codes (400 bad input, 401 no/invalid token, 409 no vehicle, 500 db error).
 - SQL: lowercase keywords, snake_case columns, `create ... if not exists`, policies named in plain English.
 - Import alias `@/*` → project root.
@@ -68,17 +68,17 @@ Then from the project root: `pnpm add @supabase/supabase-js`, `pnpm add -D tsx`,
 
 ```
 pnpm dev                          # Next dev server
-pnpm exec tsx scripts/fake-gps.ts # dev-only: moving fake feed (dev server must be running)
+pnpm fake-gps                     # dev-only: moving fake feed (dev server must be running)
 supabase db push                  # apply migrations
 pnpm exec tsc --noEmit            # typecheck
 ```
 
-Env: `.env.example` — `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`.
+Env: `.env.example` — `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`.
 
 ## Milestones
 
-- [ ] **M1 — pipe:** schema + `POST /api/location` + fake-GPS poster. ← next
-- [ ] M2 — see it move: dashboard map + Realtime subscription + markers updating live off the fake feed.
+- [x] **M1 — pipe:** schema + `POST /api/location` + fake-GPS poster.
+- [ ] **M2 — see it move:** dashboard map + Realtime subscription + markers updating live off the fake feed. ← next
 - [ ] M3 — driver PWA: auth + watchPosition + wake lock + POST loop + offline buffer.
 - [ ] M4 — routing: OSRM container + `/api/route` proxy + click-to-route + ETA.
 - [ ] M5 — polish: smooth marker interpolation, offline/stale flags, TV kiosk mode, lock down RLS.
