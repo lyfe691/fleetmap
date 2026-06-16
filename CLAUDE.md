@@ -26,6 +26,8 @@ app/api/location/route.ts   ingest endpoint
 lib/supabase/server.ts      request-scoped Supabase client (runs as the user)
 lib/supabase/browser.ts     browser client (publishable key) — dashboard read/Realtime
 app/dashboard/page.tsx      TV dashboard (map + live markers)
+app/driver/page.tsx         driver PWA (login + GPS streaming + offline buffer)
+lib/supabase/driver.ts      driver client (persistent session)
 supabase/migrations/        SQL migrations
 scripts/fake-gps.ts         dev-only fake GPS poster
 docs/specs/live-tracking-spec.md  full spec
@@ -82,8 +84,8 @@ Env: `.env.example` — `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLIS
 
 - [x] **M1 — pipe:** schema + `POST /api/location` + fake-GPS poster.
 - [x] **M2 — see it move:** dashboard map + Realtime subscription + markers updating live off the fake feed.
-- [ ] **M3 — driver PWA:** auth + watchPosition + wake lock + POST loop + offline buffer. ← next
-- [ ] M4 — routing: OSRM container + `/api/route` proxy + click-to-route + ETA.
+- [x] **M3 — driver PWA:** auth + watchPosition + wake lock + POST loop + offline buffer.
+- [ ] **M4 — routing:** OSRM container + `/api/route` proxy + click-to-route + ETA. ← next
 - [ ] M5 — polish: smooth marker interpolation, offline/stale flags, TV kiosk mode, lock down RLS.
 - Later: orders/deliveries model, auto-assigned dropoffs + status, geofenced "arrived" events, route replay.
 
