@@ -25,6 +25,9 @@
 # osrm dataset (large; built locally — see docker-compose.yml)
 /osrm
 
+# brainstorming visual companion
+/.superpowers
+
 # debug
 npm-debug.log*
 yarn-debug.log*
