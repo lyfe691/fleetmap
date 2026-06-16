@@ -2,7 +2,19 @@
 
 import { useEffect, useState, type ReactNode } from "react"
 import type { Session } from "@supabase/supabase-js"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
+import { Field, FieldLabel } from "@/components/ui/field"
+import { Input } from "@/components/ui/input"
+import { Spinner } from "@/components/ui/spinner"
+import { cn } from "@/lib/utils"
 import { getDriverClient } from "@/lib/supabase/driver"
 import { useGeolocation } from "@/lib/use-geolocation"
 import { useLocationSync } from "@/lib/use-location-sync"
@@ -21,7 +33,7 @@ export function DriverApp() {
   if (session === undefined) {
     return (
       <Screen>
-        <p className="text-neutral-400">Loading…</p>
+        <Spinner className="size-6 text-muted-foreground" />
       </Screen>
     )
   }
@@ -37,42 +49,60 @@ function LoginForm() {
 
   return (
     <Screen>
-      <form
-        className="flex w-full max-w-xs flex-col gap-3"
-        onSubmit={async (e) => {
-          e.preventDefault()
-          setBusy(true)
-          setError(null)
-          const { error } = await getDriverClient().auth.signInWithPassword({
-            email,
-            password,
-          })
-          setBusy(false)
-          if (error) setError(error.message)
-        }}
-      >
-        <h1 className="text-xl font-semibold">Driver sign in</h1>
-        <input
-          type="email"
-          placeholder="email"
-          autoComplete="username"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="rounded border px-3 py-2 text-black"
-        />
-        <input
-          type="password"
-          placeholder="password"
-          autoComplete="current-password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="rounded border px-3 py-2 text-black"
-        />
-        {error ? <p className="text-sm text-red-400">{error}</p> : null}
-        <Button type="submit" disabled={busy}>
-          {busy ? "Signing in…" : "Sign in"}
-        </Button>
-      </form>
+      <Card className="w-full max-w-xs">
+        <CardHeader>
+          <CardTitle className="text-lg">Driver sign in</CardTitle>
+          <CardDescription>
+            Sign in to start sharing your location.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form
+            className="flex flex-col gap-4"
+            onSubmit={async (e) => {
+              e.preventDefault()
+              setBusy(true)
+              setError(null)
+              const { error } = await getDriverClient().auth.signInWithPassword({
+                email,
+                password,
+              })
+              setBusy(false)
+              if (error) setError(error.message)
+            }}
+          >
+            <Field>
+              <FieldLabel htmlFor="email">Email</FieldLabel>
+              <Input
+                id="email"
+                type="email"
+                autoComplete="username"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="password">Password</FieldLabel>
+              <Input
+                id="password"
+                type="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </Field>
+            {error ? (
+              <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            ) : null}
+            <Button type="submit" disabled={busy}>
+              {busy ? <Spinner /> : null}
+              Sign in
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
     </Screen>
   )
 }
@@ -108,7 +138,7 @@ function Tracker({ email }: { email: string }) {
     <Screen>
       <div className="flex w-full max-w-sm flex-col items-center gap-6">
         <div className="text-center">
-          <p className="text-sm text-neutral-400">{email}</p>
+          <p className="text-sm text-muted-foreground">{email}</p>
           <h1 className="text-2xl font-semibold">
             {active ? "Tracking" : "Not tracking"}
           </h1>
@@ -117,20 +147,24 @@ function Tracker({ email }: { email: string }) {
         <button
           type="button"
           onClick={toggle}
-          className={`flex h-40 w-40 items-center justify-center rounded-full text-2xl font-bold text-white ${
-            active ? "bg-green-600" : "bg-neutral-700"
-          }`}
+          aria-pressed={active}
+          className={cn(
+            "flex h-40 w-40 items-center justify-center rounded-full text-2xl font-bold transition-colors focus-visible:ring-3 focus-visible:ring-ring/30 focus-visible:outline-none",
+            active
+              ? "bg-primary text-primary-foreground"
+              : "bg-muted text-muted-foreground"
+          )}
         >
           {active ? "ON" : "OFF"}
         </button>
 
         {blocked ? (
-          <p className="rounded bg-red-600 px-3 py-2 text-center text-sm text-white">
-            {blocked}
-          </p>
+          <Alert variant="destructive">
+            <AlertDescription>{blocked}</AlertDescription>
+          </Alert>
         ) : null}
 
-        <dl className="w-full space-y-1 text-sm text-neutral-300">
+        <dl className="w-full space-y-1 text-sm text-muted-foreground">
           <Row label="Network" value={sync.online ? "online" : "offline"} />
           <Row
             label="Screen lock"
@@ -172,16 +206,16 @@ function Tracker({ email }: { email: string }) {
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex justify-between border-b border-neutral-800 py-1">
+    <div className="flex justify-between border-b border-border py-1">
       <dt>{label}</dt>
-      <dd className="font-mono">{value}</dd>
+      <dd className="font-mono text-foreground">{value}</dd>
     </div>
   )
 }
 
 function Screen({ children }: { children: ReactNode }) {
   return (
-    <main className="flex min-h-screen w-screen flex-col items-center justify-center gap-4 bg-neutral-950 p-6 text-white">
+    <main className="flex min-h-svh w-full flex-col items-center justify-center gap-4 bg-background p-6 text-foreground">
       {children}
     </main>
   )
