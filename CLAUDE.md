@@ -24,6 +24,8 @@ Keep the API thin: ingest + OSRM proxy only. It stays **stateless** — the live
 ```
 app/api/location/route.ts   ingest endpoint
 lib/supabase/server.ts      request-scoped Supabase client (runs as the user)
+lib/supabase/browser.ts     browser client (publishable key) — dashboard read/Realtime
+app/dashboard/page.tsx      TV dashboard (map + live markers)
 supabase/migrations/        SQL migrations
 scripts/fake-gps.ts         dev-only fake GPS poster
 docs/specs/live-tracking-spec.md  full spec
@@ -50,6 +52,7 @@ Then from the project root: `pnpm add @supabase/supabase-js`, `pnpm add -D tsx`,
 ## Conventions
 
 - **Auth + RLS is the security boundary.** App code accesses the DB as the authenticated user via `createUserClient(token)`, so RLS enforces ownership — the `.eq` filters are for clarity, not security. Every new table gets RLS enabled + explicit policies.
+- **Dashboard read path:** the TV reads via a dedicated `dashboard` Auth user carrying an `app_metadata.role='dashboard'` claim + a claim-scoped `select` policy on `vehicles`; its session is minted server-side (`POST /api/dashboard-session`) behind a display code — never anon read-all. Column-scoping (a `vehicles_public` view) and token refresh are M5.
 - **The secret key (service-role-equivalent) is dev-only** (`scripts/`). Never use it in a request handler or ship it in a deployed image.
 - TypeScript throughout. Route handlers validate input and return `NextResponse.json` with explicit status codes (400 bad input, 401 no/invalid token, 409 no vehicle, 500 db error).
 - SQL: lowercase keywords, snake_case columns, `create ... if not exists`, policies named in plain English.
@@ -58,7 +61,7 @@ Then from the project root: `pnpm add @supabase/supabase-js`, `pnpm add -D tsx`,
 
 ## Don'ts (already decided — don't relitigate)
 
-- Don't add a broad "read all vehicles" RLS policy. The TV read path (display token vs anon read) is a deliberate M2 decision.
+- Don't add a broad "read all vehicles" RLS policy. The TV reads via a dedicated dashboard identity + claim-scoped policy (decided in M2 — display token, not anon read).
 - Don't reach for the public OSM tile server.
 - Don't build a bespoke realtime/WebSocket layer — Supabase Realtime handles it.
 - Don't add Redis. It only earns its place if a custom multi-instance socket layer ever exists, which it doesn't.
@@ -78,8 +81,8 @@ Env: `.env.example` — `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLIS
 ## Milestones
 
 - [x] **M1 — pipe:** schema + `POST /api/location` + fake-GPS poster.
-- [ ] **M2 — see it move:** dashboard map + Realtime subscription + markers updating live off the fake feed. ← next
-- [ ] M3 — driver PWA: auth + watchPosition + wake lock + POST loop + offline buffer.
+- [x] **M2 — see it move:** dashboard map + Realtime subscription + markers updating live off the fake feed.
+- [ ] **M3 — driver PWA:** auth + watchPosition + wake lock + POST loop + offline buffer. ← next
 - [ ] M4 — routing: OSRM container + `/api/route` proxy + click-to-route + ETA.
 - [ ] M5 — polish: smooth marker interpolation, offline/stale flags, TV kiosk mode, lock down RLS.
 - Later: orders/deliveries model, auto-assigned dropoffs + status, geofenced "arrived" events, route replay.

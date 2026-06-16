@@ -109,7 +109,7 @@ function sleep(ms: number): Promise<void> {
 
 async function main(): Promise<void> {
   await ensureDriverAndVehicle()
-  const token = await getDriverToken()
+  let token = await getDriverToken()
   console.log(
     `signed in; POSTing to ${API_URL} every ${TICK_MS}ms (Ctrl+C to stop)`
   )
@@ -127,21 +127,29 @@ async function main(): Promise<void> {
     if (heading < 0) heading += 360
     const speed = Math.round(Math.random() * 14) // rough m/s
 
-    try {
-      const res = await fetch(API_URL, {
+    const body = JSON.stringify({
+      lat,
+      lng,
+      heading,
+      speed,
+      recorded_at: new Date().toISOString(),
+    })
+    const post = (jwt: string) =>
+      fetch(API_URL, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${jwt}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          lat,
-          lng,
-          heading,
-          speed,
-          recorded_at: new Date().toISOString(),
-        }),
+        body,
       })
+
+    try {
+      let res = await post(token)
+      if (res.status === 401) {
+        token = await getDriverToken()
+        res = await post(token)
+      }
       if (res.ok) {
         console.log(`POST ${res.status}  ${lat.toFixed(5)}, ${lng.toFixed(5)}`)
       } else {

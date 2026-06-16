@@ -1,0 +1,6 @@
+# Supabase CLI local state
+.branches
+.temp
+
+# dotenvx decryption private key
+.env.keys
