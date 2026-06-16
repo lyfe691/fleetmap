@@ -1,0 +1,117 @@
+"use client"
+
+import { useEffect, useState } from "react"
+import type { RealtimeChannel } from "@supabase/supabase-js"
+import { getBrowserClient } from "@/lib/supabase/browser"
+
+export type Vehicle = {
+  id: string
+  label: string | null
+  status: string
+  last_lat: number | null
+  last_lng: number | null
+  last_heading: number | null
+  last_speed: number | null
+  last_seen_at: string | null
+}
+
+const COLUMNS =
+  "id, label, status, last_lat, last_lng, last_heading, last_speed, last_seen_at"
+
+async function mintSession(displayCode: string) {
+  const res = await fetch("/api/dashboard-session", {
+    method: "POST",
+    headers: { "x-display-code": displayCode },
+  })
+  if (!res.ok) {
+    throw new Error(`dashboard session denied (${res.status})`)
+  }
+  return (await res.json()) as { access_token: string; refresh_token: string }
+}
+
+/**
+ * Snapshot-then-subscribe over the vehicles table for the dashboard.
+ * Order matters: mint session -> setSession -> realtime.setAuth -> subscribe,
+ * and snapshot only once SUBSCRIBED so no event in the gap is missed.
+ */
+export function useLiveVehicles(displayCode: string) {
+  const [vehicles, setVehicles] = useState<Vehicle[]>([])
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!displayCode) return
+
+    const supabase = getBrowserClient()
+    const byId = new Map<string, Vehicle>()
+    let channel: RealtimeChannel | null = null
+    let cancelled = false
+
+    const publish = () => {
+      if (!cancelled) setVehicles(Array.from(byId.values()))
+    }
+
+    const apply = (v: Vehicle, fromSnapshot = false) => {
+      // Last-write-wins: the snapshot must not clobber a newer live event.
+      if (fromSnapshot && byId.has(v.id)) return
+      if (v.last_lat == null || v.last_lng == null) byId.delete(v.id)
+      else byId.set(v.id, v)
+      publish()
+    }
+
+    const loadSnapshot = async () => {
+      const { data, error: selErr } = await supabase
+        .from("vehicles")
+        .select(COLUMNS)
+      if (cancelled) return
+      if (selErr) {
+        setError(selErr.message)
+        return
+      }
+      for (const v of (data ?? []) as Vehicle[]) apply(v, true)
+    }
+
+    const start = async () => {
+      try {
+        const { access_token, refresh_token } = await mintSession(displayCode)
+        if (cancelled) return
+        await supabase.auth.setSession({ access_token, refresh_token })
+        await supabase.realtime.setAuth(access_token)
+        if (cancelled) return
+
+        channel = supabase
+          .channel("vehicles-live")
+          .on(
+            "postgres_changes",
+            { event: "*", schema: "public", table: "vehicles" },
+            (payload) => {
+              if (payload.eventType === "DELETE") {
+                const id = (payload.old as { id?: string }).id
+                if (id) {
+                  byId.delete(id)
+                  publish()
+                }
+                return
+              }
+              apply(payload.new as Vehicle)
+            }
+          )
+          .subscribe((status) => {
+            if (status === "SUBSCRIBED") void loadSnapshot()
+          })
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : "failed to connect")
+        }
+      }
+    }
+
+    void start()
+
+    return () => {
+      cancelled = true
+      if (channel) void supabase.removeChannel(channel)
+    }
+  }, [displayCode])
+
+  return { vehicles, error }
+}
