@@ -15,6 +15,18 @@ function isFiniteNumber(v: unknown): v is number {
   return typeof v === "number" && Number.isFinite(v)
 }
 
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+function isUuid(v: unknown): v is string {
+  return typeof v === "string" && UUID_RE.test(v)
+}
+
+// Accepts ISO 8601 dates/timestamps; rejects unparseable strings.
+function isIsoDateString(v: unknown): v is string {
+  return typeof v === "string" && !Number.isNaN(Date.parse(v))
+}
+
 // Validate the ingestion contract and return the orders payload for the rpc.
 function validate(body: unknown): { orders: unknown[] } | { error: string } {
   if (typeof body !== "object" || body === null) {
@@ -35,6 +47,13 @@ function validate(body: unknown): { orders: unknown[] } | { error: string } {
     if (!Array.isArray(ord.stops) || ord.stops.length === 0) {
       return { error: "order.stops must be a non-empty array" }
     }
+    if (
+      ord.scheduled_date != null &&
+      ord.scheduled_date !== "" &&
+      !isIsoDateString(ord.scheduled_date)
+    ) {
+      return { error: "order.scheduled_date must be an ISO 8601 date" }
+    }
     for (const s of ord.stops) {
       if (typeof s !== "object" || s === null) {
         return { error: "each stop must be an object" }
@@ -51,6 +70,20 @@ function validate(body: unknown): { orders: unknown[] } | { error: string } {
       }
       if (!isFiniteNumber(st.lng) || st.lng < -180 || st.lng > 180) {
         return { error: "stop.lng must be a number in [-180, 180]" }
+      }
+      if (
+        st.vehicle_id != null &&
+        st.vehicle_id !== "" &&
+        !isUuid(st.vehicle_id)
+      ) {
+        return { error: "stop.vehicle_id must be a UUID" }
+      }
+      if (
+        st.eta_at != null &&
+        st.eta_at !== "" &&
+        !isIsoDateString(st.eta_at)
+      ) {
+        return { error: "stop.eta_at must be an ISO 8601 timestamp" }
       }
     }
   }
