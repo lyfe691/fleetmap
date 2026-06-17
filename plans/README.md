@@ -12,7 +12,7 @@ These are advisor handoff plans — distinct from the milestone design docs in
 
 | Plan | Title | Priority | Effort | Depends on | Status |
 |------|-------|----------|--------|------------|--------|
-| 001 | fake-gps advances stop lifecycle so routes shrink, grey, and follow | P1 | M | — | TODO |
+| 001 | fake-gps advances stop lifecycle so routes shrink, grey, and follow | P1 | M | — | DONE (b12aa4b on main; tsc+lint green, runtime acceptance unverified) |
 | 002 | Remove the dead `useRoute` hook; extract shared route types | P2 | S | — | TODO |
 | 003 | Simplify `useFleetRoutes` — drop the serialize-then-reparse round-trip | P3 | S | 002 | TODO |
 | 004 | Stop rebuilding the stop-marker list on every `useNow` tick | P3 | S | — | TODO |
