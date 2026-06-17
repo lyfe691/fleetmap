@@ -13,12 +13,12 @@ These are advisor handoff plans — distinct from the milestone design docs in
 | Plan | Title | Priority | Effort | Depends on | Status |
 |------|-------|----------|--------|------------|--------|
 | 001 | fake-gps advances stop lifecycle so routes shrink, grey, and follow | P1 | M | — | DONE (b12aa4b on main; tsc+lint green, runtime acceptance unverified) |
-| 002 | Remove the dead `useRoute` hook; extract shared route types | P2 | S | — | TODO |
-| 003 | Simplify `useFleetRoutes` — drop the serialize-then-reparse round-trip | P3 | S | 002 | TODO |
-| 004 | Stop rebuilding the stop-marker list on every `useNow` tick | P3 | S | — | TODO |
-| 005 | Harden `/api/ingest/stops` validation (malformed input → 400, not 500) | P2 | M | — | TODO |
-| 006 | Replace the boilerplate README with a real project README | P3 | S | — | TODO |
-| 007 | Guard the wake-lock re-acquire so a held sentinel can't leak | P3 | S | — | TODO |
+| 002 | Remove the dead `useRoute` hook; extract shared route types | P2 | S | — | DONE (7587001 on main; tsc clean, scope clean) |
+| 003 | Simplify `useFleetRoutes` — drop the serialize-then-reparse round-trip | P3 | S | 002 | IN PROGRESS |
+| 004 | Stop rebuilding the stop-marker list on every `useNow` tick | P3 | S | — | IN PROGRESS |
+| 005 | Harden `/api/ingest/stops` validation (malformed input → 400, not 500) | P2 | M | — | DONE (49050ee on main; tsc clean, 400-path unverified w/o live stack) |
+| 006 | Replace the boilerplate README with a real project README | P3 | S | — | DONE (1924f0c on main; verified vs package.json/.env.example) |
+| 007 | Guard the wake-lock re-acquire so a held sentinel can't leak | P3 | S | — | DONE (6b1f038 on main; tsc clean, browser check unverified) |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (one-line reason) | REJECTED (one-line rationale)
 
