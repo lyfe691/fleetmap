@@ -12,7 +12,8 @@
     "typecheck": "tsc --noEmit",
     "fake-gps": "tsx --env-file=.env scripts/fake-gps.ts",
     "provision-dashboard": "tsx --env-file=.env scripts/provision-dashboard.ts",
-    "provision-dispatcher": "tsx --env-file=.env scripts/provision-dispatcher.ts"
+    "provision-dispatcher": "tsx --env-file=.env scripts/provision-dispatcher.ts",
+    "seed-stops": "tsx --env-file=.env scripts/seed-stops.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",
