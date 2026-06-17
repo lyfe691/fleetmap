@@ -20,7 +20,7 @@ import { useFleetRoutes, type RouteJob } from "@/lib/use-fleet-routes"
 import { useLiveStops, type Stop } from "@/lib/use-live-stops"
 import { useLiveVehicles, type Vehicle } from "@/lib/use-live-vehicles"
 import { useNow } from "@/lib/use-now"
-import type { Route, RouteGeometry } from "@/lib/use-route"
+import type { Route, RouteGeometry } from "@/lib/route-types"
 
 const MAP_STYLE = `https://api.maptiler.com/maps/streets-v2/style.json?key=${process.env.NEXT_PUBLIC_MAPTILER_KEY}`
 
