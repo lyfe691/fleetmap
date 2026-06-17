@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { createUserClient } from "@/lib/supabase/server"
+import { applyGeofence } from "@/lib/geofence"
 
 // supabase-js needs the Node runtime (not Edge-safe).
 export const runtime = "nodejs"
@@ -163,6 +164,14 @@ export async function POST(request: NextRequest) {
   if (updateError) {
     console.error("[/api/location] vehicle update failed:", updateError)
     return NextResponse.json({ error: "db error" }, { status: 500 })
+  }
+
+  // 7. Geofence: advance the next stop from this position. Best-effort — a
+  // geofence failure must never fail the position write.
+  try {
+    await applyGeofence(supabase, vehicle.id, lat, lng)
+  } catch (err) {
+    console.error("[/api/location] geofence failed:", err)
   }
 
   return NextResponse.json({ ok: true }, { status: 200 })
