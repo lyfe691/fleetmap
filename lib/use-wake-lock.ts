@@ -14,6 +14,7 @@ export function useWakeLock() {
 
   const acquire = useCallback(async () => {
     if (!wantRef.current) return
+    if (sentinelRef.current) return // already holding a live lock; OS release nulls this
     try {
       const sentinel = await navigator.wakeLock.request("screen")
       sentinelRef.current = sentinel
