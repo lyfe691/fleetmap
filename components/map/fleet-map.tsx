@@ -71,6 +71,22 @@ export function FleetMap({ displayCode }: { displayCode: string }) {
     return ids
   }, [stopsByVehicle])
 
+  const stopMarkers = useMemo(
+    () =>
+      Array.from(stopsByVehicle.values())
+        .flat()
+        .map((s) => (
+          <Marker key={s.id} longitude={s.lng} latitude={s.lat} anchor="center">
+            <StopMarker
+              stopType={s.stop_type}
+              status={s.status}
+              emphasized={nextStopIds.has(s.id)}
+            />
+          </Marker>
+        )),
+    [stopsByVehicle, nextStopIds]
+  )
+
   // Per-position traveled/remaining split, boundary held forward per vehicle.
   const progressRef = useRef(
     new Map<string, { split: RouteSplit; geometry: RouteGeometry }>()
@@ -174,17 +190,7 @@ export function FleetMap({ displayCode }: { displayCode: string }) {
             />
           </Source>
 
-          {Array.from(stopsByVehicle.values())
-            .flat()
-            .map((s) => (
-              <Marker key={s.id} longitude={s.lng} latitude={s.lat} anchor="center">
-                <StopMarker
-                  stopType={s.stop_type}
-                  status={s.status}
-                  emphasized={nextStopIds.has(s.id)}
-                />
-              </Marker>
-            ))}
+          {stopMarkers}
 
           {vehicles.map((v) =>
             v.last_lat != null && v.last_lng != null ? (
