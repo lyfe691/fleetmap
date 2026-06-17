@@ -26,6 +26,7 @@ app/api/location/route.ts   ingest endpoint
 app/api/route/route.ts      OSRM proxy — route line + ETA (GET /api/route)
 app/api/dispatcher-session/route.ts  mint dispatcher session (shared secret)
 app/api/ingest/stops/route.ts        ingestion seam — orders/stops (POST)
+app/api/stops/[id]/route.ts          PATCH stop — dispatcher mutation (status/reassign/reorder)
 scripts/seed-stops.ts                dev-only ingestion adapter #1
 docker-compose.yml          OSRM routing container (Switzerland extract)
 lib/supabase/server.ts      request-scoped Supabase client (runs as the user)
@@ -33,11 +34,12 @@ lib/supabase/browser.ts     browser client (publishable key) — dashboard read/
 lib/use-live-stops.ts       dashboard stops live channel (snapshot + subscribe)
 lib/use-fleet-routes.ts     per-vehicle route cache (fetch on stop-set change)
 lib/route-slice.ts          traveled/remaining split (turf, forward-clamped)
+lib/geofence.ts             server-side geofence auto-arrive (POST /api/location)
 app/dashboard/page.tsx      TV dashboard (map + live markers)
 app/driver/page.tsx         driver PWA (login + GPS streaming + offline buffer)
 lib/supabase/driver.ts      driver client (persistent session)
 supabase/migrations/        SQL migrations
-scripts/fake-gps.ts         dev-only fake GPS poster; marks each stop `completed` as the truck reaches it, simulating the geofenced "arrived" events that the "Later" milestone will emit for real
+scripts/fake-gps.ts         dev-only fake GPS poster (drives the seeded route)
 docs/specs/live-tracking-spec.md  full spec
 ```
 
@@ -101,7 +103,8 @@ Env: `.env.example` — `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLIS
 - [x] **M6 — order/stop model + ingestion seam:** orders/stops schema + RLS + Realtime, dispatcher identity, POST /api/ingest/stops, seed-stops adapter.
 - [x] **M7 — live routes on the TV:** vehicleId-only `/api/route` (multi-waypoint + legs/stopOffsets), `useLiveStops` channel, per-vehicle route lines from real stop data; click-to-route removed.
 - [x] **M8 — greying + side rail + ETA:** client-side traveled/remaining split (turf, forward-clamped), shared route sources, next-stop emphasis + terminal fade, fleet side rail (next stop · ETA · stops-left · freshness).
-- Later: orders/deliveries model, auto-assigned dropoffs + status, geofenced "arrived" events, route replay. ← next
+- [x] **M9 — stop lifecycle:** server-side geofence auto-arrive in POST /api/location (two-radius hysteresis, next-stop-by-seq) + driver SELECT RLS (0005) + PATCH /api/stops/:id (dispatcher reassign/reorder/cancel/status); fake-gps drives only; adapter-2 stub.
+- Later: orders/deliveries model, auto-assigned dropoffs + status, route replay. ← next
 
 ## Workflow
 
