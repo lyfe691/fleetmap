@@ -1,6 +1,6 @@
 import nearestPointOnLine from "@turf/nearest-point-on-line"
 import lineSlice from "@turf/line-slice"
-import type { RouteGeometry } from "@/lib/use-route"
+import type { RouteGeometry } from "@/lib/route-types"
 
 // A truck can't move more than this far along its line between updates. A larger
 // forward jump means GPS jitter or an out-and-back self-intersection snapping to

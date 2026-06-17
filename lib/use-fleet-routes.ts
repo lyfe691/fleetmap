@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { getBrowserClient } from "@/lib/supabase/browser"
-import type { Route } from "@/lib/use-route"
+import type { Route } from "@/lib/route-types"
 
 export type RouteJob = { vehicleId: string; stopsKey: string }
 
