@@ -30,6 +30,7 @@ scripts/seed-stops.ts                dev-only ingestion adapter #1
 docker-compose.yml          OSRM routing container (Switzerland extract)
 lib/supabase/server.ts      request-scoped Supabase client (runs as the user)
 lib/supabase/browser.ts     browser client (publishable key) — dashboard read/Realtime
+lib/use-live-stops.ts       dashboard stops live channel (snapshot + subscribe)
 app/dashboard/page.tsx      TV dashboard (map + live markers)
 app/driver/page.tsx         driver PWA (login + GPS streaming + offline buffer)
 lib/supabase/driver.ts      driver client (persistent session)
@@ -96,6 +97,7 @@ Env: `.env.example` — `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLIS
 - [x] **M4 — routing:** OSRM container (`docker-compose.yml`) + `GET /api/route` proxy + click-to-route + ETA.
 - [x] **M5 — polish:** smooth marker interpolation, offline/stale flags, TV kiosk mode (fullscreen + session refresh), column-scoped read (`vehicles_public`).
 - [x] **M6 — order/stop model + ingestion seam:** orders/stops schema + RLS + Realtime, dispatcher identity, POST /api/ingest/stops, seed-stops adapter.
+- [x] **M7 — live routes on the TV:** vehicleId-only `/api/route` (multi-waypoint + legs/stopOffsets), `useLiveStops` channel, per-vehicle route lines from real stop data; click-to-route removed.
 - Later: orders/deliveries model, auto-assigned dropoffs + status, geofenced "arrived" events, route replay. ← next
 
 ## Workflow
