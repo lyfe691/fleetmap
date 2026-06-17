@@ -37,9 +37,12 @@ async function mintSession(displayCode: string) {
 export function useLiveVehicles(displayCode: string) {
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
   const [error, setError] = useState<string | null>(null)
+  const [ready, setReady] = useState(false)
 
   useEffect(() => {
     if (!displayCode) return
+
+    setReady(false)
 
     const supabase = getBrowserClient()
     const byId = new Map<string, Vehicle>()
@@ -87,6 +90,7 @@ export function useLiveVehicles(displayCode: string) {
         await supabase.auth.setSession({ access_token, refresh_token })
         await supabase.realtime.setAuth(access_token)
         if (cancelled) return
+        setReady(true)
 
         channel = supabase
           .channel("vehicles-live")
@@ -124,5 +128,5 @@ export function useLiveVehicles(displayCode: string) {
     }
   }, [displayCode])
 
-  return { vehicles, error }
+  return { vehicles, error, ready }
 }
