@@ -37,7 +37,7 @@ app/dashboard/page.tsx      TV dashboard (map + live markers)
 app/driver/page.tsx         driver PWA (login + GPS streaming + offline buffer)
 lib/supabase/driver.ts      driver client (persistent session)
 supabase/migrations/        SQL migrations
-scripts/fake-gps.ts         dev-only fake GPS poster
+scripts/fake-gps.ts         dev-only fake GPS poster; marks each stop `completed` as the truck reaches it, simulating the geofenced "arrived" events that the "Later" milestone will emit for real
 docs/specs/live-tracking-spec.md  full spec
 ```
 

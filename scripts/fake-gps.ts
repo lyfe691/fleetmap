@@ -36,6 +36,7 @@ const TICK_MS = 5000 // matches the dashboard marker glide window
 const SPEED_MPS = Number(process.env.FAKE_GPS_SPEED ?? "12")
 
 type Pt = [number, number] // lng, lat (OSRM/GeoJSON order)
+type Stop = { id: string; lng: number; lat: number }
 
 async function ensureDriverAndVehicle(admin: SupabaseClient): Promise<string> {
   const { data: created, error: createError } =
@@ -92,35 +93,54 @@ async function ensureDriverAndVehicle(admin: SupabaseClient): Promise<string> {
 async function getActiveStops(
   admin: SupabaseClient,
   vehicleId: string
-): Promise<Pt[]> {
+): Promise<Stop[]> {
   const { data, error } = await admin
     .from("stops")
-    .select("lng, lat, seq, status")
+    .select("id, lng, lat, seq, status")
     .eq("vehicle_id", vehicleId)
     .in("status", ["planned", "arrived"])
     .order("seq", { ascending: true })
   if (error) throw error
-  return ((data ?? []) as { lng: number; lat: number }[]).map((s) => [
-    s.lng,
-    s.lat,
-  ])
+  return ((data ?? []) as { id: string; lng: number; lat: number }[]).map(
+    (s) => ({ id: s.id, lng: s.lng, lat: s.lat })
+  )
 }
 
-async function fetchRouteGeometry(waypoints: Pt[]): Promise<Pt[] | null> {
-  const coords = waypoints.map(([lng, lat]) => `${lng},${lat}`).join(";")
+type DrivenRoute = { coords: Pt[]; stopOffsets: number[] } // offsets[i] = metres to stops[i]
+
+async function fetchDrivenRoute(stops: Stop[]): Promise<DrivenRoute | null> {
+  const coords = stops.map((s) => `${s.lng},${s.lat}`).join(";")
   const u = `${OSRM_URL}/route/v1/driving/${coords}?overview=full&geometries=geojson`
   try {
     const res = await fetch(u)
     if (!res.ok) return null
     const json = (await res.json()) as {
       code: string
-      routes?: { geometry: { coordinates: Pt[] } }[]
+      routes?: {
+        geometry: { coordinates: Pt[] }
+        legs?: { distance: number }[]
+      }[]
     }
-    if (json.code !== "Ok" || !json.routes?.[0]) return null
-    return json.routes[0].geometry.coordinates
+    const route = json.routes?.[0]
+    if (json.code !== "Ok" || !route) return null
+    // legs[j] spans stops[j] -> stops[j+1]; cumulative distance = offset of each stop.
+    const offsets = [0]
+    for (const leg of route.legs ?? []) {
+      offsets.push(offsets[offsets.length - 1] + leg.distance)
+    }
+    return { coords: route.geometry.coordinates, stopOffsets: offsets }
   } catch {
     return null
   }
+}
+
+async function completeStop(admin: SupabaseClient, stopId: string): Promise<void> {
+  const { error } = await admin
+    .from("stops")
+    .update({ status: "completed" })
+    .eq("id", stopId)
+  if (error) console.warn(`could not complete stop ${stopId}: ${error.message}`)
+  else console.log(`stop ${stopId} -> completed`)
 }
 
 function toRad(d: number): number {
@@ -246,10 +266,8 @@ async function main(): Promise<void> {
     }
   }
 
-  const geometry =
-    stops.length > 0 ? await fetchRouteGeometry([stops[0], ...stops]) : null
-
-  if (!geometry || geometry.length < 2) {
+  const route = stops.length > 0 ? await fetchDrivenRoute(stops) : null
+  if (!route || route.coords.length < 2) {
     const why =
       stops.length === 0
         ? "no active stops (run `pnpm seed-stops` first)"
@@ -259,22 +277,31 @@ async function main(): Promise<void> {
     return
   }
 
-  const path = buildPath(geometry)
+  const path = buildPath(route.coords)
   const step = SPEED_MPS * (TICK_MS / 1000)
   console.log(
     `driving ${(path.total / 1000).toFixed(1)} km through ${stops.length} ` +
-      `stops at ${SPEED_MPS} m/s; reload the dashboard now to watch the trail grey. ` +
+      `stops at ${SPEED_MPS} m/s; reload the dashboard to watch the trail grey. ` +
       `(Ctrl+C to stop)`
   )
+
+  // The truck starts on stops[0]; report it arrived so the route excludes it.
+  let nextStop = 1
+  await completeStop(admin, stops[0].id)
 
   let dist = 0
   for (;;) {
     const { pos, heading } = pointAt(path, dist)
     const atEnd = dist >= path.total
     await post(pos[1], pos[0], heading, atEnd ? 0 : SPEED_MPS)
+
+    // Mark every stop the truck has now reached as completed (advances the route).
+    while (nextStop < stops.length && dist >= route.stopOffsets[nextStop]) {
+      await completeStop(admin, stops[nextStop].id)
+      nextStop++
+    }
+
     if (atEnd) {
-      // Arrived at the final stop: hold here so the van stays active (not stale)
-      // and the route shows fully driven. Restart the script to replay.
       await sleep(TICK_MS)
       continue
     }
