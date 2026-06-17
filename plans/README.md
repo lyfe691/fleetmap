@@ -14,8 +14,8 @@ These are advisor handoff plans — distinct from the milestone design docs in
 |------|-------|----------|--------|------------|--------|
 | 001 | fake-gps advances stop lifecycle so routes shrink, grey, and follow | P1 | M | — | DONE (b12aa4b on main; tsc+lint green, runtime acceptance unverified) |
 | 002 | Remove the dead `useRoute` hook; extract shared route types | P2 | S | — | DONE (7587001 on main; tsc clean, scope clean) |
-| 003 | Simplify `useFleetRoutes` — drop the serialize-then-reparse round-trip | P3 | S | 002 | IN PROGRESS |
-| 004 | Stop rebuilding the stop-marker list on every `useNow` tick | P3 | S | — | IN PROGRESS |
+| 003 | Simplify `useFleetRoutes` — drop the serialize-then-reparse round-trip | P3 | S | 002 | DONE (6bbfcad on main; tsc clean — see lint note below) |
+| 004 | Stop rebuilding the stop-marker list on every `useNow` tick | P3 | S | — | DONE (0554540 on main; tsc clean, eslint 9→9, profiler unverified) |
 | 005 | Harden `/api/ingest/stops` validation (malformed input → 400, not 500) | P2 | M | — | DONE (49050ee on main; tsc clean, 400-path unverified w/o live stack) |
 | 006 | Replace the boilerplate README with a real project README | P3 | S | — | DONE (1924f0c on main; verified vs package.json/.env.example) |
 | 007 | Guard the wake-lock re-acquire so a held sentinel can't leak | P3 | S | — | DONE (6b1f038 on main; tsc clean, browser check unverified) |
@@ -30,6 +30,17 @@ Status values: TODO | IN PROGRESS | DONE | BLOCKED (one-line reason) | REJECTED 
 - All other plans touch disjoint files and can run in any order / in parallel.
 - **001 is the only user-visible fix** (the reported "route doesn't grey / doesn't
   follow" bugs). The rest are quality/DX/robustness cleanups.
+
+## Follow-up observed during execution
+
+- **Standing `react-hooks/refs` lint posture.** `pnpm lint` was already red
+  repo-wide before this batch: the rule "Cannot access refs during render" fires
+  on the `someRef.current = value` mirror pattern (e.g. `fleet-map.tsx` `posRef`),
+  which is unsuppressed throughout. Plan 003 adds one more instance (`jobsRef`),
+  consistent with that established pattern. A future cleanup should decide repo-wide:
+  either suppress the rule deliberately or refactor the mirror pattern. Not a
+  blocker — `tsc --noEmit` is clean (only the pre-existing `components/ui/calendar.tsx`
+  shadcn error remains across the whole batch).
 
 ## Findings considered and rejected
 
