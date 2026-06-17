@@ -35,18 +35,14 @@ export function useFleetRoutes(jobs: RouteJob[]): Map<string, Route> {
     .sort()
     .join(",")
 
+  // Read the live jobs inside the effect without making it a dependency:
+  // jobsKey already captures every change that should trigger a re-run.
+  const jobsRef = useRef(jobs)
+  jobsRef.current = jobs
+
   useEffect(() => {
     let cancelled = false
-
-    const parsed: RouteJob[] = jobsKey
-      ? jobsKey.split(",").map((entry) => {
-          const at = entry.indexOf("@")
-          return {
-            vehicleId: entry.slice(0, at),
-            stopsKey: entry.slice(at + 1),
-          }
-        })
-      : []
+    const current = jobsRef.current
 
     const run = async () => {
       const { data } = await getBrowserClient().auth.getSession()
@@ -54,13 +50,13 @@ export function useFleetRoutes(jobs: RouteJob[]): Map<string, Route> {
       if (!token) return
 
       const cache = cacheRef.current
-      const present = new Set(parsed.map((j) => j.vehicleId))
+      const present = new Set(current.map((j) => j.vehicleId))
       for (const id of [...cache.keys()]) {
         if (!present.has(id)) cache.delete(id)
       }
 
       await Promise.all(
-        parsed.map(async (j) => {
+        current.map(async (j) => {
           const cached = cache.get(j.vehicleId)
           if (cached && cached.stopsKey === j.stopsKey) return
           const route = await fetchRoute(j.vehicleId, token)
