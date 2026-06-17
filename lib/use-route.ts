@@ -9,29 +9,50 @@ export type RouteGeometry = {
   coordinates: [number, number][]
 }
 
-export type Route = {
-  geometry: RouteGeometry
-  duration: number // seconds (ETA)
+export type RouteLeg = {
+  toStopId: string
+  duration: number // seconds
   distance: number // metres
 }
 
+export type StopOffset = {
+  stopId: string
+  seq: number
+  lineFraction: number // 0..1 along the full geometry; M8's grey boundary
+}
+
+export type RouteStop = {
+  id: string
+  seq: number
+  stop_type: "pickup" | "dropoff"
+  lat: number
+  lng: number
+  status: string
+}
+
+export type Route = {
+  geometry: RouteGeometry
+  totalDuration: number // seconds (ETA to the last stop)
+  totalDistance: number // metres
+  legs: RouteLeg[]
+  stopOffsets: StopOffset[]
+  stops: RouteStop[]
+}
+
 /**
- * Fetches a driving route from a vehicle's current position (resolved
- * server-side) to `dest` via the /api/route OSRM proxy. Re-runs when the
- * vehicle moves — pass `positionKey` derived from its latest lat/lng so the
- * line and ETA track the truck. No-ops (and clears) when nothing is selected.
+ * Fetches a vehicle's driving route — current position through its non-terminal
+ * stops, resolved server-side — via /api/route. Re-fetches only when the stop
+ * set changes (`stopsKey`), NOT on GPS pings: the line is regenerated on stop
+ * mutations; M8 slices it against the live position client-side. Clears (no
+ * error) when the vehicle is idle (no vehicleId/stopsKey, or the request 409s).
  */
-export function useRoute(
-  vehicleId: string | null,
-  dest: { lat: number; lng: number } | null,
-  positionKey: string | null
-) {
+export function useRoute(vehicleId: string | null, stopsKey: string | null) {
   const [route, setRoute] = useState<Route | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    if (!vehicleId || !dest) {
+    if (!vehicleId || !stopsKey) {
       setRoute(null)
       setError(null)
       return
@@ -47,11 +68,18 @@ export function useRoute(
         if (!token) throw new Error("no dashboard session")
 
         const res = await fetch(
-          `/api/route?vehicleId=${encodeURIComponent(vehicleId)}` +
-            `&destLat=${dest.lat}&destLng=${dest.lng}`,
+          `/api/route?vehicleId=${encodeURIComponent(vehicleId)}`,
           { headers: { Authorization: `Bearer ${token}` } }
         )
         if (!res.ok) {
+          // 409 = no position yet / no active stops: idle, not an error.
+          if (res.status === 409) {
+            if (!cancelled) {
+              setRoute(null)
+              setError(null)
+            }
+            return
+          }
           const body = (await res.json().catch(() => ({}))) as {
             error?: string
           }
@@ -76,7 +104,7 @@ export function useRoute(
     return () => {
       cancelled = true
     }
-  }, [vehicleId, dest?.lat, dest?.lng, positionKey])
+  }, [vehicleId, stopsKey])
 
   return { route, error, loading }
 }
