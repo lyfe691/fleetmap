@@ -24,6 +24,9 @@ Keep the API thin: ingest + OSRM proxy only. It stays **stateless** — the live
 ```
 app/api/location/route.ts   ingest endpoint
 app/api/route/route.ts      OSRM proxy — route line + ETA (GET /api/route)
+app/api/dispatcher-session/route.ts  mint dispatcher session (shared secret)
+app/api/ingest/stops/route.ts        ingestion seam — orders/stops (POST)
+scripts/seed-stops.ts                dev-only ingestion adapter #1
 docker-compose.yml          OSRM routing container (Switzerland extract)
 lib/supabase/server.ts      request-scoped Supabase client (runs as the user)
 lib/supabase/browser.ts     browser client (publishable key) — dashboard read/Realtime
@@ -76,6 +79,8 @@ Then from the project root: `pnpm add @supabase/supabase-js`, `pnpm add -D tsx`,
 ```
 pnpm dev                          # Next dev server
 pnpm fake-gps                     # dev-only: moving fake feed (dev server must be running)
+pnpm provision-dispatcher         # create the dispatcher identity (role=dispatcher)
+pnpm seed-stops                   # dev-only: seed a day of orders/stops (dev server running)
 supabase db push                  # apply migrations
 pnpm exec tsc --noEmit            # typecheck
 docker compose up -d osrm         # routing engine (build the dataset first — see docker-compose.yml)
@@ -90,6 +95,7 @@ Env: `.env.example` — `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLIS
 - [x] **M3 — driver PWA:** auth + watchPosition + wake lock + POST loop + offline buffer.
 - [x] **M4 — routing:** OSRM container (`docker-compose.yml`) + `GET /api/route` proxy + click-to-route + ETA.
 - [x] **M5 — polish:** smooth marker interpolation, offline/stale flags, TV kiosk mode (fullscreen + session refresh), column-scoped read (`vehicles_public`).
+- [x] **M6 — order/stop model + ingestion seam:** orders/stops schema + RLS + Realtime, dispatcher identity, POST /api/ingest/stops, seed-stops adapter.
 - Later: orders/deliveries model, auto-assigned dropoffs + status, geofenced "arrived" events, route replay. ← next
 
 ## Workflow
