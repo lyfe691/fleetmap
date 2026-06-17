@@ -15,19 +15,23 @@ function isAuthError(error: { code?: string; message?: string }): boolean {
   return code.startsWith("PGRST3") || message.includes("jwt")
 }
 
-function parseCoord(
-  raw: string | null,
-  min: number,
-  max: number
-): number | null {
-  if (raw === null) return null
-  const n = Number(raw)
-  if (!Number.isFinite(n) || n < min || n > max) return null
-  return n
+type StopRow = {
+  id: string
+  seq: number
+  stop_type: "pickup" | "dropoff"
+  lat: number
+  lng: number
+  status: string
 }
 
-// OSRM's route response, narrowed to what we proxy.
-type OsrmRoute = { geometry: unknown; duration: number; distance: number }
+// OSRM's route response, narrowed to what we proxy. One leg per waypoint pair.
+type OsrmLeg = { duration: number; distance: number }
+type OsrmRoute = {
+  geometry: unknown
+  duration: number
+  distance: number
+  legs?: OsrmLeg[]
+}
 type OsrmResponse = { code: string; routes?: OsrmRoute[] }
 
 export async function GET(request: NextRequest) {
@@ -40,30 +44,16 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "missing bearer token" }, { status: 401 })
   }
 
-  // 2. Validate query params.
-  const params = request.nextUrl.searchParams
-  const vehicleId = params.get("vehicleId")
+  const vehicleId = request.nextUrl.searchParams.get("vehicleId")
   if (!vehicleId) {
     return NextResponse.json({ error: "vehicleId is required" }, { status: 400 })
   }
-  const destLat = parseCoord(params.get("destLat"), -90, 90)
-  if (destLat === null) {
-    return NextResponse.json(
-      { error: "destLat must be a number in [-90, 90]" },
-      { status: 400 }
-    )
-  }
-  const destLng = parseCoord(params.get("destLng"), -180, 180)
-  if (destLng === null) {
-    return NextResponse.json(
-      { error: "destLng must be a number in [-180, 180]" },
-      { status: 400 }
-    )
-  }
 
-  // 3. Look up the vehicle's current position. Runs as the caller — the
-  // dashboard role's claim-scoped select policy lets it read any vehicle.
+  // Runs as the caller — the dashboard role's claim-scoped select policies let
+  // it read any vehicle and its stops.
   const supabase = createUserClient(token)
+
+  // 2. The vehicle's current position.
   const { data: vehicle, error: lookupError } = await supabase
     .from("vehicles")
     .select("last_lat, last_lng")
@@ -86,8 +76,36 @@ export async function GET(request: NextRequest) {
     )
   }
 
-  // 4. Proxy OSRM. Coords are lng,lat (OSRM's order); full geojson geometry.
-  const coords = `${vehicle.last_lng},${vehicle.last_lat};${destLng},${destLat}`
+  // 3. Non-terminal stops in visit order. seq is treated as the true visit
+  // order (OSRM does not reorder waypoints).
+  const { data: stopRows, error: stopsError } = await supabase
+    .from("stops")
+    .select("id, seq, stop_type, lat, lng, status")
+    .eq("vehicle_id", vehicleId)
+    .in("status", ["planned", "arrived"])
+    .order("seq", { ascending: true })
+  if (stopsError) {
+    if (isAuthError(stopsError)) {
+      return NextResponse.json({ error: "invalid token" }, { status: 401 })
+    }
+    console.error("[/api/route] stops lookup failed:", stopsError)
+    return NextResponse.json({ error: "db error" }, { status: 500 })
+  }
+  const stops = (stopRows ?? []) as StopRow[]
+  if (stops.length === 0) {
+    return NextResponse.json(
+      { error: "vehicle has no active stops" },
+      { status: 409 }
+    )
+  }
+
+  // 4. Proxy OSRM. Waypoints: live position, then each stop in seq order.
+  // Coords are lng,lat (OSRM's order); full geojson geometry.
+  const waypoints: [number, number][] = [
+    [vehicle.last_lng, vehicle.last_lat],
+    ...stops.map((s) => [s.lng, s.lat] as [number, number]),
+  ]
+  const coords = waypoints.map(([lng, lat]) => `${lng},${lat}`).join(";")
   const osrmUrl = `${OSRM_URL}/route/v1/driving/${coords}?overview=full&geometries=geojson`
 
   let osrm: OsrmResponse
@@ -109,10 +127,40 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: `no route (${osrm.code})` }, { status: 404 })
   }
 
-  // duration = ETA seconds, distance = metres.
+  // 5. One leg per waypoint pair => leg j arrives at stops[j].
+  const osrmLegs = best.legs ?? []
+  const legs = stops.map((s, j) => ({
+    toStopId: s.id,
+    duration: osrmLegs[j]?.duration ?? 0,
+    distance: osrmLegs[j]?.distance ?? 0,
+  }))
+
+  // 6. Each stop's fractional offset along the full line = cumulative leg
+  // distance / total distance. M8's grey boundary clamps to these.
+  const total = best.distance || 1
+  let cumulative = 0
+  const stopOffsets = stops.map((s, j) => {
+    cumulative += osrmLegs[j]?.distance ?? 0
+    return {
+      stopId: s.id,
+      seq: s.seq,
+      lineFraction: Math.min(1, cumulative / total),
+    }
+  })
+
   return NextResponse.json({
     geometry: best.geometry,
-    duration: best.duration,
-    distance: best.distance,
+    totalDuration: best.duration,
+    totalDistance: best.distance,
+    legs,
+    stopOffsets,
+    stops: stops.map((s) => ({
+      id: s.id,
+      seq: s.seq,
+      stop_type: s.stop_type,
+      lat: s.lat,
+      lng: s.lng,
+      status: s.status,
+    })),
   })
 }
