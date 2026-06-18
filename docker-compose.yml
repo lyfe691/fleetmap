@@ -12,7 +12,7 @@
 
 services:
   osrm:
-    image: osrm/osrm-backend
+    image: ghcr.io/project-osrm/osrm-backend:latest
     # MLD matches the partition + customize build above.
     command: osrm-routed --algorithm mld /data/switzerland-latest.osrm
     volumes:
@@ -20,3 +20,4 @@ services:
     ports:
       - "5000:5000"
     restart: unless-stopped
+
