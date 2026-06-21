@@ -35,11 +35,13 @@ lib/use-live-stops.ts       dashboard stops live channel (snapshot + subscribe)
 lib/use-fleet-routes.ts     per-vehicle route cache (fetch on stop-set change)
 lib/route-slice.ts          traveled/remaining split (turf, forward-clamped)
 lib/geofence.ts             server-side geofence auto-arrive (POST /api/location)
+lib/use-operational-areas.ts  operational-area overlays — snapshot fetch + circle geometry
 app/dashboard/page.tsx      TV dashboard (map + live markers)
 app/driver/page.tsx         driver PWA (login + GPS streaming + offline buffer)
 lib/supabase/driver.ts      driver client (persistent session)
 supabase/migrations/        SQL migrations
-scripts/fake-gps.ts         dev-only fake GPS poster (drives the seeded route)
+scripts/cities.ts           dev-only multi-city config — areas + per-city demo orders
+scripts/fake-gps.ts         dev-only fake GPS poster (one van per city, drives each route)
 docs/specs/live-tracking-spec.md  full spec
 ```
 
@@ -56,15 +58,17 @@ Then from the project root: `pnpm add @supabase/supabase-js`, `pnpm add -D tsx`,
 
 ## Data model
 
-- `vehicles` — one row per tracked unit, holds the latest position (`last_lat/lng/heading/speed`, `last_seen_at`, `status`) and a nullable dispatcher-set `dest_lat/lng`. One vehicle per driver (`assigned_user_id`, unique).
+- `vehicles` — one row per tracked unit, holds the latest position (`last_lat/lng/heading/speed`, `last_seen_at`, `status`) and a nullable dispatcher-set `dest_lat/lng`. One vehicle per driver (`assigned_user_id`, unique). Nullable `area_id` ties it to an operational area (0006).
 - `vehicle_positions` — append-only history.
+- `operational_areas` — per-city service regions (`slug`, `name`, `center_lat/lng`, `radius_m`, `color`, optional `boundary` polygon). Static reference data the TV draws as soft overlays; `vehicles.area_id` and `stops.area_id` link into it (0006).
 
-`supabase/migrations/0001_init.sql` is the authority.
+`supabase/migrations/0001_init.sql` is the authority for the core; `0006_operational_areas.sql` adds the multi-city model.
 
 ## Conventions
 
 - **Auth + RLS is the security boundary.** App code accesses the DB as the authenticated user via `createUserClient(token)`, so RLS enforces ownership — the `.eq` filters are for clarity, not security. Every new table gets RLS enabled + explicit policies.
 - **Dashboard read path:** the TV reads via a dedicated `dashboard` Auth user carrying an `app_metadata.role='dashboard'` claim + a claim-scoped `select` policy on `vehicles`; its session is minted server-side (`POST /api/dashboard-session`) behind a display code — never anon read-all. The snapshot reads the column-scoped `vehicles_public` view (0003); the browser client auto-refreshes the session and re-arms Realtime auth on refresh (M5). Caveat: live updates still ride `postgres_changes` on `vehicles`, which requires the table `select` policy — so column-scoping bounds the snapshot, not the Realtime payload.
+- **Operational areas are static reference data.** The TV reads them via the same `dashboard` claim (a `select` policy on `operational_areas`, 0006); the dispatcher manages them. No Realtime publication — boundaries don't move, so `useOperationalAreas` snapshots once on load. Areas are rendered low-opacity beneath routes/markers; `area_id` rides the `vehicles_public`/`stops_public` views for city grouping on the TV.
 - **The secret key (service-role-equivalent) is dev-only** (`scripts/`). Never use it in a request handler or ship it in a deployed image.
 - TypeScript throughout. Route handlers validate input and return `NextResponse.json` with explicit status codes (400 bad input, 401 no/invalid token, 409 no vehicle, 500 db error).
 - SQL: lowercase keywords, snake_case columns, `create ... if not exists`, policies named in plain English.
@@ -104,6 +108,7 @@ Env: `.env.example` — `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLIS
 - [x] **M7 — live routes on the TV:** vehicleId-only `/api/route` (multi-waypoint + legs/stopOffsets), `useLiveStops` channel, per-vehicle route lines from real stop data; click-to-route removed.
 - [x] **M8 — greying + side rail + ETA:** client-side traveled/remaining split (turf, forward-clamped), shared route sources, next-stop emphasis + terminal fade, fleet side rail (next stop · ETA · stops-left · freshness).
 - [x] **M9 — stop lifecycle:** server-side geofence auto-arrive in POST /api/location (two-radius hysteresis, next-stop-by-seq) + driver SELECT RLS (0005) + PATCH /api/stops/:id (dispatcher reassign/reorder/cancel/status); fake-gps drives only; adapter-2 stub.
+- [x] **M10 — multi-city + map UI:** `operational_areas` model + `area_id` on vehicles/stops + ingest seam carries `area_id` (0006); soft low-opacity per-city overlays (Zürich/Bern/Basel) + legend + fit-to-fleet viewport + city-grouped side rail; top-down car pointer; cities config drives multi-van fake-gps + multi-city seed-stops.
 - Later: orders/deliveries model, auto-assigned dropoffs + status, route replay. ← next
 
 ## Workflow

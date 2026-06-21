@@ -1,15 +1,19 @@
 /**
- * Dev-only ingestion adapter #1: seed a hand-written day of stops.
+ * Dev-only ingestion adapter #1: seed a hand-written day of stops per city.
  *
- * Run with:  pnpm seed-stops   (the Next dev server must be running)
+ * Run with:  pnpm seed-stops   (the Next dev server must be running, and
+ *                               `pnpm fake-gps` once first to provision the vans)
  * Flow:
- *   1. Secret key (dev-only): resolve a vehicle to assign the stops to.
+ *   1. Secret key (dev-only): upsert the operational_areas and resolve each
+ *      city's van (by its driver's email) to assign that city's stops to.
  *   2. Mint a dispatcher session via POST /api/dispatcher-session (shared secret).
- *   3. POST orders+stops to /api/ingest/stops, exercising the real authed seam.
+ *   3. POST every city's orders+stops to /api/ingest/stops, exercising the real
+ *      authed seam. Each stop carries its vehicle_id + area_id.
  *
- * The secret key is used ONLY to resolve a vehicle id and never leaves scripts/.
+ * The secret key is used ONLY for setup/resolution and never leaves scripts/.
  */
-import { createClient } from "@supabase/supabase-js"
+import { createClient, type SupabaseClient } from "@supabase/supabase-js"
+import { CITIES, upsertAreas, type City } from "./cities"
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL
 const secretKey = process.env.SUPABASE_SECRET_KEY
@@ -24,23 +28,28 @@ if (!url || !secretKey || !ingestSecret) {
 
 const API = process.env.SEED_API_URL ?? "http://localhost:3000"
 
-async function resolveVehicleId(): Promise<string> {
-  const admin = createClient(url!, secretKey!, {
-    auth: { persistSession: false },
-  })
+// email -> user id, for resolving each city's van by its driver.
+async function emailToUserId(admin: SupabaseClient): Promise<Map<string, string>> {
+  const { data, error } = await admin.auth.admin.listUsers({ perPage: 1000 })
+  if (error) throw error
+  return new Map(
+    data.users
+      .filter((u): u is typeof u & { email: string } => Boolean(u.email))
+      .map((u) => [u.email, u.id])
+  )
+}
+
+async function resolveVehicleId(
+  admin: SupabaseClient,
+  userId: string
+): Promise<string | null> {
   const { data, error } = await admin
     .from("vehicles")
-    .select("id, label")
-    .order("created_at", { ascending: true })
-    .limit(1)
+    .select("id")
+    .eq("assigned_user_id", userId)
+    .maybeSingle()
   if (error) throw error
-  const id = data?.[0]?.id
-  if (!id) {
-    throw new Error(
-      "no vehicles found — run `pnpm fake-gps` once to seed a vehicle first."
-    )
-  }
-  return id
+  return data?.id ?? null
 }
 
 async function mintDispatcherToken(): Promise<string> {
@@ -55,46 +64,73 @@ async function mintDispatcherToken(): Promise<string> {
   return access_token
 }
 
-async function main(): Promise<void> {
-  const vehicleId = await resolveVehicleId()
-  const token = await mintDispatcherToken()
+// Build one city's orders payload, threading vehicle_id + area_id and assigning
+// per-van sequence numbers (stops_vehicle_seq_unique is scoped per vehicle).
+function buildOrders(city: City, vehicleId: string, areaId: string) {
+  let seq = 0
+  return city.orders.map((order) => ({
+    external_ref: order.externalRef,
+    source: "manual",
+    customer_name: order.customerName,
+    stops: order.stops.map((s) => ({
+      stop_type: s.stopType,
+      vehicle_id: vehicleId,
+      area_id: areaId,
+      seq: ++seq,
+      lat: s.lat,
+      lng: s.lng,
+      address: s.address,
+    })),
+  }))
+}
 
-  // A small Zürich-area day: two laundry orders, each a pickup + a return.
-  const payload = {
-    orders: [
-      {
-        external_ref: "SEED-001",
-        source: "manual",
-        customer_name: "Müller",
-        stops: [
-          { stop_type: "pickup", vehicle_id: vehicleId, seq: 1, lat: 47.3769, lng: 8.5417, address: "Bahnhofstrasse 1" },
-          { stop_type: "dropoff", vehicle_id: vehicleId, seq: 2, lat: 47.3886, lng: 8.5446, address: "Bahnhofstrasse 1" },
-        ],
-      },
-      {
-        external_ref: "SEED-002",
-        source: "manual",
-        customer_name: "Weber",
-        stops: [
-          { stop_type: "pickup", vehicle_id: vehicleId, seq: 3, lat: 47.3654, lng: 8.5251, address: "Langstrasse 20" },
-          { stop_type: "dropoff", vehicle_id: vehicleId, seq: 4, lat: 47.3601, lng: 8.5302, address: "Langstrasse 20" },
-        ],
-      },
-    ],
+async function main(): Promise<void> {
+  const admin = createClient(url!, secretKey!, {
+    auth: { persistSession: false },
+  })
+
+  const areas = await upsertAreas(admin)
+  const userIds = await emailToUserId(admin)
+
+  const orders: ReturnType<typeof buildOrders> = []
+  let cityCount = 0
+  for (const city of CITIES) {
+    const areaId = areas.get(city.slug)
+    if (!areaId) throw new Error(`no area seeded for ${city.slug}`)
+
+    const userId = userIds.get(city.driver.email)
+    const vehicleId = userId ? await resolveVehicleId(admin, userId) : null
+    if (!vehicleId) {
+      console.warn(
+        `skipping ${city.name}: no van provisioned — run \`pnpm fake-gps\` first.`
+      )
+      continue
+    }
+    orders.push(...buildOrders(city, vehicleId, areaId))
+    cityCount++
   }
 
+  if (orders.length === 0) {
+    throw new Error("no vans provisioned for any city — run `pnpm fake-gps` first.")
+  }
+
+  const token = await mintDispatcherToken()
   const res = await fetch(`${API}/api/ingest/stops`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify(payload),
+    body: JSON.stringify({ orders }),
   })
   if (!res.ok) {
     throw new Error(`ingest failed (${res.status}): ${await res.text()}`)
   }
-  console.log(`seeded 2 orders / 4 stops for vehicle ${vehicleId}`)
+
+  const stopCount = orders.reduce((n, o) => n + o.stops.length, 0)
+  console.log(
+    `seeded ${orders.length} orders / ${stopCount} stops across ${cityCount} cities`
+  )
 }
 
 main().catch((err) => {

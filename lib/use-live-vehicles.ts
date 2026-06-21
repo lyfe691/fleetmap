@@ -13,10 +13,11 @@ export type Vehicle = {
   last_heading: number | null
   last_speed: number | null
   last_seen_at: string | null
+  area_id: string | null
 }
 
 const COLUMNS =
-  "id, label, status, last_lat, last_lng, last_heading, last_speed, last_seen_at"
+  "id, label, status, last_lat, last_lng, last_heading, last_speed, last_seen_at, area_id"
 
 async function mintSession(displayCode: string) {
   const res = await fetch("/api/dashboard-session", {

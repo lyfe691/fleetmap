@@ -1,20 +1,22 @@
 /**
- * Dev-only fake GPS poster — drives the seeded route.
+ * Dev-only fake GPS poster — drives one van per city along its seeded route.
  *
  * Run with:  pnpm fake-gps   (the Next dev server + OSRM must be running)
  * Flow:
- *   1. Secret key (dev-only): idempotently create a test driver + a vehicle
- *      assigned to them — the one thing a driver can't do under RLS.
- *   2. Read that vehicle's active stops and ask OSRM for the road route through
- *      them — the same geometry the dashboard draws.
- *   3. Sign in as the driver and POST positions that walk along that route to
- *      /api/location every tick, so the dashboard greys the trail behind the van.
+ *   1. Secret key (dev-only): upsert the operational_areas, then idempotently
+ *      create one test driver + one vehicle per city (assigned to the area) —
+ *      the one thing a driver can't do under RLS.
+ *   2. For each van: read its active stops and ask OSRM for the road route
+ *      through them — the same geometry the dashboard draws.
+ *   3. Sign in as each driver and POST positions that walk along that route to
+ *      /api/location every tick, so the dashboard greys each trail behind a van.
  *
- * With no active stops (run `pnpm seed-stops` first) or OSRM unreachable, it
- * falls back to the original random wander. The secret key is used ONLY for
- * setup + reading stops and never leaves scripts/.
+ * Vans with no active stops (run `pnpm seed-stops` first) or OSRM unreachable
+ * fall back to a random wander near their city centre. The secret key is used
+ * ONLY for setup + reading stops and never leaves scripts/.
  */
 import { createClient, type SupabaseClient } from "@supabase/supabase-js"
+import { CITIES, upsertAreas, type City } from "./cities"
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL
 const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
@@ -30,18 +32,21 @@ if (!url || !publishableKey || !secretKey) {
 const API_URL =
   process.env.FAKE_GPS_API_URL ?? "http://localhost:3000/api/location"
 const OSRM_URL = process.env.OSRM_URL ?? "http://localhost:5000"
-const TEST_EMAIL = "driver1@example.com"
-const TEST_PASSWORD = "fake-gps-dev-123"
 const TICK_MS = 5000 // matches the dashboard marker glide window
 const SPEED_MPS = Number(process.env.FAKE_GPS_SPEED ?? "12")
 
 type Pt = [number, number] // lng, lat (OSRM/GeoJSON order)
 
-async function ensureDriverAndVehicle(admin: SupabaseClient): Promise<string> {
+async function ensureDriverAndVehicle(
+  admin: SupabaseClient,
+  city: City,
+  areaId: string
+): Promise<string> {
+  const { email, password, label } = city.driver
   const { data: created, error: createError } =
     await admin.auth.admin.createUser({
-      email: TEST_EMAIL,
-      password: TEST_PASSWORD,
+      email,
+      password,
       email_confirm: true,
     })
   if (
@@ -61,11 +66,13 @@ async function ensureDriverAndVehicle(admin: SupabaseClient): Promise<string> {
 
   let userId = created?.user?.id ?? null
   if (!userId) {
-    const { data: list, error: listError } = await admin.auth.admin.listUsers()
+    const { data: list, error: listError } = await admin.auth.admin.listUsers({
+      perPage: 1000,
+    })
     if (listError) throw listError
-    userId = list.users.find((u) => u.email === TEST_EMAIL)?.id ?? null
+    userId = list.users.find((u) => u.email === email)?.id ?? null
   }
-  if (!userId) throw new Error("could not resolve test driver user id")
+  if (!userId) throw new Error(`could not resolve test driver id for ${email}`)
 
   const { data: existing, error: selError } = await admin
     .from("vehicles")
@@ -75,17 +82,24 @@ async function ensureDriverAndVehicle(admin: SupabaseClient): Promise<string> {
   if (selError) throw selError
 
   if (existing) {
-    console.log(`vehicle already provisioned for ${TEST_EMAIL}`)
+    // Keep the area link current (areas may have been re-seeded).
+    await admin.from("vehicles").update({ area_id: areaId }).eq("id", existing.id)
+    console.log(`[${city.slug}] van already provisioned`)
     return existing.id as string
   }
 
   const { data: inserted, error: insError } = await admin
     .from("vehicles")
-    .insert({ label: "Fake Van 1", assigned_user_id: userId, status: "active" })
+    .insert({
+      label,
+      assigned_user_id: userId,
+      area_id: areaId,
+      status: "active",
+    })
     .select("id")
     .single()
   if (insError) throw insError
-  console.log(`seeded vehicle for ${TEST_EMAIL}`)
+  console.log(`[${city.slug}] seeded van "${label}"`)
   return inserted.id as string
 }
 
@@ -182,13 +196,13 @@ function pointAt(path: Path, dist: number): { pos: Pt; heading: number } {
   }
 }
 
-async function getDriverToken(): Promise<string> {
+async function getDriverToken(email: string, password: string): Promise<string> {
   const client = createClient(url!, publishableKey!, {
     auth: { persistSession: false },
   })
   const { data, error } = await client.auth.signInWithPassword({
-    email: TEST_EMAIL,
-    password: TEST_PASSWORD,
+    email,
+    password,
   })
   if (error) throw error
   const token = data.session?.access_token
@@ -200,21 +214,17 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
-async function main(): Promise<void> {
-  const admin = createClient(url!, secretKey!, {
-    auth: { persistSession: false },
-  })
-  const vehicleId = await ensureDriverAndVehicle(admin)
-  const stops = await getActiveStops(admin, vehicleId)
+type Poster = (
+  lat: number,
+  lng: number,
+  heading: number,
+  speed: number
+) => Promise<void>
 
-  let token = await getDriverToken()
-
-  const post = async (
-    lat: number,
-    lng: number,
-    heading: number,
-    speed: number
-  ): Promise<void> => {
+// A position poster for one driver, refreshing its own token on 401.
+function makePoster(city: City): Poster {
+  let token: string | null = null
+  return async (lat, lng, heading, speed) => {
     const body = JSON.stringify({
       lat,
       lng,
@@ -232,38 +242,47 @@ async function main(): Promise<void> {
         body,
       })
     try {
+      if (!token) token = await getDriverToken(city.driver.email, city.driver.password)
       let res = await send(token)
       if (res.status === 401) {
-        token = await getDriverToken()
+        token = await getDriverToken(city.driver.email, city.driver.password)
         res = await send(token)
       }
-      if (res.ok) {
-        console.log(`POST ${res.status}  ${lat.toFixed(5)}, ${lng.toFixed(5)}`)
-      } else {
-        console.warn(`POST ${res.status}: ${await res.text()}`)
+      if (!res.ok) {
+        console.warn(`[${city.slug}] POST ${res.status}: ${await res.text()}`)
       }
     } catch (err) {
-      console.warn("POST failed (is `pnpm dev` running?):", err)
+      console.warn(`[${city.slug}] POST failed (is \`pnpm dev\` running?):`, err)
     }
   }
+}
 
+// Drive one van forever: along its OSRM route if it has stops, else a random
+// wander near the city centre.
+async function driveCity(
+  admin: SupabaseClient,
+  city: City,
+  vehicleId: string
+): Promise<void> {
+  const post = makePoster(city)
+  const stops = await getActiveStops(admin, vehicleId)
   const coords = stops.length > 0 ? await fetchRouteCoords(stops) : null
+
   if (!coords || coords.length < 2) {
     const why =
       stops.length === 0
-        ? "no active stops (run `pnpm seed-stops` first)"
+        ? "no active stops (run `pnpm seed-stops`)"
         : "OSRM route unavailable (is `docker compose up -d osrm` running?)"
-    console.log(`${why} — falling back to random wander.`)
-    await randomWalk(post)
+    console.log(`[${city.slug}] ${why} — wandering near centre.`)
+    await randomWalk(city, post)
     return
   }
 
   const path = buildPath(coords)
   const step = SPEED_MPS * (TICK_MS / 1000)
   console.log(
-    `driving ${(path.total / 1000).toFixed(1)} km through ${stops.length} ` +
-      `stops at ${SPEED_MPS} m/s; the server geofence advances stops as the ` +
-      `truck passes them. (Ctrl+C to stop)`
+    `[${city.slug}] driving ${(path.total / 1000).toFixed(1)} km through ` +
+      `${stops.length} stops at ${SPEED_MPS} m/s.`
   )
 
   let dist = 0
@@ -271,22 +290,15 @@ async function main(): Promise<void> {
     const { pos, heading } = pointAt(path, dist)
     const atEnd = dist >= path.total
     await post(pos[1], pos[0], heading, atEnd ? 0 : SPEED_MPS)
-    if (atEnd) {
-      await sleep(TICK_MS)
-      continue
-    }
-    dist = Math.min(dist + step, path.total)
+    if (!atEnd) dist = Math.min(dist + step, path.total)
     await sleep(TICK_MS)
   }
 }
 
-// Original behavior: wander around Zürich. Used when there's no route to drive.
-async function randomWalk(
-  post: (lat: number, lng: number, heading: number, speed: number) => Promise<void>
-): Promise<void> {
-  let lat = 47.3769
-  let lng = 8.5417
-  console.log(`wandering near Zürich; POSTing every ${TICK_MS}ms (Ctrl+C to stop)`)
+// Wander near a city centre. Used when there's no route to drive.
+async function randomWalk(city: City, post: Poster): Promise<void> {
+  let lat = city.centerLat
+  let lng = city.centerLng
   for (;;) {
     const dLat = (Math.random() - 0.5) * 0.0015
     const dLng = (Math.random() - 0.5) * 0.0015
@@ -297,6 +309,27 @@ async function randomWalk(
     await post(lat, lng, heading, Math.round(Math.random() * 14))
     await sleep(TICK_MS)
   }
+}
+
+async function main(): Promise<void> {
+  const admin = createClient(url!, secretKey!, {
+    auth: { persistSession: false },
+  })
+
+  const areas = await upsertAreas(admin)
+  const vans: { city: City; vehicleId: string }[] = []
+  for (const city of CITIES) {
+    const areaId = areas.get(city.slug)
+    if (!areaId) throw new Error(`no area seeded for ${city.slug}`)
+    const vehicleId = await ensureDriverAndVehicle(admin, city, areaId)
+    vans.push({ city, vehicleId })
+  }
+
+  console.log(
+    `driving ${vans.length} vans (${vans.map((v) => v.city.slug).join(", ")}); ` +
+      `POSTing every ${TICK_MS}ms. (Ctrl+C to stop)`
+  )
+  await Promise.all(vans.map(({ city, vehicleId }) => driveCity(admin, city, vehicleId)))
 }
 
 main().catch((err) => {
