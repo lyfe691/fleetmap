@@ -78,6 +78,9 @@ function validate(body: unknown): { orders: unknown[] } | { error: string } {
       ) {
         return { error: "stop.vehicle_id must be a UUID" }
       }
+      if (st.area_id != null && st.area_id !== "" && !isUuid(st.area_id)) {
+        return { error: "stop.area_id must be a UUID" }
+      }
       if (
         st.eta_at != null &&
         st.eta_at !== "" &&
