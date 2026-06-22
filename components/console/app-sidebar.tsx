@@ -11,6 +11,7 @@ import {
 import { useTheme } from "next-themes"
 import { useNow } from "@/lib/use-now"
 import type { ConsoleView } from "@/lib/console/types"
+import { BubbleboxLogo } from "@/components/console/bubblebox-logo"
 
 type NavEntry = {
   id: ConsoleView
@@ -42,13 +43,7 @@ export function AppSidebar({
     <aside className="flex h-full w-[262px] shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
       <div className="flex items-center gap-3 px-4 py-5">
         <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-muted">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/bubblebox-van-icon-tight.png"
-            alt=""
-            draggable={false}
-            className="h-7 w-auto object-contain"
-          />
+          <BubbleboxLogo className="size-7 text-foreground" />
         </div>
         <div className="leading-none">
           <div className="font-heading text-[20px] font-semibold tracking-tight">
