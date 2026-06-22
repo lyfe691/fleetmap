@@ -1,9 +1,30 @@
 "use client"
 
-import { memo, useEffect, useRef, useState, type ComponentProps, type ReactNode } from "react"
+import {
+  memo,
+  useEffect,
+  useRef,
+  useState,
+  type ComponentProps,
+  type ReactNode,
+} from "react"
+import { Truck } from "lucide-react"
 import { Marker } from "react-map-gl/maplibre"
 
 export const STALE_AFTER_MS = 30_000
+
+export function isStale(lastSeenAt: string | null, now: number): boolean {
+  return (
+    lastSeenAt == null || now - new Date(lastSeenAt).getTime() > STALE_AFTER_MS
+  )
+}
+
+function reducedMotion(): boolean {
+  return (
+    typeof window !== "undefined" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  )
+}
 
 function useGlide(targetLng: number, targetLat: number, durationMs: number) {
   const [pos, setPos] = useState({ lng: targetLng, lat: targetLat })
@@ -13,7 +34,9 @@ function useGlide(targetLng: number, targetLat: number, durationMs: number) {
   useEffect(() => {
     const from = { ...posRef.current }
     const to = { lng: targetLng, lat: targetLat }
-    if (Math.abs(to.lng - from.lng) + Math.abs(to.lat - from.lat) < 1e-7) {
+    const settled =
+      Math.abs(to.lng - from.lng) + Math.abs(to.lat - from.lat) < 1e-7
+    if (settled || reducedMotion()) {
       setPos(to)
       return
     }
@@ -50,81 +73,53 @@ export function InterpolatedMarker({
 }) {
   const pos = useGlide(longitude, latitude, 5000)
   return (
-    <Marker
-      longitude={pos.lng}
-      latitude={pos.lat}
-      anchor={anchor}
-      onClick={onClick}
-    >
+    <Marker longitude={pos.lng} latitude={pos.lat} anchor={anchor} onClick={onClick}>
       {children}
     </Marker>
   )
 }
 
 export const VehicleMarker = memo(function VehicleMarker({
-  heading,
   label,
   stale,
+  selected,
+  fill,
+  surface,
 }: {
-  heading: number
   label: string | null
   stale: boolean
+  selected: boolean
+  fill: string
+  surface: string
 }) {
-  const fill = stale ? "#9ca3af" : "#2563eb"
+  const d = selected ? 54 : 44
   return (
     <div
-      className="flex cursor-pointer flex-col items-center gap-0.5"
-      style={{ opacity: stale ? 0.55 : 1 }}
+      className="flex cursor-pointer flex-col items-center gap-1.5"
+      style={{ opacity: stale ? 0.6 : 1 }}
     >
-      <svg
-        width="26"
-        height="26"
-        viewBox="0 0 24 24"
-        aria-hidden
-        style={{
-          transform: `rotate(${heading}deg)`,
-          filter: "drop-shadow(0 1px 1.5px rgba(0,0,0,0.35))",
-        }}
-      >
-        <rect
-          x="6"
-          y="3"
-          width="12"
-          height="18"
-          rx="3"
-          fill={fill}
-          stroke="#fff"
-          strokeWidth="1.3"
-        />
-        <path
-          d="M7.6 7.4 Q12 5.8 16.4 7.4 L15.4 9.6 Q12 8.7 8.6 9.6 Z"
-          fill="#fff"
-          opacity="0.9"
-        />
-        <rect x="8.4" y="15" width="7.2" height="3" rx="1" fill="#fff" opacity="0.45" />
-        <rect
-          x="4.7"
-          y="8.2"
-          width="1.6"
-          height="2.2"
-          rx="0.6"
-          fill={fill}
-          stroke="#fff"
-          strokeWidth="0.7"
-        />
-        <rect
-          x="17.7"
-          y="8.2"
-          width="1.6"
-          height="2.2"
-          rx="0.6"
-          fill={fill}
-          stroke="#fff"
-          strokeWidth="0.7"
-        />
-      </svg>
+      <div className="relative" style={{ width: d, height: d }}>
+        {selected ? (
+          <span
+            className="absolute inset-0 animate-ping rounded-full"
+            style={{ background: fill, opacity: 0.35 }}
+          />
+        ) : null}
+        <div
+          className="relative flex items-center justify-center rounded-full"
+          style={{
+            width: d,
+            height: d,
+            background: selected ? fill : surface,
+            border: `3px solid ${fill}`,
+            boxShadow: "0 1px 4px rgba(0,0,0,0.3)",
+          }}
+        >
+          <Truck size={selected ? 22 : 19} color={selected ? surface : fill} />
+        </div>
+      </div>
       {label ? (
-        <span className="rounded bg-black/70 px-1 text-[10px] leading-tight text-white">
+        <span className="rounded-full border border-border bg-surface px-1.5 py-0.5 font-mono text-[11px] leading-none font-semibold">
           {stale ? `${label} · stale` : label}
         </span>
       ) : null}
@@ -133,16 +128,16 @@ export const VehicleMarker = memo(function VehicleMarker({
 })
 
 export const StopMarker = memo(function StopMarker({
-  stopType,
-  status,
   emphasized,
+  terminal,
+  fill,
+  stroke,
 }: {
-  stopType: "pickup" | "dropoff"
-  status: string
   emphasized: boolean
+  terminal: boolean
+  fill: string
+  stroke: string
 }) {
-  const terminal = status !== "planned" && status !== "arrived"
-  const fill = stopType === "pickup" ? "#16a34a" : "#9333ea"
   const r = emphasized ? 9 : 6
   const size = (r + 3) * 2
   return (
@@ -158,7 +153,7 @@ export const StopMarker = memo(function StopMarker({
         cy={size / 2}
         r={r}
         fill={fill}
-        stroke="white"
+        stroke={stroke}
         strokeWidth={emphasized ? 3 : 2}
       />
     </svg>
