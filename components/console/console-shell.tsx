@@ -8,6 +8,7 @@ import { useLiveStops } from "@/lib/use-live-stops"
 import { useLiveVehicles } from "@/lib/use-live-vehicles"
 import { useNow } from "@/lib/use-now"
 import { clearDisplayCode } from "@/lib/dashboard-code"
+import { usePersistedBoolean } from "@/lib/use-persisted-boolean"
 import { buildConsoleVehicles } from "@/lib/console/use-console-data"
 import type {
   ConsoleView,
@@ -50,7 +51,14 @@ export function ConsoleShell({ displayCode }: { displayCode: string }) {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [tab, setTab] = useState<DetailTab>("Overview")
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("All")
-  const [railCollapsed, setRailCollapsed] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = usePersistedBoolean(
+    "fleetmap.sidebar-collapsed",
+    false
+  )
+  const [railCollapsed, setRailCollapsed] = usePersistedBoolean(
+    "fleetmap.fleet-collapsed",
+    false
+  )
 
   const selected =
     consoleVehicles.find((v) => v.id === selectedId) ?? consoleVehicles[0] ?? null
@@ -73,6 +81,8 @@ export function ConsoleShell({ displayCode }: { displayCode: string }) {
         onlineCount={counts.online}
         totalCount={counts.all}
         onRouteCount={counts.onRoute}
+        collapsed={sidebarCollapsed}
+        onToggleCollapse={() => setSidebarCollapsed((c) => !c)}
       />
 
       <FleetRail

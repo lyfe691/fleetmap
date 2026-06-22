@@ -1,6 +1,8 @@
 "use client"
 
 import {
+  ChevronsLeft,
+  ChevronsRight,
   History as HistoryIcon,
   Map as MapIcon,
   Moon,
@@ -26,12 +28,16 @@ export function AppSidebar({
   onlineCount,
   totalCount,
   onRouteCount,
+  collapsed,
+  onToggleCollapse,
 }: {
   view: ConsoleView
   onNavigate: (view: ConsoleView) => void
   onlineCount: number
   totalCount: number
   onRouteCount: number
+  collapsed: boolean
+  onToggleCollapse: () => void
 }) {
   const monitor: NavEntry[] = [
     { id: "tracking", label: "Live Tracking", icon: Navigation, badge: onRouteCount },
@@ -39,13 +45,47 @@ export function AppSidebar({
   ]
   const records: NavEntry[] = [{ id: "history", label: "History", icon: HistoryIcon }]
 
+  if (collapsed) {
+    return (
+      <aside className="flex h-full w-[76px] shrink-0 flex-col items-center border-r border-sidebar-border bg-sidebar py-4 text-sidebar-foreground">
+        <div className="flex size-12 items-center justify-center rounded-xl bg-muted">
+          <BubbleboxLogo className="size-7 text-foreground" />
+        </div>
+        <button
+          type="button"
+          onClick={onToggleCollapse}
+          aria-label="Expand sidebar"
+          className="mt-3 flex size-11 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground"
+        >
+          <ChevronsRight className="size-5" />
+        </button>
+
+        <nav className="mt-4 flex flex-1 flex-col items-center gap-1.5">
+          {[...monitor, ...records].map((e) => (
+            <IconNavItem
+              key={e.id}
+              entry={e}
+              active={view === e.id}
+              onClick={() => onNavigate(e.id)}
+            />
+          ))}
+        </nav>
+
+        <div className="flex flex-col items-center gap-2">
+          <OnlineDot online={onlineCount} total={totalCount} />
+          <ThemeToggle collapsed />
+        </div>
+      </aside>
+    )
+  }
+
   return (
     <aside className="flex h-full w-[262px] shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
       <div className="flex items-center gap-3 px-4 py-5">
         <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-muted">
           <BubbleboxLogo className="size-7 text-foreground" />
         </div>
-        <div className="leading-none">
+        <div className="min-w-0 flex-1 leading-none">
           <div className="font-heading text-[20px] font-semibold tracking-tight">
             Fleetmap
           </div>
@@ -53,6 +93,14 @@ export function AppSidebar({
             Monitoring Console
           </div>
         </div>
+        <button
+          type="button"
+          onClick={onToggleCollapse}
+          aria-label="Collapse sidebar"
+          className="flex size-10 shrink-0 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground"
+        >
+          <ChevronsLeft className="size-5" />
+        </button>
       </div>
 
       <div className="flex-1 overflow-y-auto px-3 py-2">
@@ -137,6 +185,39 @@ function NavItem({
   )
 }
 
+function IconNavItem({
+  entry,
+  active,
+  onClick,
+}: {
+  entry: NavEntry
+  active: boolean
+  onClick: () => void
+}) {
+  const Icon = entry.icon
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={entry.label}
+      aria-label={entry.label}
+      aria-current={active ? "page" : undefined}
+      className={`relative flex size-12 items-center justify-center rounded-xl transition-colors ${
+        active
+          ? "bg-sidebar-accent text-sidebar-accent-foreground"
+          : "text-muted-foreground hover:bg-sidebar-accent/70 hover:text-foreground"
+      }`}
+    >
+      <Icon className="size-6" />
+      {entry.badge ? (
+        <span className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-success px-1 text-[11px] font-bold text-success-foreground tabular-nums">
+          {entry.badge}
+        </span>
+      ) : null}
+    </button>
+  )
+}
+
 function OnlinePill({ online, total }: { online: number; total: number }) {
   const now = useNow(30_000)
   const d = new Date(now)
@@ -152,19 +233,52 @@ function OnlinePill({ online, total }: { online: number; total: number }) {
       <span className="flex-1 text-[15px] font-semibold">
         {online} of {total} online
       </span>
-      <span className="shrink-0 font-mono text-[13px] text-muted-foreground">{clock}</span>
+      <span className="shrink-0 font-mono text-[13px] text-muted-foreground">
+        {clock}
+      </span>
     </div>
   )
 }
 
-function ThemeToggle() {
+function OnlineDot({ online, total }: { online: number; total: number }) {
+  return (
+    <div
+      title={`${online} of ${total} online`}
+      className="flex size-11 items-center justify-center"
+    >
+      <span className="relative flex size-3">
+        <span className="absolute inline-flex size-full animate-ping rounded-full bg-success opacity-60" />
+        <span className="relative inline-flex size-3 rounded-full bg-success" />
+      </span>
+    </div>
+  )
+}
+
+function ThemeToggle({ collapsed }: { collapsed?: boolean }) {
   const { resolvedTheme, setTheme } = useTheme()
   const isDark = resolvedTheme === "dark"
+  const label = isDark ? "Switch to light theme" : "Switch to dark theme"
+  const toggle = () => setTheme(isDark ? "light" : "dark")
+
+  if (collapsed) {
+    return (
+      <button
+        type="button"
+        aria-label={label}
+        title={label}
+        onClick={toggle}
+        className="flex size-11 items-center justify-center rounded-xl border border-sidebar-border text-sidebar-foreground transition-colors hover:bg-sidebar-accent"
+      >
+        {isDark ? <Sun className="size-5" /> : <Moon className="size-5" />}
+      </button>
+    )
+  }
+
   return (
     <button
       type="button"
-      aria-label={isDark ? "Switch to light theme" : "Switch to dark theme"}
-      onClick={() => setTheme(isDark ? "light" : "dark")}
+      aria-label={label}
+      onClick={toggle}
       className="flex h-12 items-center justify-center gap-2.5 rounded-2xl border border-sidebar-border text-[15px] font-medium text-sidebar-foreground transition-colors hover:bg-sidebar-accent"
     >
       {isDark ? <Sun className="size-5" /> : <Moon className="size-5" />}
