@@ -36,10 +36,12 @@ export function FleetRail({
 
   return (
     <section className="flex h-full w-[380px] shrink-0 flex-col border-r border-border bg-background">
-      <div className="px-5 pt-5.5 pb-3.5">
+      <div className="px-5 pt-6 pb-4">
         <div className="flex items-baseline gap-2.5">
-          <h1 className="font-heading text-2xl font-semibold tracking-tight">Fleet</h1>
-          <span className="text-[13.5px] text-muted-foreground">
+          <h1 className="font-heading text-[28px] font-semibold tracking-tight">
+            Fleet
+          </h1>
+          <span className="text-[15px] text-muted-foreground">
             {counts.all} vehicles
           </span>
         </div>
@@ -53,7 +55,7 @@ export function FleetRail({
                 type="button"
                 onClick={() => onStatusFilter(seg.label)}
                 aria-pressed={active}
-                className={`flex h-[46px] flex-1 items-center justify-center gap-1.5 rounded-[13px] border text-sm font-semibold transition-[filter] active:brightness-95 ${
+                className={`flex h-[54px] flex-1 items-center justify-center gap-1.5 rounded-[14px] border text-[15px] font-semibold transition-[filter] active:brightness-95 ${
                   active
                     ? "border-primary bg-primary text-primary-foreground"
                     : "border-border bg-surface text-muted-foreground"
@@ -78,7 +80,7 @@ export function FleetRail({
             />
           ))}
           {filtered.length === 0 ? (
-            <p className="px-1 py-6 text-center text-xs text-muted-foreground">
+            <p className="px-1 py-8 text-center text-sm text-muted-foreground">
               No vehicles
             </p>
           ) : null}
@@ -103,35 +105,37 @@ function VehicleCard({
       type="button"
       onClick={onSelect}
       aria-pressed={selected}
-      className={`rounded-[18px] border-2 bg-card p-[15px] text-left transition-[transform,border-color,box-shadow] duration-150 active:scale-[0.985] ${
+      className={`rounded-[18px] border-2 bg-card p-[18px] text-left transition-[transform,border-color,box-shadow] duration-150 active:scale-[0.985] ${
         selected ? "border-primary shadow-md" : "border-border"
       }`}
     >
       <div className="flex items-center justify-between gap-2">
-        <span className="font-mono text-sm font-semibold">{vehicle.reg}</span>
+        <span className="font-mono text-[15px] font-semibold">{vehicle.reg}</span>
         <StatusBadge tone={vehicle.tone} label={vehicle.statusLabel} />
       </div>
 
-      <div className="mt-3 flex items-center gap-3">
+      <div className="mt-3.5 flex items-center gap-3">
         <div className="min-w-0 flex-1">
-          <div className="font-mono text-xl font-semibold tracking-tight">
+          <div className="font-mono text-[26px] leading-none font-semibold tracking-tight">
             {onRoute ? vehicle.etaText : "Idle"}
           </div>
-          <div className="mt-0.5 text-[12.5px] text-muted-foreground">
+          <div className="mt-1.5 text-[14px] text-muted-foreground">
             {onRoute
               ? `${vehicle.stopsLeft} stop${vehicle.stopsLeft === 1 ? "" : "s"} left`
               : "Awaiting dispatch"}
             {vehicle.stale ? " · stale" : ""}
           </div>
-          <div className="mt-3 flex items-center gap-2 text-[12.5px]">
-            <span className="max-w-[88px] truncate text-muted-foreground">
+          <div className="mt-3.5 flex items-center gap-2 text-[14px]">
+            <span className="max-w-[92px] truncate text-muted-foreground">
               {vehicle.origin}
             </span>
-            <ArrowRight className="size-4 shrink-0 text-muted-foreground" />
-            <span className="max-w-[88px] truncate font-semibold">{vehicle.dest}</span>
+            <ArrowRight className="size-[18px] shrink-0 text-muted-foreground" />
+            <span className="max-w-[92px] truncate font-semibold">
+              {vehicle.dest}
+            </span>
           </div>
         </div>
-        <div className="flex h-[68px] w-[108px] shrink-0 items-center justify-center overflow-hidden rounded-[13px] bg-muted">
+        <div className="flex h-[76px] w-[112px] shrink-0 items-center justify-center overflow-hidden rounded-[14px] bg-muted">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/bubblebox-van.png"
