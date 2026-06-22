@@ -2,6 +2,7 @@
 
 import { useState, useSyncExternalStore } from "react"
 import { ConsoleClient } from "@/components/console/console-client"
+import { ConsoleSkeleton } from "@/components/console/console-skeleton"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -19,16 +20,19 @@ import {
 } from "@/lib/dashboard-code"
 
 export function DashboardGate() {
-  const code = useSyncExternalStore(
+  // undefined = not yet resolved (server + first hydration render, where
+  // localStorage isn't readable); null = resolved, no code. Rendering the
+  // skeleton until it resolves avoids flashing the code form on refresh when a
+  // code is actually stored.
+  const code = useSyncExternalStore<string | null | undefined>(
     subscribeDisplayCode,
     getDisplayCode,
-    () => null
+    () => undefined
   )
   const [input, setInput] = useState("")
 
-  if (code) {
-    return <ConsoleClient displayCode={code} />
-  }
+  if (code === undefined) return <ConsoleSkeleton />
+  if (code) return <ConsoleClient displayCode={code} />
 
   return (
     <div className="flex h-full w-full items-center justify-center bg-background p-6">

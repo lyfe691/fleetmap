@@ -51,16 +51,8 @@ export function AppSidebar({
         <div className="flex size-12 items-center justify-center rounded-xl bg-muted">
           <BubbleboxLogo className="size-7 text-foreground" />
         </div>
-        <button
-          type="button"
-          onClick={onToggleCollapse}
-          aria-label="Expand sidebar"
-          className="mt-3 flex size-11 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground"
-        >
-          <ChevronsRight className="size-5" />
-        </button>
 
-        <nav className="mt-4 flex flex-1 flex-col items-center gap-1.5">
+        <nav className="mt-5 flex flex-1 flex-col items-center gap-1.5">
           {[...monitor, ...records].map((e) => (
             <IconNavItem
               key={e.id}
@@ -74,6 +66,14 @@ export function AppSidebar({
         <div className="flex flex-col items-center gap-2">
           <OnlineDot online={onlineCount} total={totalCount} />
           <ThemeToggle collapsed />
+          <button
+            type="button"
+            onClick={onToggleCollapse}
+            aria-label="Expand sidebar"
+            className="flex size-11 items-center justify-center rounded-xl border border-sidebar-border text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground"
+          >
+            <ChevronsRight className="size-5" />
+          </button>
         </div>
       </aside>
     )
@@ -85,7 +85,7 @@ export function AppSidebar({
         <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-muted">
           <BubbleboxLogo className="size-7 text-foreground" />
         </div>
-        <div className="min-w-0 flex-1 leading-none">
+        <div className="min-w-0 leading-none">
           <div className="font-heading text-[20px] font-semibold tracking-tight">
             Fleetmap
           </div>
@@ -93,14 +93,6 @@ export function AppSidebar({
             Monitoring Console
           </div>
         </div>
-        <button
-          type="button"
-          onClick={onToggleCollapse}
-          aria-label="Collapse sidebar"
-          className="flex size-10 shrink-0 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground"
-        >
-          <ChevronsLeft className="size-5" />
-        </button>
       </div>
 
       <div className="flex-1 overflow-y-auto px-3 py-2">
@@ -128,7 +120,17 @@ export function AppSidebar({
 
       <div className="flex flex-col gap-2.5 border-t border-sidebar-border p-3">
         <OnlinePill online={onlineCount} total={totalCount} />
-        <ThemeToggle />
+        <div className="flex gap-2.5">
+          <ThemeToggle />
+          <button
+            type="button"
+            onClick={onToggleCollapse}
+            aria-label="Collapse sidebar"
+            className="flex size-12 shrink-0 items-center justify-center rounded-2xl border border-sidebar-border text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground"
+          >
+            <ChevronsLeft className="size-5" />
+          </button>
+        </div>
       </div>
     </aside>
   )
@@ -279,7 +281,7 @@ function ThemeToggle({ collapsed }: { collapsed?: boolean }) {
       type="button"
       aria-label={label}
       onClick={toggle}
-      className="flex h-12 items-center justify-center gap-2.5 rounded-2xl border border-sidebar-border text-[15px] font-medium text-sidebar-foreground transition-colors hover:bg-sidebar-accent"
+      className="flex h-12 flex-1 items-center justify-center gap-2.5 rounded-2xl border border-sidebar-border text-[15px] font-medium text-sidebar-foreground transition-colors hover:bg-sidebar-accent"
     >
       {isDark ? <Sun className="size-5" /> : <Moon className="size-5" />}
       {isDark ? "Light mode" : "Dark mode"}
