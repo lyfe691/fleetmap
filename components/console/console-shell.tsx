@@ -61,8 +61,12 @@ export function ConsoleShell({ displayCode }: { displayCode: string }) {
     false
   )
 
-  const selected =
-    consoleVehicles.find((v) => v.id === selectedId) ?? consoleVehicles[0] ?? null
+  // explicit = the user's actual pick (null until they choose / after "view
+  // all"); selected = that, falling back to the first van for views that always
+  // need one (tracking detail + rail highlight). The map uses `explicit` so a
+  // cleared selection means "show the whole fleet".
+  const explicit = consoleVehicles.find((v) => v.id === selectedId) ?? null
+  const selected = explicit ?? consoleVehicles[0] ?? null
 
   const counts = useMemo(
     () => ({
@@ -136,9 +140,10 @@ export function ConsoleShell({ displayCode }: { displayCode: string }) {
         {view === "map" ? (
           <MapView
             live={live}
-            selected={selected}
-            selectedId={selected?.id ?? null}
+            selected={explicit}
+            selectedId={selectedId}
             onSelectVehicle={setSelectedId}
+            onClearSelection={() => setSelectedId(null)}
             onShowDetails={() => setView("tracking")}
           />
         ) : null}

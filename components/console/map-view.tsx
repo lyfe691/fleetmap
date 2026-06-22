@@ -1,6 +1,6 @@
 "use client"
 
-import { ArrowRight } from "lucide-react"
+import { ArrowRight, X } from "lucide-react"
 import { FleetMapView } from "@/components/map/fleet-map-view"
 import type { LiveData } from "@/lib/console/types"
 import type { ConsoleVehicle } from "@/lib/console/use-console-data"
@@ -11,12 +11,14 @@ export function MapView({
   selected,
   selectedId,
   onSelectVehicle,
+  onClearSelection,
   onShowDetails,
 }: {
   live: LiveData
   selected: ConsoleVehicle | null
   selectedId: string | null
   onSelectVehicle: (id: string) => void
+  onClearSelection: () => void
   onShowDetails: () => void
 }) {
   return (
@@ -30,7 +32,11 @@ export function MapView({
         onSelectVehicle={onSelectVehicle}
       />
       {selected ? (
-        <SummaryCard vehicle={selected} onShowDetails={onShowDetails} />
+        <SummaryCard
+          vehicle={selected}
+          onShowDetails={onShowDetails}
+          onClose={onClearSelection}
+        />
       ) : null}
     </div>
   )
@@ -39,15 +45,26 @@ export function MapView({
 function SummaryCard({
   vehicle,
   onShowDetails,
+  onClose,
 }: {
   vehicle: ConsoleVehicle
   onShowDetails: () => void
+  onClose: () => void
 }) {
   return (
     <div className="absolute top-6 left-6 z-10 w-[360px] rounded-[20px] border border-border bg-surface p-6 shadow-md">
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex items-center gap-2.5">
         <span className="font-mono text-[20px] font-semibold">{vehicle.reg}</span>
         <StatusBadge tone={vehicle.tone} label={vehicle.statusLabel} size="md" />
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="View all vehicles"
+          title="View all vehicles"
+          className="ml-auto flex size-9 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        >
+          <X className="size-5" />
+        </button>
       </div>
 
       <div className="mt-5 flex gap-5">

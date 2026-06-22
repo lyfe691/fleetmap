@@ -65,27 +65,46 @@ export function FleetMapView({
 
   const mapRef = useRef<MapRef>(null)
   const [mapLoaded, setMapLoaded] = useState(false)
-  // Reframe when the SET of shown vehicles changes — initial load, fleet
-  // membership, or the single-vehicle mini-map swapping to a different van —
-  // but not on position updates, which keep the same id set.
-  const fittedKeyRef = useRef<string | null>(null)
+  // One camera policy: ease to the selected vehicle, or fit the whole shown set
+  // when nothing is selected — that single rule covers the Live Map's
+  // focus-on-select, its "view all" (cleared selection), and the framing for
+  // the single-vehicle mini-map. Keyed so position updates don't re-frame.
+  const cameraKeyRef = useRef<string | null>(null)
   useEffect(() => {
     if (!mapLoaded) return
-    const key = vehicles
+    const map = mapRef.current
+    if (!map) return
+
+    const idsKey = vehicles
       .map((v) => v.id)
       .sort()
       .join(",")
-    if (key === fittedKeyRef.current) return
+    const key = selectedId ? `focus:${selectedId}` : `fleet:${idsKey}`
+    if (key === cameraKeyRef.current) return
+    const first = cameraKeyRef.current === null
+    cameraKeyRef.current = key
+
+    if (selectedId) {
+      const v = vehicles.find((x) => x.id === selectedId)
+      if (!v || v.last_lng == null || v.last_lat == null) {
+        cameraKeyRef.current = null
+        return
+      }
+      map.easeTo({
+        center: [v.last_lng, v.last_lat],
+        zoom: Math.max(map.getZoom(), 13),
+        duration: first ? 0 : 700,
+      })
+      return
+    }
+
     const bounds = computeFleetBounds(vehicles)
-    if (!bounds) return
-    const first = fittedKeyRef.current === null
-    fittedKeyRef.current = key
-    mapRef.current?.fitBounds(bounds, {
-      padding: 80,
-      maxZoom: 14,
-      duration: first ? 0 : 600,
-    })
-  }, [mapLoaded, vehicles])
+    if (!bounds) {
+      cameraKeyRef.current = null
+      return
+    }
+    map.fitBounds(bounds, { padding: 80, maxZoom: 14, duration: first ? 0 : 600 })
+  }, [mapLoaded, selectedId, vehicles])
 
   const { nextStopIds, onRouteIds } = useMemo(() => {
     const next = new Set<string>()
