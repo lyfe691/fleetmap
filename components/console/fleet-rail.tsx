@@ -4,7 +4,6 @@ import { ArrowRight } from "lucide-react"
 import type { ConsoleCounts, StatusFilter } from "@/lib/console/types"
 import type { ConsoleVehicle } from "@/lib/console/use-console-data"
 import { StatusBadge } from "@/components/console/status-badge"
-import { VanGlyph } from "@/components/console/van-glyph"
 
 const SEGMENTS: { label: StatusFilter; key: keyof ConsoleCounts }[] = [
   { label: "All", key: "all" },
@@ -132,8 +131,14 @@ function VehicleCard({
             <span className="max-w-[88px] truncate font-semibold">{vehicle.dest}</span>
           </div>
         </div>
-        <div className="flex h-[68px] w-[108px] shrink-0 items-center justify-center rounded-[13px] bg-muted text-muted-foreground">
-          <VanGlyph className="h-[42px] w-[76px]" />
+        <div className="flex h-[68px] w-[108px] shrink-0 items-center justify-center overflow-hidden rounded-[13px] bg-muted">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/bubblebox-van.png"
+            alt=""
+            draggable={false}
+            className="h-full w-full object-contain p-1.5"
+          />
         </div>
       </div>
     </button>

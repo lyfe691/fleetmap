@@ -18,7 +18,6 @@ import type { DetailTab, LiveData } from "@/lib/console/types"
 import type { ConsoleVehicle } from "@/lib/console/use-console-data"
 import { assumedCargoPhotos, assumedManifest } from "@/lib/console/assumed"
 import { StatusBadge } from "@/components/console/status-badge"
-import { VanCapacityGauge } from "@/components/console/van-glyph"
 
 const TABS: DetailTab[] = ["Overview", "Vehicle", "Cargo"]
 
@@ -112,9 +111,12 @@ function Overview({
             <div className="font-heading text-5xl leading-[0.9] font-bold tracking-tight">
               {vehicle.capacityPct}%
             </div>
-            <VanCapacityGauge
-              pct={vehicle.capacityPct}
-              className="h-[62px] flex-1"
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/bubblebox-van.png"
+              alt=""
+              draggable={false}
+              className="h-[62px] flex-1 object-contain"
             />
           </div>
           <p className="mt-4 text-[13px] text-muted-foreground">
