@@ -6,7 +6,6 @@ import {
   Moon,
   Navigation,
   Sun,
-  Truck,
   type LucideIcon,
 } from "lucide-react"
 import { useTheme } from "next-themes"
@@ -41,15 +40,23 @@ export function AppSidebar({
 
   return (
     <aside className="flex h-full w-[262px] shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
-      <div className="flex items-center gap-3 px-4 pt-4.5 pb-3.5">
-        <div className="flex size-[42px] shrink-0 items-center justify-center rounded-[13px] bg-sidebar-primary text-sidebar-primary-foreground">
-          <Truck className="size-[22px]" />
+      <div className="flex items-center gap-3 border-b border-sidebar-border px-4 py-4">
+        <div className="flex h-11 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-muted">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/bubblebox-van-icon-tight.png"
+            alt=""
+            draggable={false}
+            className="h-7 w-auto object-contain"
+          />
         </div>
-        <div className="min-w-0">
-          <div className="font-heading text-[17px] font-semibold tracking-tight">
+        <div className="min-w-0 leading-tight">
+          <div className="font-heading text-[18px] font-semibold tracking-tight">
             Fleetmap
           </div>
-          <div className="text-xs text-muted-foreground">Monitoring Console</div>
+          <div className="mt-0.5 text-[10.5px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
+            Monitoring Console
+          </div>
         </div>
       </div>
 
