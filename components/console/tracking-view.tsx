@@ -18,7 +18,6 @@ import type { DetailTab, LiveData } from "@/lib/console/types"
 import type { ConsoleVehicle } from "@/lib/console/use-console-data"
 import { assumedCargoPhotos, assumedManifest } from "@/lib/console/assumed"
 import { StatusBadge } from "@/components/console/status-badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 const TABS: DetailTab[] = ["Overview", "Vehicle", "Cargo"]
 
@@ -55,32 +54,57 @@ export function TrackingView({
           </button>
         </div>
 
-        <Tabs
-          value={tab}
-          onValueChange={(v) => onTab(v as DetailTab)}
-          className="mt-6 gap-0"
+        <div
+          role="tablist"
+          aria-label="Vehicle details"
+          className="mt-6 flex flex-wrap gap-3"
+          onKeyDown={(e) => {
+            const dir =
+              e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0
+            if (!dir) return
+            e.preventDefault()
+            const next = TABS[(TABS.indexOf(tab) + dir + TABS.length) % TABS.length]
+            onTab(next)
+            e.currentTarget
+              .querySelector<HTMLButtonElement>(`#tab-${next}`)
+              ?.focus()
+          }}
         >
-          <TabsList variant="line" className="h-auto gap-7 border-b border-border">
-            {TABS.map((t) => (
-              <TabsTrigger
+          {TABS.map((t) => {
+            const active = tab === t
+            return (
+              <button
                 key={t}
-                value={t}
-                className="h-12 rounded-none px-1 text-[17px] after:inset-x-0 after:bottom-0 after:h-[3px] after:bg-primary data-active:font-semibold"
+                type="button"
+                role="tab"
+                id={`tab-${t}`}
+                aria-selected={active}
+                aria-controls={`panel-${t}`}
+                tabIndex={active ? 0 : -1}
+                onClick={() => onTab(t)}
+                className={`flex h-12 items-center rounded-full px-6 text-[16px] font-semibold transition-colors ${
+                  active
+                    ? "bg-primary text-primary-foreground shadow-md"
+                    : "bg-muted text-muted-foreground hover:text-foreground"
+                }`}
               >
                 {t}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-          <TabsContent value="Overview">
-            <Overview vehicle={vehicle} live={live} />
-          </TabsContent>
-          <TabsContent value="Vehicle">
-            <VehicleTab vehicle={vehicle} />
-          </TabsContent>
-          <TabsContent value="Cargo">
-            <CargoTab vehicle={vehicle} />
-          </TabsContent>
-        </Tabs>
+              </button>
+            )
+          })}
+        </div>
+
+        <div
+          role="tabpanel"
+          id={`panel-${tab}`}
+          aria-labelledby={`tab-${tab}`}
+          tabIndex={0}
+          className="outline-none"
+        >
+          {tab === "Overview" ? <Overview vehicle={vehicle} live={live} /> : null}
+          {tab === "Vehicle" ? <VehicleTab vehicle={vehicle} /> : null}
+          {tab === "Cargo" ? <CargoTab vehicle={vehicle} /> : null}
+        </div>
       </div>
     </div>
   )

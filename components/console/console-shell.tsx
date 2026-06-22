@@ -16,6 +16,7 @@ import type {
   LiveData,
   StatusFilter,
 } from "@/lib/console/types"
+import { ConsoleLoading } from "@/components/console/console-loading"
 import { AppSidebar } from "@/components/console/app-sidebar"
 import { FleetRail } from "@/components/console/fleet-rail"
 import { MapView } from "@/components/console/map-view"
@@ -23,7 +24,7 @@ import { TrackingView } from "@/components/console/tracking-view"
 import { HistoryView } from "@/components/console/history-view"
 
 export function ConsoleShell({ displayCode }: { displayCode: string }) {
-  const { vehicles, error, ready } = useLiveVehicles(displayCode)
+  const { vehicles, error, ready, loaded } = useLiveVehicles(displayCode)
   const { stopsByVehicle } = useLiveStops(ready)
   const now = useNow(5000)
 
@@ -72,6 +73,11 @@ export function ConsoleShell({ displayCode }: { displayCode: string }) {
     }),
     [consoleVehicles]
   )
+
+  // Hold the loader until the first snapshot resolves or a connection error
+  // surfaces — so the empty "no vehicles" state never flashes before data, and
+  // a dead channel falls through to the shell's error banner instead of hanging.
+  if (!loaded && !error) return <ConsoleLoading />
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground">
