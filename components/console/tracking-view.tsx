@@ -18,6 +18,7 @@ import type { DetailTab, LiveData } from "@/lib/console/types"
 import type { ConsoleVehicle } from "@/lib/console/use-console-data"
 import { assumedCargoPhotos, assumedManifest } from "@/lib/console/assumed"
 import { StatusBadge } from "@/components/console/status-badge"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 const TABS: DetailTab[] = ["Overview", "Vehicle", "Cargo"]
 
@@ -54,31 +55,32 @@ export function TrackingView({
           </button>
         </div>
 
-        <div role="tablist" className="mt-6 flex gap-8 border-b border-border">
-          {TABS.map((t) => {
-            const active = tab === t
-            return (
-              <button
+        <Tabs
+          value={tab}
+          onValueChange={(v) => onTab(v as DetailTab)}
+          className="mt-6 gap-0"
+        >
+          <TabsList variant="line" className="h-auto gap-7 border-b border-border">
+            {TABS.map((t) => (
+              <TabsTrigger
                 key={t}
-                type="button"
-                role="tab"
-                aria-selected={active}
-                onClick={() => onTab(t)}
-                className={`-mb-px flex min-h-14 items-end border-b-[3px] pb-4 text-[17px] transition-colors ${
-                  active
-                    ? "border-primary font-semibold text-foreground"
-                    : "border-transparent font-medium text-muted-foreground"
-                }`}
+                value={t}
+                className="h-12 rounded-none px-1 text-[17px] after:inset-x-0 after:bottom-0 after:h-[3px] after:bg-primary data-active:font-semibold"
               >
                 {t}
-              </button>
-            )
-          })}
-        </div>
-
-        {tab === "Overview" ? <Overview vehicle={vehicle} live={live} /> : null}
-        {tab === "Vehicle" ? <VehicleTab vehicle={vehicle} /> : null}
-        {tab === "Cargo" ? <CargoTab vehicle={vehicle} /> : null}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+          <TabsContent value="Overview">
+            <Overview vehicle={vehicle} live={live} />
+          </TabsContent>
+          <TabsContent value="Vehicle">
+            <VehicleTab vehicle={vehicle} />
+          </TabsContent>
+          <TabsContent value="Cargo">
+            <CargoTab vehicle={vehicle} />
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   )

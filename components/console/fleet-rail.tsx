@@ -141,7 +141,7 @@ function VehicleCard({
       onClick={onSelect}
       aria-pressed={selected}
       className={`rounded-[18px] border-2 bg-card p-[18px] text-left transition-[transform,border-color,box-shadow] duration-150 active:scale-[0.985] ${
-        selected ? "border-primary shadow-md" : "border-border"
+        selected ? "border-primary/35 shadow-sm" : "border-border"
       }`}
     >
       <div className="flex items-center justify-between gap-2">
