@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState, type ComponentProps, type ReactNode } from "react"
+import { memo, useEffect, useRef, useState, type ComponentProps, type ReactNode } from "react"
 import { Marker } from "react-map-gl/maplibre"
 
 export const STALE_AFTER_MS = 30_000
@@ -61,7 +61,7 @@ export function InterpolatedMarker({
   )
 }
 
-export function VehicleMarker({
+export const VehicleMarker = memo(function VehicleMarker({
   heading,
   label,
   stale,
@@ -130,9 +130,9 @@ export function VehicleMarker({
       ) : null}
     </div>
   )
-}
+})
 
-export function StopMarker({
+export const StopMarker = memo(function StopMarker({
   stopType,
   status,
   emphasized,
@@ -163,4 +163,4 @@ export function StopMarker({
       />
     </svg>
   )
-}
+})
