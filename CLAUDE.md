@@ -73,7 +73,7 @@ Then from the project root: `pnpm add @supabase/supabase-js`, `pnpm add -D tsx`,
 - TypeScript throughout. Route handlers validate input and return `NextResponse.json` with explicit status codes (400 bad input, 401 no/invalid token, 409 no vehicle, 500 db error).
 - SQL: lowercase keywords, snake_case columns, `create ... if not exists`, policies named in plain English.
 - Import alias `@/*` → project root.
-- Typecheck (`pnpm exec tsc --noEmit`) before considering a change done; there's no test suite yet.
+- Typecheck (`pnpm exec tsc --noEmit`) and run the unit suite (`pnpm test` — vitest, covers `route-slice`, `geofence`, ingest validation) before considering a change done.
 
 ## Don'ts (already decided — don't relitigate)
 
@@ -92,6 +92,7 @@ pnpm provision-dispatcher         # create the dispatcher identity (role=dispatc
 pnpm seed-stops                   # dev-only: seed a day of orders/stops (dev server running)
 supabase db push                  # apply migrations
 pnpm exec tsc --noEmit            # typecheck
+pnpm test                         # vitest unit suite (route-slice, geofence, ingest validation)
 docker compose up -d osrm         # routing engine (build the dataset first — see docker-compose.yml)
 ```
 
