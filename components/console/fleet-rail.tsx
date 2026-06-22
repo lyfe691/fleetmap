@@ -1,6 +1,6 @@
 "use client"
 
-import { ArrowRight } from "lucide-react"
+import { ArrowRight, ChevronsLeft, ChevronsRight } from "lucide-react"
 import type { ConsoleCounts, StatusFilter } from "@/lib/console/types"
 import type { ConsoleVehicle } from "@/lib/console/use-console-data"
 import { StatusBadge } from "@/components/console/status-badge"
@@ -18,6 +18,8 @@ export function FleetRail({
   statusFilter,
   onStatusFilter,
   counts,
+  collapsed,
+  onToggleCollapse,
 }: {
   vehicles: ConsoleVehicle[]
   selectedId: string | null
@@ -25,7 +27,30 @@ export function FleetRail({
   statusFilter: StatusFilter
   onStatusFilter: (filter: StatusFilter) => void
   counts: ConsoleCounts
+  collapsed: boolean
+  onToggleCollapse: () => void
 }) {
+  if (collapsed) {
+    return (
+      <aside className="flex h-full w-14 shrink-0 flex-col items-center gap-4 border-r border-border bg-background py-4">
+        <button
+          type="button"
+          onClick={onToggleCollapse}
+          aria-label="Expand fleet panel"
+          className="flex size-11 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        >
+          <ChevronsRight className="size-5" />
+        </button>
+        <div className="flex flex-col items-center gap-2">
+          <span className="font-mono text-[15px] font-semibold">{counts.all}</span>
+          <span className="text-[11px] font-medium tracking-wider text-muted-foreground uppercase [writing-mode:vertical-rl]">
+            Fleet
+          </span>
+        </div>
+      </aside>
+    )
+  }
+
   const filtered = vehicles.filter((v) =>
     statusFilter === "All"
       ? true
@@ -37,13 +62,23 @@ export function FleetRail({
   return (
     <section className="flex h-full w-[380px] shrink-0 flex-col border-r border-border bg-background">
       <div className="px-5 pt-6 pb-4">
-        <div className="flex items-baseline gap-2.5">
-          <h1 className="font-heading text-[28px] font-semibold tracking-tight">
-            Fleet
-          </h1>
-          <span className="text-[15px] text-muted-foreground">
-            {counts.all} vehicles
-          </span>
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-baseline gap-2.5">
+            <h1 className="font-heading text-[28px] font-semibold tracking-tight">
+              Fleet
+            </h1>
+            <span className="text-[15px] text-muted-foreground">
+              {counts.all} vehicles
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={onToggleCollapse}
+            aria-label="Collapse fleet panel"
+            className="flex size-10 shrink-0 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <ChevronsLeft className="size-5" />
+          </button>
         </div>
 
         <div className="mt-4 flex gap-2">

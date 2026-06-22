@@ -50,6 +50,7 @@ export function ConsoleShell({ displayCode }: { displayCode: string }) {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [tab, setTab] = useState<DetailTab>("Overview")
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("All")
+  const [railCollapsed, setRailCollapsed] = useState(false)
 
   const selected =
     consoleVehicles.find((v) => v.id === selectedId) ?? consoleVehicles[0] ?? null
@@ -81,6 +82,8 @@ export function ConsoleShell({ displayCode }: { displayCode: string }) {
         statusFilter={statusFilter}
         onStatusFilter={setStatusFilter}
         counts={counts}
+        collapsed={railCollapsed}
+        onToggleCollapse={() => setRailCollapsed((c) => !c)}
       />
 
       <main className="relative min-w-0 flex-1">
