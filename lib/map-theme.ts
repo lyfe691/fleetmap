@@ -9,7 +9,7 @@ export function mapStyleUrl(theme: MapTheme): string {
 
 // MapLibre paint needs concrete colors (it can't read CSS vars); mirrors the
 // globals.css tokens per theme.
-export type MapColors = {
+type MapColors = {
   route: string
   routeCasing: string
   traveled: string
