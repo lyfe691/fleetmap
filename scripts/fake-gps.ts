@@ -257,49 +257,71 @@ function makePoster(city: City): Poster {
   }
 }
 
-// Drive one van forever: along its OSRM route if it has stops, else a random
-// wander near the city centre.
+// Reactivate a van's stops so the next lap is a fresh on-route run; the geofence
+// greys them off again as the van passes. Dev-only, keeps the demo continuously
+// live instead of freezing once every stop is completed.
+async function reactivateStops(
+  admin: SupabaseClient,
+  vehicleId: string
+): Promise<void> {
+  await admin
+    .from("stops")
+    .update({ status: "planned", completed_at: null })
+    .eq("vehicle_id", vehicleId)
+    .in("status", ["arrived", "completed"])
+}
+
+// Drive one van forever: lap its closed OSRM route (…last -> first) so it returns
+// to the start smoothly, reactivating stops each lap. Wanders only when there's
+// no route (no stops / OSRM down), then retries.
 async function driveCity(
   admin: SupabaseClient,
   city: City,
   vehicleId: string
 ): Promise<void> {
   const post = makePoster(city)
-  const stops = await getActiveStops(admin, vehicleId)
-  const coords = stops.length > 0 ? await fetchRouteCoords(stops) : null
-
-  if (!coords || coords.length < 2) {
-    const why =
-      stops.length === 0
-        ? "no active stops (run `pnpm seed-stops`)"
-        : "OSRM route unavailable (is `docker compose up -d osrm` running?)"
-    console.log(`[${city.slug}] ${why} — wandering near centre.`)
-    await randomWalk(city, post)
-    return
-  }
-
-  const path = buildPath(coords)
   const step = SPEED_MPS * (TICK_MS / 1000)
-  console.log(
-    `[${city.slug}] driving ${(path.total / 1000).toFixed(1)} km through ` +
-      `${stops.length} stops at ${SPEED_MPS} m/s.`
-  )
 
-  let dist = 0
   for (;;) {
-    const { pos, heading } = pointAt(path, dist)
-    const atEnd = dist >= path.total
-    await post(pos[1], pos[0], heading, atEnd ? 0 : SPEED_MPS)
-    if (!atEnd) dist = Math.min(dist + step, path.total)
-    await sleep(TICK_MS)
+    await reactivateStops(admin, vehicleId)
+    const stops = await getActiveStops(admin, vehicleId)
+    const waypoints = stops.length >= 2 ? [...stops, stops[0]] : stops
+    const coords =
+      waypoints.length >= 2 ? await fetchRouteCoords(waypoints) : null
+
+    if (!coords || coords.length < 2) {
+      console.log(
+        `[${city.slug}] no route (stops:${stops.length}; OSRM up?) — wandering, will retry.`
+      )
+      await wander(city, post, 24)
+      continue
+    }
+
+    const path = buildPath(coords)
+    console.log(
+      `[${city.slug}] driving ${(path.total / 1000).toFixed(1)} km loop through ` +
+        `${stops.length} stops at ${SPEED_MPS} m/s.`
+    )
+    let dist = 0
+    while (dist < path.total) {
+      const { pos, heading } = pointAt(path, dist)
+      await post(pos[1], pos[0], heading, SPEED_MPS)
+      dist = Math.min(dist + step, path.total)
+      await sleep(TICK_MS)
+    }
   }
 }
 
-// Wander near a city centre. Used when there's no route to drive.
-async function randomWalk(city: City, post: Poster): Promise<void> {
+// Bounded random wander (N ticks) near a city centre; used only when no route is
+// available, then returns so the drive loop can retry.
+async function wander(
+  city: City,
+  post: Poster,
+  ticks: number
+): Promise<void> {
   let lat = city.centerLat
   let lng = city.centerLng
-  for (;;) {
+  for (let i = 0; i < ticks; i++) {
     const dLat = (Math.random() - 0.5) * 0.0015
     const dLng = (Math.random() - 0.5) * 0.0015
     lat += dLat
