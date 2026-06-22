@@ -18,8 +18,9 @@ export function ConsoleSkeleton() {
           ))}
           <Skeleton className="mt-3 mb-1.5 h-3 w-16" />
           <Skeleton className="h-14 w-full rounded-xl" />
-          <div className="mt-auto">
-            <Skeleton className="h-[60px] w-full rounded-2xl" />
+          <div className="mt-auto space-y-2.5">
+            <Skeleton className="h-[58px] w-full rounded-2xl" />
+            <Skeleton className="h-12 w-full rounded-2xl" />
           </div>
         </div>
       </aside>

@@ -83,7 +83,7 @@ export function AppSidebar({
         </NavGroup>
       </div>
 
-      <div className="flex items-stretch gap-2.5 border-t border-sidebar-border p-3">
+      <div className="flex flex-col gap-2.5 border-t border-sidebar-border p-3">
         <OnlinePill online={onlineCount} total={totalCount} />
         <ThemeToggle />
       </div>
@@ -149,7 +149,7 @@ function OnlinePill({ online, total }: { online: number; total: number }) {
     d.getMinutes()
   ).padStart(2, "0")}`
   return (
-    <div className="flex flex-1 items-center gap-2.5 rounded-2xl bg-sidebar-accent px-4 py-3.5">
+    <div className="flex items-center gap-2.5 rounded-2xl bg-sidebar-accent px-4 py-3.5">
       <span className="relative flex size-3 shrink-0">
         <span className="absolute inline-flex size-full animate-ping rounded-full bg-success opacity-60" />
         <span className="relative inline-flex size-3 rounded-full bg-success" />
@@ -170,9 +170,10 @@ function ThemeToggle() {
       type="button"
       aria-label={isDark ? "Switch to light theme" : "Switch to dark theme"}
       onClick={() => setTheme(isDark ? "light" : "dark")}
-      className="flex w-[60px] shrink-0 items-center justify-center rounded-2xl border border-sidebar-border text-sidebar-foreground transition-colors hover:bg-sidebar-accent"
+      className="flex h-12 items-center justify-center gap-2.5 rounded-2xl border border-sidebar-border text-[15px] font-medium text-sidebar-foreground transition-colors hover:bg-sidebar-accent"
     >
-      {isDark ? <Sun className="size-6" /> : <Moon className="size-6" />}
+      {isDark ? <Sun className="size-5" /> : <Moon className="size-5" />}
+      {isDark ? "Light mode" : "Dark mode"}
     </button>
   )
 }
