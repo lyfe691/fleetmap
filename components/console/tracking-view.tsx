@@ -36,7 +36,7 @@ export function TrackingView({
 }) {
   return (
     <div className="h-full overflow-y-auto">
-      <div className="mx-auto max-w-[860px] px-8 pt-7 pb-12">
+      <div className="mx-auto max-w-[1200px] px-8 pt-7 pb-12">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3.5">
             <h2 className="font-mono text-[28px] font-semibold tracking-tight">
@@ -172,7 +172,7 @@ function Overview({
       </div>
 
       <h3 className="mt-7 font-heading text-lg font-semibold">Live Location</h3>
-      <div className="mt-3 h-[400px] overflow-hidden rounded-[20px] border border-border shadow-md">
+      <div className="mt-3 h-[460px] overflow-hidden rounded-[20px] border border-border shadow-md">
         <FleetMapView
           vehicles={miniLive.vehicles}
           stopsByVehicle={miniLive.stopsByVehicle}
