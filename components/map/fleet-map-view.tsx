@@ -166,7 +166,7 @@ export function FleetMapView({
               key={v.id}
               longitude={v.last_lng}
               latitude={v.last_lat}
-              anchor="bottom"
+              anchor="center"
               onClick={() => onSelectVehicle?.(v.id)}
             >
               <VehicleMarker
@@ -174,7 +174,6 @@ export function FleetMapView({
                 stale={stale}
                 selected={v.id === selectedId}
                 fill={fill}
-                surface={colors.markerStroke}
               />
             </InterpolatedMarker>
           )

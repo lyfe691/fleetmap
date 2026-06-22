@@ -12,7 +12,10 @@
 
 services:
   osrm:
-    image: osrm/osrm-backend
+    # Pinned by digest to OSRM v5.26.0 — the engine that matches this dataset.
+    # Docker Hub has no version tags and GHCR ':latest' is a newer engine that
+    # can't read a v5.26.0 dataset, so a digest pin keeps `up` reproducible.
+    image: osrm/osrm-backend@sha256:af5d4a83fb90086a43b1ae2ca22872e6768766ad5fcbb07a29ff90ec644ee409
     # MLD matches the partition + customize build above.
     command: osrm-routed --algorithm mld /data/switzerland-latest.osrm
     volumes:

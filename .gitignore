@@ -45,5 +45,6 @@ next-env.d.ts
 # ai
 .claude/
 
-# design handoff (reference only — not part of the build)
+# design handoff + scratch assets (reference only — not part of the build)
 /design_handoff_fleetmap/
+/tmp-image/

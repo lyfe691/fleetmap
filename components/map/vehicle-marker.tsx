@@ -8,7 +8,6 @@ import {
   type ComponentProps,
   type ReactNode,
 } from "react"
-import { Truck } from "lucide-react"
 import { Marker } from "react-map-gl/maplibre"
 
 const STALE_AFTER_MS = 30_000
@@ -84,42 +83,37 @@ export const VehicleMarker = memo(function VehicleMarker({
   stale,
   selected,
   fill,
-  surface,
 }: {
   label: string | null
   stale: boolean
   selected: boolean
   fill: string
-  surface: string
 }) {
-  const d = selected ? 54 : 44
+  const w = selected ? 58 : 48
   return (
     <div
-      className="flex cursor-pointer flex-col items-center gap-1.5"
-      style={{ opacity: stale ? 0.6 : 1 }}
+      className="relative flex cursor-pointer items-center justify-center"
+      style={{ width: w, height: w, opacity: stale ? 0.6 : 1 }}
     >
-      <div className="relative" style={{ width: d, height: d }}>
-        {selected ? (
-          <span
-            className="absolute inset-0 animate-ping rounded-full"
-            style={{ background: fill, opacity: 0.35 }}
-          />
-        ) : null}
-        <div
-          className="relative flex items-center justify-center rounded-full"
-          style={{
-            width: d,
-            height: d,
-            background: selected ? fill : surface,
-            border: `3px solid ${fill}`,
-            boxShadow: "0 1px 4px rgba(0,0,0,0.3)",
-          }}
-        >
-          <Truck size={selected ? 22 : 19} color={selected ? surface : fill} />
-        </div>
-      </div>
+      {selected ? (
+        <span
+          className="absolute m-auto animate-ping rounded-full"
+          style={{ width: w * 0.66, height: w * 0.66, background: fill, opacity: 0.3 }}
+        />
+      ) : null}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/bubblebox-van-icon.png"
+        alt=""
+        width={w}
+        height={w}
+        draggable={false}
+        className="relative select-none"
+        style={{ filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.35))" }}
+      />
       {label ? (
-        <span className="rounded-full border border-border bg-surface px-1.5 py-0.5 font-mono text-[11px] leading-none font-semibold">
+        <span className="absolute top-full left-1/2 -mt-1 flex -translate-x-1/2 items-center gap-1 rounded-full border border-border bg-surface px-1.5 py-0.5 font-mono text-[11px] leading-none font-semibold whitespace-nowrap">
+          <span className="size-1.5 shrink-0 rounded-full" style={{ background: fill }} />
           {stale ? `${label} · stale` : label}
         </span>
       ) : null}
