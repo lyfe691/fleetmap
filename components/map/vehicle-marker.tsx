@@ -1,9 +1,29 @@
 "use client"
 
-import { memo, useEffect, useRef, useState, type ComponentProps, type ReactNode } from "react"
+import {
+  memo,
+  useEffect,
+  useRef,
+  useState,
+  type ComponentProps,
+  type ReactNode,
+} from "react"
 import { Marker } from "react-map-gl/maplibre"
 
-export const STALE_AFTER_MS = 30_000
+const STALE_AFTER_MS = 30_000
+
+export function isStale(lastSeenAt: string | null, now: number): boolean {
+  return (
+    lastSeenAt == null || now - new Date(lastSeenAt).getTime() > STALE_AFTER_MS
+  )
+}
+
+function reducedMotion(): boolean {
+  return (
+    typeof window !== "undefined" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  )
+}
 
 function useGlide(targetLng: number, targetLat: number, durationMs: number) {
   const [pos, setPos] = useState({ lng: targetLng, lat: targetLat })
@@ -13,7 +33,9 @@ function useGlide(targetLng: number, targetLat: number, durationMs: number) {
   useEffect(() => {
     const from = { ...posRef.current }
     const to = { lng: targetLng, lat: targetLat }
-    if (Math.abs(to.lng - from.lng) + Math.abs(to.lat - from.lat) < 1e-7) {
+    const settled =
+      Math.abs(to.lng - from.lng) + Math.abs(to.lat - from.lat) < 1e-7
+    if (settled || reducedMotion()) {
       setPos(to)
       return
     }
@@ -50,81 +72,48 @@ export function InterpolatedMarker({
 }) {
   const pos = useGlide(longitude, latitude, 5000)
   return (
-    <Marker
-      longitude={pos.lng}
-      latitude={pos.lat}
-      anchor={anchor}
-      onClick={onClick}
-    >
+    <Marker longitude={pos.lng} latitude={pos.lat} anchor={anchor} onClick={onClick}>
       {children}
     </Marker>
   )
 }
 
 export const VehicleMarker = memo(function VehicleMarker({
-  heading,
   label,
   stale,
+  selected,
+  fill,
 }: {
-  heading: number
   label: string | null
   stale: boolean
+  selected: boolean
+  fill: string
 }) {
-  const fill = stale ? "#9ca3af" : "#2563eb"
+  const w = selected ? 58 : 48
   return (
     <div
-      className="flex cursor-pointer flex-col items-center gap-0.5"
-      style={{ opacity: stale ? 0.55 : 1 }}
+      className="relative flex cursor-pointer items-center justify-center"
+      style={{ width: w, height: w, opacity: stale ? 0.6 : 1 }}
     >
-      <svg
-        width="26"
-        height="26"
-        viewBox="0 0 24 24"
-        aria-hidden
-        style={{
-          transform: `rotate(${heading}deg)`,
-          filter: "drop-shadow(0 1px 1.5px rgba(0,0,0,0.35))",
-        }}
-      >
-        <rect
-          x="6"
-          y="3"
-          width="12"
-          height="18"
-          rx="3"
-          fill={fill}
-          stroke="#fff"
-          strokeWidth="1.3"
+      {selected ? (
+        <span
+          className="absolute m-auto animate-ping rounded-full"
+          style={{ width: w * 0.66, height: w * 0.66, background: fill, opacity: 0.3 }}
         />
-        <path
-          d="M7.6 7.4 Q12 5.8 16.4 7.4 L15.4 9.6 Q12 8.7 8.6 9.6 Z"
-          fill="#fff"
-          opacity="0.9"
-        />
-        <rect x="8.4" y="15" width="7.2" height="3" rx="1" fill="#fff" opacity="0.45" />
-        <rect
-          x="4.7"
-          y="8.2"
-          width="1.6"
-          height="2.2"
-          rx="0.6"
-          fill={fill}
-          stroke="#fff"
-          strokeWidth="0.7"
-        />
-        <rect
-          x="17.7"
-          y="8.2"
-          width="1.6"
-          height="2.2"
-          rx="0.6"
-          fill={fill}
-          stroke="#fff"
-          strokeWidth="0.7"
-        />
-      </svg>
+      ) : null}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/bubblebox-van-icon.png"
+        alt=""
+        width={w}
+        height={w}
+        draggable={false}
+        className="relative select-none"
+        style={{ filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.35))" }}
+      />
       {label ? (
-        <span className="rounded bg-black/70 px-1 text-[10px] leading-tight text-white">
+        <span className="absolute top-full left-1/2 -mt-1 flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-border bg-surface px-2 py-0.5 font-mono text-[12.5px] leading-none font-semibold whitespace-nowrap">
+          <span className="size-2 shrink-0 rounded-full" style={{ background: fill }} />
           {stale ? `${label} · stale` : label}
         </span>
       ) : null}
@@ -133,16 +122,16 @@ export const VehicleMarker = memo(function VehicleMarker({
 })
 
 export const StopMarker = memo(function StopMarker({
-  stopType,
-  status,
   emphasized,
+  terminal,
+  fill,
+  stroke,
 }: {
-  stopType: "pickup" | "dropoff"
-  status: string
   emphasized: boolean
+  terminal: boolean
+  fill: string
+  stroke: string
 }) {
-  const terminal = status !== "planned" && status !== "arrived"
-  const fill = stopType === "pickup" ? "#16a34a" : "#9333ea"
   const r = emphasized ? 9 : 6
   const size = (r + 3) * 2
   return (
@@ -158,7 +147,7 @@ export const StopMarker = memo(function StopMarker({
         cy={size / 2}
         r={r}
         fill={fill}
-        stroke="white"
+        stroke={stroke}
         strokeWidth={emphasized ? 3 : 2}
       />
     </svg>

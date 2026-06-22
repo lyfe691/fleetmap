@@ -39,16 +39,22 @@ export function useLiveVehicles(displayCode: string) {
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
   const [error, setError] = useState<string | null>(null)
   const [ready, setReady] = useState(false)
+  const [loaded, setLoaded] = useState(false)
 
   useEffect(() => {
     if (!displayCode) return
 
     setReady(false)
+    setLoaded(false)
+    setError(null)
 
     const supabase = getBrowserClient()
     const byId = new Map<string, Vehicle>()
     let channel: RealtimeChannel | null = null
     let cancelled = false
+    // Releases the loader gate; set on the first snapshot or first surfaced
+    // connection failure so a dead channel can't hang the loader forever.
+    let resolved = false
 
     // Re-arm Realtime when supabase-js refreshes the session, so the socket
     // stays authed and the channel keeps delivering on a long-running TV.
@@ -78,10 +84,16 @@ export function useLiveVehicles(displayCode: string) {
         .select(COLUMNS)
       if (cancelled) return
       if (selErr) {
+        resolved = true
         setError(selErr.message)
         return
       }
       for (const v of (data ?? []) as Vehicle[]) apply(v, true)
+      if (!cancelled) {
+        resolved = true
+        setError(null)
+        setLoaded(true)
+      }
     }
 
     const start = async () => {
@@ -111,7 +123,22 @@ export function useLiveVehicles(displayCode: string) {
             }
           )
           .subscribe((status) => {
-            if (status === "SUBSCRIBED") void loadSnapshot()
+            if (cancelled) return
+            if (status === "SUBSCRIBED") {
+              void loadSnapshot()
+              return
+            }
+            // A terminal failure before the first snapshot would otherwise hang
+            // the loader; surface it so the shell shows the error banner.
+            if (
+              !resolved &&
+              (status === "CHANNEL_ERROR" ||
+                status === "TIMED_OUT" ||
+                status === "CLOSED")
+            ) {
+              resolved = true
+              setError(`realtime connection failed (${status})`)
+            }
           })
       } catch (err) {
         if (!cancelled) {
@@ -129,5 +156,5 @@ export function useLiveVehicles(displayCode: string) {
     }
   }, [displayCode])
 
-  return { vehicles, error, ready }
+  return { vehicles, error, ready, loaded }
 }

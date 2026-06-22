@@ -2,7 +2,8 @@
 
 import "maplibre-gl/dist/maplibre-gl.css"
 import { useEffect, useMemo, useRef, useState } from "react"
-import { MaximizeIcon, MinimizeIcon } from "lucide-react"
+import { MaximizeIcon, MinimizeIcon, MinusIcon, PlusIcon } from "lucide-react"
+import { useTheme } from "next-themes"
 import {
   Layer,
   Map as MapGL,
@@ -10,9 +11,8 @@ import {
   Source,
   type MapRef,
 } from "react-map-gl/maplibre"
-import { Button } from "@/components/ui/button"
+import { mapColors, mapStyleUrl, type MapTheme } from "@/lib/map-theme"
 import { useRouteFeatures } from "@/lib/use-route-features"
-import { areasToFeatureCollection, type OperationalArea } from "@/lib/use-operational-areas"
 import type { Vehicle } from "@/lib/use-live-vehicles"
 import type { Stop } from "@/lib/use-live-stops"
 import type { Route } from "@/lib/route-types"
@@ -21,35 +21,198 @@ import {
   InterpolatedMarker,
   VehicleMarker,
   StopMarker,
-  STALE_AFTER_MS,
+  isStale,
 } from "@/components/map/vehicle-marker"
 
-const MAP_STYLE = `https://api.maptiler.com/maps/streets-v2/style.json?key=${process.env.NEXT_PUBLIC_MAPTILER_KEY}`
-
 function computeFleetBounds(
-  areas: OperationalArea[],
   vehicles: Vehicle[]
 ): [[number, number], [number, number]] | null {
   let w = Infinity
   let s = Infinity
   let e = -Infinity
   let n = -Infinity
-  const add = (lng: number, lat: number) => {
-    w = Math.min(w, lng)
-    e = Math.max(e, lng)
-    s = Math.min(s, lat)
-    n = Math.max(n, lat)
-  }
-  for (const a of areas) {
-    const dLat = a.radius_m / 111_320
-    const dLng = a.radius_m / (111_320 * Math.cos((a.center_lat * Math.PI) / 180))
-    add(a.center_lng - dLng, a.center_lat - dLat)
-    add(a.center_lng + dLng, a.center_lat + dLat)
-  }
   for (const v of vehicles) {
-    if (v.last_lng != null && v.last_lat != null) add(v.last_lng, v.last_lat)
+    if (v.last_lng == null || v.last_lat == null) continue
+    w = Math.min(w, v.last_lng)
+    e = Math.max(e, v.last_lng)
+    s = Math.min(s, v.last_lat)
+    n = Math.max(n, v.last_lat)
   }
   return w === Infinity ? null : [[w, s], [e, n]]
+}
+
+export function FleetMapView({
+  vehicles,
+  stopsByVehicle,
+  routes,
+  now,
+  selectedId,
+  onSelectVehicle,
+  showChrome = true,
+}: {
+  vehicles: Vehicle[]
+  stopsByVehicle: Map<string, Stop[]>
+  routes: Map<string, Route>
+  now: number
+  selectedId?: string | null
+  onSelectVehicle?: (id: string) => void
+  showChrome?: boolean
+}) {
+  const { resolvedTheme } = useTheme()
+  const theme: MapTheme = resolvedTheme === "dark" ? "dark" : "light"
+  const colors = useMemo(() => mapColors(theme), [theme])
+  const styleUrl = useMemo(() => mapStyleUrl(theme), [theme])
+
+  const mapRef = useRef<MapRef>(null)
+  const [mapLoaded, setMapLoaded] = useState(false)
+  // One camera policy: ease to the selected vehicle, or fit the whole shown set
+  // when nothing is selected — that single rule covers the Live Map's
+  // focus-on-select, its "view all" (cleared selection), and the framing for
+  // the single-vehicle mini-map. Keyed so position updates don't re-frame.
+  const cameraKeyRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (!mapLoaded) return
+    const map = mapRef.current
+    if (!map) return
+
+    const idsKey = vehicles
+      .map((v) => v.id)
+      .sort()
+      .join(",")
+    const key = selectedId ? `focus:${selectedId}` : `fleet:${idsKey}`
+    if (key === cameraKeyRef.current) return
+    const first = cameraKeyRef.current === null
+    cameraKeyRef.current = key
+
+    if (selectedId) {
+      const v = vehicles.find((x) => x.id === selectedId)
+      if (!v || v.last_lng == null || v.last_lat == null) {
+        cameraKeyRef.current = null
+        return
+      }
+      map.easeTo({
+        center: [v.last_lng, v.last_lat],
+        zoom: Math.max(map.getZoom(), 13),
+        duration: first ? 0 : 700,
+      })
+      return
+    }
+
+    const bounds = computeFleetBounds(vehicles)
+    if (!bounds) {
+      cameraKeyRef.current = null
+      return
+    }
+    map.fitBounds(bounds, { padding: 80, maxZoom: 14, duration: first ? 0 : 600 })
+  }, [mapLoaded, selectedId, vehicles])
+
+  const { nextStopIds, onRouteIds } = useMemo(() => {
+    const next = new Set<string>()
+    const onRoute = new Set<string>()
+    for (const [vid, stops] of stopsByVehicle) {
+      const first = stops.find(isActive)
+      if (first) {
+        next.add(first.id)
+        onRoute.add(vid)
+      }
+    }
+    return { nextStopIds: next, onRouteIds: onRoute }
+  }, [stopsByVehicle])
+
+  const stopMarkers = useMemo(
+    () =>
+      Array.from(stopsByVehicle.values())
+        .flat()
+        .map((s) => (
+          <Marker key={s.id} longitude={s.lng} latitude={s.lat} anchor="center">
+            <StopMarker
+              fill={s.stop_type === "pickup" ? colors.pickup : colors.dropoff}
+              stroke={colors.markerStroke}
+              emphasized={nextStopIds.has(s.id)}
+              terminal={s.status !== "planned" && s.status !== "arrived"}
+            />
+          </Marker>
+        )),
+    [stopsByVehicle, nextStopIds, colors]
+  )
+
+  const { remaining, traveled } = useRouteFeatures(routes, vehicles)
+
+  return (
+    <>
+      {showChrome ? (
+        <>
+          <FullscreenButton />
+          <ZoomControls
+            onZoomIn={() => mapRef.current?.zoomIn()}
+            onZoomOut={() => mapRef.current?.zoomOut()}
+          />
+          <MapLegend />
+        </>
+      ) : null}
+
+      <MapGL
+        ref={mapRef}
+        reuseMaps
+        onLoad={() => setMapLoaded(true)}
+        initialViewState={{ longitude: 8.23, latitude: 46.8, zoom: 7.2 }}
+        mapStyle={styleUrl}
+        style={{ width: "100%", height: "100%" }}
+      >
+        <Source id="routes-traveled" type="geojson" data={traveled}>
+          <Layer
+            id="routes-traveled-line"
+            type="line"
+            layout={{ "line-cap": "round", "line-join": "round" }}
+            paint={{ "line-color": colors.traveled, "line-width": 4, "line-opacity": 0.45 }}
+          />
+        </Source>
+
+        <Source id="routes-remaining" type="geojson" data={remaining}>
+          <Layer
+            id="routes-remaining-casing"
+            type="line"
+            layout={{ "line-cap": "round", "line-join": "round" }}
+            paint={{ "line-color": colors.routeCasing, "line-width": 8, "line-opacity": 0.9 }}
+          />
+          <Layer
+            id="routes-remaining-line"
+            type="line"
+            layout={{ "line-cap": "round", "line-join": "round" }}
+            paint={{ "line-color": colors.route, "line-width": 4.5, "line-opacity": 0.95 }}
+          />
+        </Source>
+
+        {stopMarkers}
+
+        {vehicles.map((v) => {
+          if (v.last_lat == null || v.last_lng == null) return null
+          const stale = isStale(v.last_seen_at, now)
+          const fill = stale
+            ? colors.vehicleStale
+            : onRouteIds.has(v.id)
+              ? colors.vehicleOnRoute
+              : colors.vehicleWaiting
+          return (
+            <InterpolatedMarker
+              key={v.id}
+              longitude={v.last_lng}
+              latitude={v.last_lat}
+              anchor="center"
+              onClick={() => onSelectVehicle?.(v.id)}
+            >
+              <VehicleMarker
+                label={v.label}
+                stale={stale}
+                selected={v.id === selectedId}
+                fill={fill}
+              />
+            </InterpolatedMarker>
+          )
+        })}
+      </MapGL>
+    </>
+  )
 }
 
 function FullscreenButton() {
@@ -60,213 +223,64 @@ function FullscreenButton() {
     return () => document.removeEventListener("fullscreenchange", onChange)
   }, [])
   return (
-    <Button
-      variant="secondary"
-      size="icon"
-      className="absolute right-4 bottom-4 z-10 shadow-md"
+    <button
+      type="button"
       aria-label={fs ? "Exit fullscreen" : "Enter fullscreen"}
       onClick={() => {
         if (document.fullscreenElement) void document.exitFullscreen()
         else void document.documentElement.requestFullscreen()
       }}
+      className="absolute top-5 right-5 z-10 flex size-14 items-center justify-center rounded-2xl border border-border bg-surface text-foreground shadow-md transition-[filter] active:brightness-95"
     >
-      {fs ? (
-        <MinimizeIcon className="size-4" />
-      ) : (
-        <MaximizeIcon className="size-4" />
-      )}
-    </Button>
+      {fs ? <MinimizeIcon className="size-6" /> : <MaximizeIcon className="size-6" />}
+    </button>
   )
 }
 
-function MapLegend({ areas }: { areas: OperationalArea[] }) {
-  if (areas.length === 0) return null
+function ZoomControls({
+  onZoomIn,
+  onZoomOut,
+}: {
+  onZoomIn: () => void
+  onZoomOut: () => void
+}) {
   return (
-    <div className="absolute bottom-4 left-4 z-10 rounded-md border bg-background/80 px-3 py-2 text-xs shadow-sm backdrop-blur">
-      <div className="mb-1.5 font-medium text-muted-foreground">
-        Operational areas
-      </div>
-      <ul className="space-y-1">
-        {areas.map((a) => (
-          <li key={a.id} className="flex items-center gap-2">
-            <span
-              className="size-2.5 rounded-full"
-              style={{ backgroundColor: a.color }}
-            />
-            <span>{a.name}</span>
-          </li>
-        ))}
-      </ul>
-      <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 border-t pt-2 text-muted-foreground">
-        <LegendDot color="#16a34a" label="Pickup" />
-        <LegendDot color="#9333ea" label="Dropoff" />
-        <LegendDot color="#2563eb" label="Live" />
-        <LegendDot color="#9ca3af" label="Stale" />
-      </div>
+    <div className="absolute right-5 bottom-5 z-10 flex flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-md">
+      <button
+        type="button"
+        aria-label="Zoom in"
+        onClick={onZoomIn}
+        className="flex size-14 items-center justify-center border-b border-border text-foreground transition-colors hover:bg-muted active:bg-muted"
+      >
+        <PlusIcon className="size-6" />
+      </button>
+      <button
+        type="button"
+        aria-label="Zoom out"
+        onClick={onZoomOut}
+        className="flex size-14 items-center justify-center text-foreground transition-colors hover:bg-muted active:bg-muted"
+      >
+        <MinusIcon className="size-6" />
+      </button>
     </div>
   )
 }
 
-function LegendDot({ color, label }: { color: string; label: string }) {
+function MapLegend() {
   return (
-    <span className="flex items-center gap-1.5">
-      <span className="size-2 rounded-full" style={{ backgroundColor: color }} />
-      {label}
-    </span>
+    <div className="absolute bottom-5 left-5 z-10 flex gap-5 rounded-2xl border border-border bg-surface/85 px-5 py-3.5 text-[14px] font-medium shadow-md backdrop-blur">
+      <LegendDot className="bg-success" label="On Route" />
+      <LegendDot className="bg-warning" label="Waiting" />
+      <LegendDot className="bg-muted-foreground" label="Stale" />
+    </div>
   )
 }
 
-export function FleetMapView({
-  vehicles,
-  stopsByVehicle,
-  routes,
-  areas,
-  now,
-}: {
-  vehicles: Vehicle[]
-  stopsByVehicle: Map<string, Stop[]>
-  routes: Map<string, Route>
-  areas: OperationalArea[]
-  now: number
-}) {
-  const areaFc = useMemo(() => areasToFeatureCollection(areas), [areas])
-
-  const mapRef = useRef<MapRef>(null)
-  const [mapLoaded, setMapLoaded] = useState(false)
-  const fittedRef = useRef(false)
-  useEffect(() => {
-    if (fittedRef.current || !mapLoaded) return
-    const bounds = computeFleetBounds(areas, vehicles)
-    if (!bounds) return
-    fittedRef.current = true
-    mapRef.current?.fitBounds(bounds, { padding: 64, duration: 0 })
-  }, [mapLoaded, areas, vehicles])
-
-  const nextStopIds = useMemo(() => {
-    const ids = new Set<string>()
-    for (const stops of stopsByVehicle.values()) {
-      const next = stops.find(isActive)
-      if (next) ids.add(next.id)
-    }
-    return ids
-  }, [stopsByVehicle])
-
-  const stopMarkers = useMemo(
-    () =>
-      Array.from(stopsByVehicle.values())
-        .flat()
-        .map((s) => (
-          <Marker key={s.id} longitude={s.lng} latitude={s.lat} anchor="center">
-            <StopMarker
-              stopType={s.stop_type}
-              status={s.status}
-              emphasized={nextStopIds.has(s.id)}
-            />
-          </Marker>
-        )),
-    [stopsByVehicle, nextStopIds]
-  )
-
-  const { remaining, traveled } = useRouteFeatures(routes, vehicles)
-
+function LegendDot({ className, label }: { className: string; label: string }) {
   return (
-    <>
-      <FullscreenButton />
-      <MapLegend areas={areas} />
-
-      <MapGL
-        ref={mapRef}
-        onLoad={() => setMapLoaded(true)}
-        initialViewState={{ longitude: 8.23, latitude: 46.8, zoom: 7.2 }}
-        mapStyle={MAP_STYLE}
-        style={{ width: "100%", height: "100%" }}
-      >
-        <Source id="operational-areas" type="geojson" data={areaFc}>
-          <Layer
-            id="operational-areas-fill"
-            type="fill"
-            paint={{
-              "fill-color": ["get", "color"],
-              "fill-opacity": 0.07,
-            }}
-          />
-          <Layer
-            id="operational-areas-outline"
-            type="line"
-            layout={{ "line-join": "round" }}
-            paint={{
-              "line-color": ["get", "color"],
-              "line-width": 1.5,
-              "line-opacity": 0.4,
-              "line-dasharray": [3, 2],
-            }}
-          />
-        </Source>
-
-        {areas.map((a) => (
-          <Marker
-            key={a.id}
-            longitude={a.center_lng}
-            latitude={a.center_lat}
-            anchor="center"
-          >
-            <span
-              className="pointer-events-none select-none text-[11px] font-semibold uppercase tracking-[0.14em]"
-              style={{ color: a.color, textShadow: "0 0 3px #fff, 0 0 3px #fff" }}
-            >
-              {a.name}
-            </span>
-          </Marker>
-        ))}
-
-        <Source id="routes-traveled" type="geojson" data={traveled}>
-          <Layer
-            id="routes-traveled-line"
-            type="line"
-            layout={{ "line-cap": "round", "line-join": "round" }}
-            paint={{
-              "line-color": "#9ca3af",
-              "line-width": 4,
-              "line-opacity": 0.4,
-            }}
-          />
-        </Source>
-
-        <Source id="routes-remaining" type="geojson" data={remaining}>
-          <Layer
-            id="routes-remaining-line"
-            type="line"
-            layout={{ "line-cap": "round", "line-join": "round" }}
-            paint={{
-              "line-color": "#2563eb",
-              "line-width": 4,
-              "line-opacity": 0.85,
-            }}
-          />
-        </Source>
-
-        {stopMarkers}
-
-        {vehicles.map((v) =>
-          v.last_lat != null && v.last_lng != null ? (
-            <InterpolatedMarker
-              key={v.id}
-              longitude={v.last_lng}
-              latitude={v.last_lat}
-              anchor="center"
-            >
-              <VehicleMarker
-                heading={v.last_heading ?? 0}
-                label={v.label}
-                stale={
-                  v.last_seen_at == null ||
-                  now - new Date(v.last_seen_at).getTime() > STALE_AFTER_MS
-                }
-              />
-            </InterpolatedMarker>
-          ) : null
-        )}
-      </MapGL>
-    </>
+    <span className="flex items-center gap-2">
+      <span className={`size-3 rounded-full ${className}`} />
+      {label}
+    </span>
   )
 }

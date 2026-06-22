@@ -19,6 +19,8 @@ Phone → `POST /api/location` (authed) → upsert latest position onto the vehi
 
 The API is stateless and thin (ingest + OSRM proxy only). Live fan-out is Supabase Realtime's job — no Redis, no custom WebSocket server.
 
+The dashboard is a touchscreen monitoring console: a 3-region layout (sidebar nav + fleet rail + per-vehicle tracking / live map / history) with light/dark theming.
+
 ## Setup
 
 **Prerequisites**: Node.js, pnpm, Docker (for OSRM), a Supabase project.
@@ -73,4 +75,4 @@ Copy `.env.example` to `.env` and fill in:
 
 ## Status
 
-Through **M8** (greying + side rail + ETA). Milestones M1–M8 are complete; see `CLAUDE.md` for the full list. Next: geofenced "arrived" events, auto-assigned dropoffs, and route replay.
+Through **M11** — multi-city tracking plus a touchscreen monitoring-console rebuild (sidebar + fleet rail + tracking/map/history, light/dark). Milestones M1–M11 are complete; see `CLAUDE.md` for the full list. Next: orders/deliveries model, auto-assigned dropoffs, and route replay.

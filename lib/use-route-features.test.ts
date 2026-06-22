@@ -40,7 +40,7 @@ describe("computeRouteFeatures", () => {
     const prog = new Map()
     const routes = new Map([["v1", BASE_ROUTE]])
     const vehicles = [makeVehicle("v1", 47.35, 8.5)]
-    const { remaining, traveled } = computeRouteFeatures(prog, routes, vehicles)
+    const { remaining } = computeRouteFeatures(prog, routes, vehicles)
     expect(remaining.features).toHaveLength(1)
     expect(remaining.features[0].properties?.vehicle_id).toBe("v1")
   })
