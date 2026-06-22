@@ -40,21 +40,21 @@ export function AppSidebar({
 
   return (
     <aside className="flex h-full w-[262px] shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
-      <div className="flex items-center gap-3 border-b border-sidebar-border px-4 py-4">
-        <div className="flex h-11 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-muted">
+      <div className="flex items-center gap-2.5 px-4 py-4">
+        <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/bubblebox-van-icon-tight.png"
             alt=""
             draggable={false}
-            className="h-7 w-auto object-contain"
+            className="h-5 w-auto object-contain"
           />
         </div>
-        <div className="min-w-0 leading-tight">
-          <div className="font-heading text-[18px] font-semibold tracking-tight">
+        <div className="leading-none">
+          <div className="font-heading text-[15px] font-semibold tracking-tight">
             Fleetmap
           </div>
-          <div className="mt-0.5 text-[10.5px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
+          <div className="mt-1 text-[11px] text-muted-foreground">
             Monitoring Console
           </div>
         </div>
@@ -102,7 +102,7 @@ function NavGroup({
 }) {
   return (
     <div className={className}>
-      <div className="flex h-[30px] items-center px-3 text-[11.5px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
+      <div className="px-2.5 pt-2 pb-1 text-[11px] font-medium tracking-wider text-muted-foreground uppercase">
         {label}
       </div>
       <div className="flex flex-col gap-0.5">{children}</div>
@@ -125,24 +125,16 @@ function NavItem({
       type="button"
       onClick={onClick}
       aria-current={active ? "page" : undefined}
-      className={`flex h-[52px] items-center gap-3 rounded-[14px] px-3 text-[15px] transition-colors ${
+      className={`flex h-9 items-center gap-2.5 rounded-md px-2.5 text-sm font-medium transition-colors ${
         active
-          ? "bg-sidebar-accent font-semibold"
-          : "font-medium hover:bg-sidebar-accent"
+          ? "bg-sidebar-accent text-sidebar-accent-foreground"
+          : "text-muted-foreground hover:bg-sidebar-accent/70 hover:text-sidebar-accent-foreground"
       }`}
     >
-      <span
-        className={`flex size-[34px] shrink-0 items-center justify-center rounded-[10px] transition-colors ${
-          active
-            ? "bg-sidebar-primary text-sidebar-primary-foreground"
-            : "text-muted-foreground"
-        }`}
-      >
-        <Icon className="size-[22px]" />
-      </span>
+      <Icon className="size-[18px] shrink-0" />
       <span className="flex-1 text-left whitespace-nowrap">{entry.label}</span>
       {entry.badge ? (
-        <span className="flex h-[22px] min-w-6 items-center justify-center rounded-full bg-sidebar-foreground/10 px-1.5 text-xs font-semibold">
+        <span className="rounded-full bg-success/15 px-1.5 py-0.5 text-[11px] font-semibold text-success tabular-nums">
           {entry.badge}
         </span>
       ) : null}
