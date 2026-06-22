@@ -107,16 +107,16 @@ function Overview({
     <div>
       <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
         <Card label="Load Capacity">
-          <div className="mt-2.5 flex items-end gap-3.5">
-            <div className="font-heading text-5xl leading-[0.9] font-bold tracking-tight">
+          <div className="mt-2 flex items-center gap-3">
+            <span className="font-heading text-5xl leading-none font-bold tracking-tight">
               {vehicle.capacityPct}%
-            </div>
+            </span>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src="/bubblebox-van.png"
+              src="/bubblebox-van-tight.png"
               alt=""
               draggable={false}
-              className="h-[62px] flex-1 object-contain"
+              className="ml-auto h-20 w-auto object-contain"
             />
           </div>
           <p className="mt-4 text-[13px] text-muted-foreground">
