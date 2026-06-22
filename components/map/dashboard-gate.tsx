@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useSyncExternalStore } from "react"
-import { MapClient } from "@/components/map/map-client"
+import { ConsoleClient } from "@/components/console/console-client"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -27,7 +27,7 @@ export function DashboardGate() {
   const [input, setInput] = useState("")
 
   if (code) {
-    return <MapClient displayCode={code} />
+    return <ConsoleClient displayCode={code} />
   }
 
   return (
