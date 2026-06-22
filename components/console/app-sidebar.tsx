@@ -64,7 +64,6 @@ export function AppSidebar({
         </nav>
 
         <div className="flex flex-col items-center gap-2">
-          <OnlineDot online={onlineCount} total={totalCount} />
           <ThemeToggle collapsed />
           <button
             type="button"
@@ -237,20 +236,6 @@ function OnlinePill({ online, total }: { online: number; total: number }) {
       </span>
       <span className="shrink-0 font-mono text-[13px] text-muted-foreground">
         {clock}
-      </span>
-    </div>
-  )
-}
-
-function OnlineDot({ online, total }: { online: number; total: number }) {
-  return (
-    <div
-      title={`${online} of ${total} online`}
-      className="flex size-11 items-center justify-center"
-    >
-      <span className="relative flex size-3">
-        <span className="absolute inline-flex size-full animate-ping rounded-full bg-success opacity-60" />
-        <span className="relative inline-flex size-3 rounded-full bg-success" />
       </span>
     </div>
   )

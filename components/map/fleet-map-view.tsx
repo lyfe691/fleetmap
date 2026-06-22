@@ -65,13 +65,26 @@ export function FleetMapView({
 
   const mapRef = useRef<MapRef>(null)
   const [mapLoaded, setMapLoaded] = useState(false)
-  const fittedRef = useRef(false)
+  // Reframe when the SET of shown vehicles changes — initial load, fleet
+  // membership, or the single-vehicle mini-map swapping to a different van —
+  // but not on position updates, which keep the same id set.
+  const fittedKeyRef = useRef<string | null>(null)
   useEffect(() => {
-    if (fittedRef.current || !mapLoaded) return
+    if (!mapLoaded) return
+    const key = vehicles
+      .map((v) => v.id)
+      .sort()
+      .join(",")
+    if (key === fittedKeyRef.current) return
     const bounds = computeFleetBounds(vehicles)
     if (!bounds) return
-    fittedRef.current = true
-    mapRef.current?.fitBounds(bounds, { padding: 80, maxZoom: 14, duration: 0 })
+    const first = fittedKeyRef.current === null
+    fittedKeyRef.current = key
+    mapRef.current?.fitBounds(bounds, {
+      padding: 80,
+      maxZoom: 14,
+      duration: first ? 0 : 600,
+    })
   }, [mapLoaded, vehicles])
 
   const { nextStopIds, onRouteIds } = useMemo(() => {
