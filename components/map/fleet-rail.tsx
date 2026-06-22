@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo } from "react"
+import { memo, useMemo } from "react"
 import { isActive, formatEta } from "@/components/map/fleet-format"
 import { STALE_AFTER_MS } from "@/components/map/vehicle-marker"
 import type { Vehicle } from "@/lib/use-live-vehicles"
@@ -88,7 +88,7 @@ export function FleetRail({
   )
 }
 
-function FleetRailRow({
+const FleetRailRow = memo(function FleetRailRow({
   v,
   stops,
   eta,
@@ -137,7 +137,7 @@ function FleetRailRow({
       </div>
     </li>
   )
-}
+})
 
 function StatusDot({ active, stale }: { active: boolean; stale: boolean }) {
   const color = stale ? "#9ca3af" : active ? "#2563eb" : "#cbd5e1"
