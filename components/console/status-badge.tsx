@@ -17,10 +17,10 @@ export function StatusBadge({
   return (
     <span
       className={`inline-flex items-center gap-1.5 rounded-full font-semibold ${tint} ${
-        size === "md" ? "px-3 py-1 text-[13px]" : "px-2.5 py-1 text-xs"
+        size === "md" ? "px-3.5 py-1.5 text-[15px]" : "px-3 py-1 text-[13px]"
       }`}
     >
-      <span className={`size-1.5 rounded-full ${dot}`} />
+      <span className={`size-2 rounded-full ${dot}`} />
       {label}
     </span>
   )

@@ -112,8 +112,8 @@ export const VehicleMarker = memo(function VehicleMarker({
         style={{ filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.35))" }}
       />
       {label ? (
-        <span className="absolute top-full left-1/2 -mt-1 flex -translate-x-1/2 items-center gap-1 rounded-full border border-border bg-surface px-1.5 py-0.5 font-mono text-[11px] leading-none font-semibold whitespace-nowrap">
-          <span className="size-1.5 shrink-0 rounded-full" style={{ background: fill }} />
+        <span className="absolute top-full left-1/2 -mt-1 flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-border bg-surface px-2 py-0.5 font-mono text-[12.5px] leading-none font-semibold whitespace-nowrap">
+          <span className="size-2 shrink-0 rounded-full" style={{ background: fill }} />
           {stale ? `${label} · stale` : label}
         </span>
       ) : null}

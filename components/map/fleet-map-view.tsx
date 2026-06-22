@@ -198,9 +198,9 @@ function FullscreenButton() {
         if (document.fullscreenElement) void document.exitFullscreen()
         else void document.documentElement.requestFullscreen()
       }}
-      className="absolute top-4 right-4 z-10 flex size-11 items-center justify-center rounded-2xl border border-border bg-surface text-foreground shadow-md transition-[filter] active:brightness-95"
+      className="absolute top-5 right-5 z-10 flex size-14 items-center justify-center rounded-2xl border border-border bg-surface text-foreground shadow-md transition-[filter] active:brightness-95"
     >
-      {fs ? <MinimizeIcon className="size-5" /> : <MaximizeIcon className="size-5" />}
+      {fs ? <MinimizeIcon className="size-6" /> : <MaximizeIcon className="size-6" />}
     </button>
   )
 }
@@ -213,22 +213,22 @@ function ZoomControls({
   onZoomOut: () => void
 }) {
   return (
-    <div className="absolute right-4 bottom-4 z-10 flex flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-md">
+    <div className="absolute right-5 bottom-5 z-10 flex flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-md">
       <button
         type="button"
         aria-label="Zoom in"
         onClick={onZoomIn}
-        className="flex size-11 items-center justify-center border-b border-border text-foreground transition-colors hover:bg-muted active:bg-muted"
+        className="flex size-14 items-center justify-center border-b border-border text-foreground transition-colors hover:bg-muted active:bg-muted"
       >
-        <PlusIcon className="size-5" />
+        <PlusIcon className="size-6" />
       </button>
       <button
         type="button"
         aria-label="Zoom out"
         onClick={onZoomOut}
-        className="flex size-11 items-center justify-center text-foreground transition-colors hover:bg-muted active:bg-muted"
+        className="flex size-14 items-center justify-center text-foreground transition-colors hover:bg-muted active:bg-muted"
       >
-        <MinusIcon className="size-5" />
+        <MinusIcon className="size-6" />
       </button>
     </div>
   )
@@ -236,7 +236,7 @@ function ZoomControls({
 
 function MapLegend() {
   return (
-    <div className="absolute bottom-4 left-4 z-10 flex gap-4 rounded-2xl border border-border bg-surface/85 px-4 py-3 text-xs font-medium shadow-md backdrop-blur">
+    <div className="absolute bottom-5 left-5 z-10 flex gap-5 rounded-2xl border border-border bg-surface/85 px-5 py-3.5 text-[14px] font-medium shadow-md backdrop-blur">
       <LegendDot className="bg-success" label="On Route" />
       <LegendDot className="bg-warning" label="Waiting" />
       <LegendDot className="bg-muted-foreground" label="Stale" />
@@ -246,8 +246,8 @@ function MapLegend() {
 
 function LegendDot({ className, label }: { className: string; label: string }) {
   return (
-    <span className="flex items-center gap-1.5">
-      <span className={`size-2.5 rounded-full ${className}`} />
+    <span className="flex items-center gap-2">
+      <span className={`size-3 rounded-full ${className}`} />
       {label}
     </span>
   )
