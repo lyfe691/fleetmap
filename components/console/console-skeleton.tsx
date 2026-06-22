@@ -4,22 +4,22 @@ export function ConsoleSkeleton() {
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-background">
       <aside className="flex w-[262px] shrink-0 flex-col border-r border-sidebar-border bg-sidebar">
-        <div className="flex items-center gap-2.5 px-4 py-4">
-          <Skeleton className="size-9 rounded-lg" />
+        <div className="flex items-center gap-3 px-4 py-5">
+          <Skeleton className="size-12 rounded-xl" />
           <div className="flex-1 space-y-1.5">
-            <Skeleton className="h-4 w-24" />
-            <Skeleton className="h-2.5 w-28" />
+            <Skeleton className="h-5 w-24" />
+            <Skeleton className="h-3 w-28" />
           </div>
         </div>
-        <div className="flex flex-1 flex-col gap-0.5 p-3">
-          <Skeleton className="mt-2 mb-1 h-3 w-14" />
+        <div className="flex flex-1 flex-col gap-1 p-3">
+          <Skeleton className="mt-2 mb-1.5 h-3 w-16" />
           {Array.from({ length: 2 }).map((_, i) => (
-            <Skeleton key={i} className="h-9 w-full rounded-md" />
+            <Skeleton key={i} className="h-14 w-full rounded-xl" />
           ))}
-          <Skeleton className="mt-3 mb-1 h-3 w-14" />
-          <Skeleton className="h-9 w-full rounded-md" />
+          <Skeleton className="mt-3 mb-1.5 h-3 w-16" />
+          <Skeleton className="h-14 w-full rounded-xl" />
           <div className="mt-auto">
-            <Skeleton className="h-[52px] w-full rounded-[14px]" />
+            <Skeleton className="h-[60px] w-full rounded-2xl" />
           </div>
         </div>
       </aside>
