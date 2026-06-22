@@ -2,12 +2,12 @@
 
 import dynamic from "next/dynamic"
 
-import { ConsoleSkeleton } from "@/components/console/console-skeleton"
+import { ConsoleLoading } from "@/components/console/console-loading"
 
 export const ConsoleClient = dynamic(
   () => import("@/components/console/console-shell").then((m) => m.ConsoleShell),
   {
     ssr: false,
-    loading: () => <ConsoleSkeleton />,
+    loading: () => <ConsoleLoading />,
   }
 )
