@@ -3,9 +3,8 @@
  *
  * Drives both `fake-gps` (one driver + van per city, drives that city's stops)
  * and `seed-stops` (ingests each city's day of orders to its van). `upsertAreas`
- * mirrors these into the operational_areas table so the TV draws each city's
- * service region as a soft overlay. The app itself reads areas from the DB, not
- * from here — this file only exists to seed a believable multi-city demo.
+ * mirrors these into the operational_areas table (data only — the console no
+ * longer renders area overlays). This file only exists to seed a multi-city demo.
  */
 import type { SupabaseClient } from "@supabase/supabase-js"
 

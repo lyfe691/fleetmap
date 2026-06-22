@@ -14,7 +14,6 @@ export type ConsoleVehicle = {
   tone: StatusTone
   statusLabel: string
   stale: boolean
-  secondsAgo: number | null
   origin: string
   dest: string
   etaText: string
@@ -23,8 +22,6 @@ export type ConsoleVehicle = {
   stopsLeft: number
   routeProgressPct: number
   speedText: string
-  lat: number | null
-  lng: number | null
   // assumed (placeholder — see lib/console/assumed.ts)
   capacityPct: number
   loadCount: number
@@ -37,7 +34,7 @@ export type ConsoleVehicle = {
   cargoTemp: string
 }
 
-export function formatEta(seconds: number): string {
+function formatEta(seconds: number): string {
   const mins = Math.round(seconds / 60)
   if (mins < 1) return "<1 min"
   if (mins < 60) return `${mins} min`
@@ -70,10 +67,6 @@ export function buildConsoleVehicles(input: {
     const route = routes.get(v.id)
 
     const stale = isStale(v.last_seen_at, now)
-    const secondsAgo = v.last_seen_at
-      ? Math.max(0, Math.round((now - new Date(v.last_seen_at).getTime()) / 1000))
-      : null
-
     const etaSec = route?.legs?.[0]?.duration ?? null
     const totalStops = stops.length
     const doneStops = Math.max(0, totalStops - active.length)
@@ -85,7 +78,6 @@ export function buildConsoleVehicles(input: {
       tone: hasActive ? "onRoute" : "waiting",
       statusLabel: hasActive ? "On Route" : "Waiting",
       stale,
-      secondsAgo,
       origin: "Depot",
       dest: next ? (next.stop_type === "pickup" ? "Pickup" : "Dropoff") : "—",
       etaText: hasActive ? (etaSec != null ? formatEta(etaSec) : "—") : "Idle",
@@ -99,8 +91,6 @@ export function buildConsoleVehicles(input: {
       routeProgressPct: totalStops > 0 ? Math.round((doneStops / totalStops) * 100) : 0,
       // last_speed is m/s (W3C Geolocation / fake-gps); display as km/h.
       speedText: v.last_speed != null ? `${Math.round(v.last_speed * 3.6)} km/h` : "—",
-      lat: v.last_lat,
-      lng: v.last_lng,
       capacityPct: assumed.capacityPct,
       loadCount: assumed.loadCount,
       loadWeight: assumed.loadWeight,

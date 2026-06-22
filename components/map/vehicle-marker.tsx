@@ -11,7 +11,7 @@ import {
 import { Truck } from "lucide-react"
 import { Marker } from "react-map-gl/maplibre"
 
-export const STALE_AFTER_MS = 30_000
+const STALE_AFTER_MS = 30_000
 
 export function isStale(lastSeenAt: string | null, now: number): boolean {
   return (

@@ -21,7 +21,7 @@ function hashId(id: string): number {
   return h >>> 0
 }
 
-export const ASSUMED_VEHICLE_MODEL = "Ford Transit Custom"
+const ASSUMED_VEHICLE_MODEL = "Ford Transit Custom"
 
 export type AssumedDetails = {
   capacityPct: number
