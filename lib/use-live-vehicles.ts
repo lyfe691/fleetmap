@@ -61,6 +61,11 @@ export function useLiveVehicles(displayCode: string) {
     const { data: authSub } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "TOKEN_REFRESHED" && session) {
         void supabase.realtime.setAuth(session.access_token)
+      } else if (event === "SIGNED_OUT") {
+        // The long-running dashboard session ended (refresh token expired/revoked).
+        // Surface it so the TV shows the error banner instead of silently freezing
+        // on stale positions. Recovery is a reload (re-mints from the stored code).
+        if (!cancelled) setError("Session ended — reload to reconnect.")
       }
     })
 
