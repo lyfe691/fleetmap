@@ -19,6 +19,7 @@ import { getDriverClient } from "@/lib/supabase/driver"
 import { useGeolocation } from "@/lib/use-geolocation"
 import { useLocationSync } from "@/lib/use-location-sync"
 import { useWakeLock } from "@/lib/use-wake-lock"
+import { syncBlockedMessage } from "@/lib/driver-status"
 
 export function DriverApp() {
   const [session, setSession] = useState<Session | null | undefined>(undefined)
@@ -113,15 +114,11 @@ function Tracker({ email }: { email: string }) {
   const sync = useLocationSync(active)
   const geo = useGeolocation(active, sync.onFix)
 
-  const blocked = !geo.supported
-    ? "This device has no geolocation."
-    : geo.error === "denied"
-      ? "Location permission denied — enable location for this site."
-      : sync.error === "no-vehicle"
-        ? "No vehicle is assigned to this account."
-        : sync.error === "auth"
-          ? "Session expired — sign out and back in."
-          : null
+  const blocked = syncBlockedMessage({
+    geoSupported: geo.supported,
+    geoError: geo.error,
+    syncError: sync.error,
+  })
 
   const toggle = () => {
     if (active) {
