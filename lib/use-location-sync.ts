@@ -56,7 +56,7 @@ async function postPoint(
   }
 }
 
-type SyncError = "no-vehicle" | "auth" | null
+type SyncError = "no-vehicle" | "auth" | "storage" | null
 
 /**
  * Every fix is enqueued, then a single-flight drain sends oldest-first — "live"
@@ -123,9 +123,15 @@ export function useLocationSync(active: boolean) {
         if (result === "auth") setError("auth")
         break
       }
+    } catch {
+      setError("storage")
     } finally {
       drainingRef.current = false
-      await refreshQueued()
+      try {
+        await refreshQueued()
+      } catch {
+        setError("storage")
+      }
     }
   }, [refreshQueued])
 
@@ -133,9 +139,14 @@ export function useLocationSync(active: boolean) {
     async (fix: Fix) => {
       lastEnqueuedPosRef.current = { lat: fix.lat, lng: fix.lng }
       lastEnqueuedAtRef.current = Date.now()
-      await enqueue(fix)
-      await refreshQueued()
-      void drain()
+      try {
+        await enqueue(fix)
+        await refreshQueued()
+        setError((e) => (e === "storage" ? null : e)) // clear a prior storage error on success
+        void drain()
+      } catch {
+        setError("storage")
+      }
     },
     [drain, refreshQueued]
   )
