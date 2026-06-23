@@ -14,12 +14,12 @@ import {
   type LucideIcon,
 } from "lucide-react"
 import { FleetMapView } from "@/components/map/fleet-map-view"
+import { DETAIL_TABS } from "@/lib/console/types"
 import type { DetailTab, LiveData } from "@/lib/console/types"
 import type { ConsoleVehicle } from "@/lib/console/use-console-data"
 import { assumedCargoPhotos, assumedManifest } from "@/lib/console/assumed"
 import { StatusBadge } from "@/components/console/status-badge"
 
-const TABS: DetailTab[] = ["Overview", "Vehicle", "Cargo"]
 
 export function TrackingView({
   vehicle,
@@ -63,14 +63,14 @@ export function TrackingView({
               e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0
             if (!dir) return
             e.preventDefault()
-            const next = TABS[(TABS.indexOf(tab) + dir + TABS.length) % TABS.length]
+            const next = DETAIL_TABS[(DETAIL_TABS.indexOf(tab) + dir + DETAIL_TABS.length) % DETAIL_TABS.length]
             onTab(next)
             e.currentTarget
               .querySelector<HTMLButtonElement>(`#tab-${next}`)
               ?.focus()
           }}
         >
-          {TABS.map((t) => {
+          {DETAIL_TABS.map((t) => {
             const active = tab === t
             return (
               <button
