@@ -66,7 +66,7 @@ function SummaryCard({
           onClick={onClose}
           aria-label="View all vehicles"
           title="View all vehicles"
-          className="ml-auto flex size-9 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          className="ml-auto flex size-11 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
           <X className="size-5" />
         </button>
