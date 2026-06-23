@@ -6,7 +6,7 @@
 > step's STOP condition fires, skip just that step and report it; the others can
 > still land. When done, update the status row for this plan in `plans/README.md`.
 >
-> **Drift check (run first)**: `git diff --stat 3f5e84b..HEAD -- components/console/tracking-view.tsx components/console/history-view.tsx components/console/console-shell.tsx components/console/app-sidebar.tsx lib/console/types.ts`
+> **Drift check (run first)**: `git diff --stat a6f303c..HEAD -- components/console/tracking-view.tsx components/console/history-view.tsx components/console/console-shell.tsx components/console/app-sidebar.tsx lib/console/types.ts`
 > If any in-scope file changed since this plan was written, compare the
 > "Current state" excerpts against the live code before proceeding; on a
 > mismatch for the affected step, treat it as that step's STOP condition.
@@ -18,7 +18,16 @@
 - **Risk**: LOW
 - **Depends on**: none (touches `console-shell.tsx`/`types.ts` — see README ordering vs 014/016)
 - **Category**: tech-debt
-- **Planned at**: commit `3f5e84b`, 2026-06-23
+- **Planned at**: commit `a6f303c`, 2026-06-23 (reconciled from `3f5e84b` after plans 013–018 landed)
+
+> **Reconcile note (2026-06-23):** since this plan was written, `lib/console/types.ts`
+> gained a `matchesStatusFilter` export (plan 016) and `console-shell.tsx` gained
+> a tab-reset effect (014) + `handleStatusFilter` (016). None of those conflict
+> with this cleanup — leave them untouched. Line numbers below are refreshed to
+> the current (`a6f303c`) state: `console-shell.tsx` `useNow(5000)` is now line 30,
+> `app-sidebar.tsx` `useNow(30_000)` is line 223, `tracking-view.tsx` `TABS` is
+> line 22 and local `PlaceholderNote` is line 309, `history-view.tsx` inline note
+> is lines 17-19.
 
 ## Why this matters
 
@@ -42,7 +51,9 @@ explicitly defers the more debatable ones (see "Deliberately deferred").
 const TABS: DetailTab[] = ["Overview", "Vehicle", "Cargo"]
 // ...used at :66, :73 to render the tablist and compute arrow-key navigation.
 
-// lib/console/types.ts — the type already exists separately
+// lib/console/types.ts — the type already exists separately (line 8). NOTE: this
+// file also now exports matchesStatusFilter (plan 016, lines ~10-16) — leave it
+// untouched; only touch the DetailTab type per Step 1.
 export type DetailTab = "Overview" | "Vehicle" | "Cargo"
 ```
 
@@ -64,7 +75,7 @@ function PlaceholderNote({ className }: { className?: string }) {
 ```
 
 ```tsx
-// components/console/console-shell.tsx:29
+// components/console/console-shell.tsx:30
 const now = useNow(5000)
 
 // components/console/app-sidebar.tsx:223 (inside OnlinePill)
@@ -179,7 +190,7 @@ export const LIVE_TICK_MS = 5000
 export const CLOCK_TICK_MS = 30_000
 ```
 
-- `console-shell.tsx:29` → `const now = useNow(LIVE_TICK_MS)` (add the import).
+- `console-shell.tsx:30` → `const now = useNow(LIVE_TICK_MS)` (add the import).
 - `app-sidebar.tsx:223` → `const now = useNow(CLOCK_TICK_MS)` (add the import).
 
 Values are identical to today — this is naming only.
