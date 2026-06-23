@@ -16,6 +16,7 @@ import type {
   LiveData,
   StatusFilter,
 } from "@/lib/console/types"
+import { matchesStatusFilter } from "@/lib/console/types"
 import { ConsoleLoading } from "@/components/console/console-loading"
 import { AppSidebar } from "@/components/console/app-sidebar"
 import { FleetRail } from "@/components/console/fleet-rail"
@@ -56,6 +57,15 @@ export function ConsoleShell({ displayCode }: { displayCode: string }) {
   useEffect(() => {
     setTab("Overview")
   }, [selectedId])
+
+  const handleStatusFilter = (filter: StatusFilter) => {
+    setStatusFilter(filter)
+    if (selectedId != null) {
+      const sel = consoleVehicles.find((v) => v.id === selectedId)
+      if (sel && !matchesStatusFilter(sel, filter)) setSelectedId(null)
+    }
+  }
+
   const [sidebarCollapsed, setSidebarCollapsed] = usePersistedBoolean(
     "fleetmap.sidebar-collapsed",
     false
@@ -104,7 +114,7 @@ export function ConsoleShell({ displayCode }: { displayCode: string }) {
         selectedId={selected?.id ?? null}
         onSelect={setSelectedId}
         statusFilter={statusFilter}
-        onStatusFilter={setStatusFilter}
+        onStatusFilter={handleStatusFilter}
         counts={counts}
         collapsed={railCollapsed}
         onToggleCollapse={() => setRailCollapsed((c) => !c)}

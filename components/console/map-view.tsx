@@ -56,6 +56,11 @@ function SummaryCard({
       <div className="flex items-center gap-2.5">
         <span className="font-mono text-[20px] font-semibold">{vehicle.reg}</span>
         <StatusBadge tone={vehicle.tone} label={vehicle.statusLabel} size="md" />
+        {vehicle.stale ? (
+          <span className="rounded-full bg-muted px-2 py-0.5 text-[12px] font-semibold text-muted-foreground">
+            stale
+          </span>
+        ) : null}
         <button
           type="button"
           onClick={onClose}
@@ -67,7 +72,7 @@ function SummaryCard({
         </button>
       </div>
 
-      <div className="mt-5 flex gap-5">
+      <div className={`mt-5 flex gap-5 ${vehicle.stale ? "opacity-60" : ""}`}>
         <Stat label="Speed" value={vehicle.speedText} />
         <Stat label="ETA" value={vehicle.etaText} />
         <Stat label="Load" value={`${vehicle.capacityPct}%`} note />
