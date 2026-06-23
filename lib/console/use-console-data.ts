@@ -67,7 +67,13 @@ export function buildConsoleVehicles(input: {
     const route = routes.get(v.id)
 
     const stale = isStale(v.last_seen_at, now)
-    const etaSec = route?.legs?.[0]?.duration ?? null
+    const firstLeg = route?.legs?.[0]
+    // Only trust the leg duration if the route's first leg still targets the
+    // current next stop. During an async refetch after a stop change, legs[0]
+    // points at the OLD next stop — show "—" rather than a wrong ETA.
+    const etaFresh =
+      firstLeg != null && next != null && firstLeg.toStopId === next.id
+    const etaSec = etaFresh ? firstLeg.duration : null
     const totalStops = stops.length
     const doneStops = Math.max(0, totalStops - active.length)
     const assumed = assumedVehicleDetails(v.id)
