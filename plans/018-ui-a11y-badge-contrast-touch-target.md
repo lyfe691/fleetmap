@@ -6,7 +6,7 @@
 > report — do not improvise. When done, update the status row for this plan in
 > `plans/README.md`.
 >
-> **Drift check (run first)**: `git diff --stat 3f5e84b..HEAD -- components/console/status-badge.tsx app/globals.css components/console/map-view.tsx`
+> **Drift check (run first)**: `git diff --stat 43e4d46..HEAD -- components/console/status-badge.tsx app/globals.css components/console/map-view.tsx`
 > If any in-scope file changed since this plan was written, compare the
 > "Current state" excerpts against the live code before proceeding; on a
 > mismatch, treat it as a STOP condition.
@@ -18,7 +18,13 @@
 - **Risk**: LOW
 - **Depends on**: none (but shares `components/console/map-view.tsx` with plan 016 — see README ordering)
 - **Category**: ui
-- **Planned at**: commit `3f5e84b`, 2026-06-23
+- **Planned at**: commit `43e4d46`, 2026-06-23 (reconciled from `3f5e84b` after plan 016 landed)
+
+> **Reconcile note (2026-06-23):** plan 016 added a "stale" pill in the `SummaryCard`
+> header (`map-view.tsx:59-63`), which pushed the close button down to lines
+> **64–72** (`size-9` is now line **69**). Leave 016's stale pill untouched —
+> only change the close button's `size-9 → size-11`. The contrast (`globals.css`)
+> and `StatusBadge` work is unaffected by 016.
 
 ## Why this matters
 
@@ -65,7 +71,8 @@ const dot = tone === "onRoute" ? "bg-success" : "bg-warning"
 ```
 
 ```tsx
-// components/console/map-view.tsx:59-67 — 36px close button
+// components/console/map-view.tsx:64-72 — 36px close button (post-016; the
+// `{vehicle.stale ? <span…>stale</span> : null}` pill sits just above at 59-63)
 <button
   type="button"
   onClick={onClose}
