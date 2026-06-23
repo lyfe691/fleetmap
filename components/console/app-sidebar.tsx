@@ -12,6 +12,7 @@ import {
 } from "lucide-react"
 import { useTheme } from "next-themes"
 import { useNow } from "@/lib/use-now"
+import { CLOCK_TICK_MS } from "@/lib/console/intervals"
 import type { ConsoleView } from "@/lib/console/types"
 import { BubbleboxLogo } from "@/components/console/bubblebox-logo"
 
@@ -220,7 +221,7 @@ function IconNavItem({
 }
 
 function OnlinePill({ online, total }: { online: number; total: number }) {
-  const now = useNow(30_000)
+  const now = useNow(CLOCK_TICK_MS)
   const d = new Date(now)
   const clock = `${String(d.getHours()).padStart(2, "0")}:${String(
     d.getMinutes()

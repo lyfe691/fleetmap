@@ -2,6 +2,7 @@
 
 import { ArrowRight, Check, Clock } from "lucide-react"
 import { assumedHistory, type AssumedTrip } from "@/lib/console/assumed"
+import { PlaceholderNote } from "@/components/console/placeholder-note"
 
 export function HistoryView() {
   const trips = assumedHistory()
@@ -14,9 +15,7 @@ export function HistoryView() {
         <p className="mt-1.5 text-[15px] text-muted-foreground">
           Completed deliveries, most recent first
         </p>
-        <p className="mt-1 text-[13px] text-muted-foreground/70">
-          Placeholder data — pending the orders/deliveries model.
-        </p>
+        <PlaceholderNote className="mt-1">Placeholder data — pending the orders/deliveries model.</PlaceholderNote>
 
         <div className="mt-6 flex flex-col gap-3">
           {trips.map((t) => (

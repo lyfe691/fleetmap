@@ -7,6 +7,7 @@ import { useFleetRoutes, type RouteJob } from "@/lib/use-fleet-routes"
 import { useLiveStops } from "@/lib/use-live-stops"
 import { useLiveVehicles } from "@/lib/use-live-vehicles"
 import { useNow } from "@/lib/use-now"
+import { LIVE_TICK_MS } from "@/lib/console/intervals"
 import { clearDisplayCode } from "@/lib/dashboard-code"
 import { usePersistedBoolean } from "@/lib/use-persisted-boolean"
 import { buildConsoleVehicles } from "@/lib/console/use-console-data"
@@ -27,7 +28,7 @@ import { HistoryView } from "@/components/console/history-view"
 export function ConsoleShell({ displayCode }: { displayCode: string }) {
   const { vehicles, error, ready, loaded } = useLiveVehicles(displayCode)
   const { stopsByVehicle } = useLiveStops(ready)
-  const now = useNow(5000)
+  const now = useNow(LIVE_TICK_MS)
 
   const jobs: RouteJob[] = useMemo(() => {
     const out: RouteJob[] = []
