@@ -1,5 +1,10 @@
 import type { StatusTone } from "@/lib/console/use-console-data"
 
+const TONE_STYLES: Record<StatusTone, { tint: string; dot: string }> = {
+  onRoute: { tint: "bg-success/15 text-success", dot: "bg-success" },
+  waiting: { tint: "bg-warning/15 text-warning-strong", dot: "bg-warning" },
+}
+
 export function StatusBadge({
   tone,
   label,
@@ -9,11 +14,7 @@ export function StatusBadge({
   label: string
   size?: "sm" | "md"
 }) {
-  const tint =
-    tone === "onRoute"
-      ? "bg-success/15 text-success"
-      : "bg-warning/15 text-warning-strong"
-  const dot = tone === "onRoute" ? "bg-success" : "bg-warning"
+  const { tint, dot } = TONE_STYLES[tone]
   return (
     <span
       className={`inline-flex items-center gap-1.5 rounded-full font-semibold ${tint} ${
