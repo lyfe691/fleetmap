@@ -6,7 +6,7 @@
 > report — do not improvise. When done, update the status row for this plan in
 > `plans/README.md`.
 >
-> **Drift check (run first)**: `git diff --stat 3f5e84b..HEAD -- components/console/console-shell.tsx components/console/fleet-rail.tsx components/console/map-view.tsx lib/console/types.ts`
+> **Drift check (run first)**: `git diff --stat 94df1f0..HEAD -- components/console/console-shell.tsx components/console/fleet-rail.tsx components/console/map-view.tsx lib/console/types.ts`
 > If any in-scope file changed since this plan was written, compare the
 > "Current state" excerpts against the live code before proceeding; on a
 > mismatch, treat it as a STOP condition.
@@ -18,7 +18,9 @@
 - **Risk**: LOW
 - **Depends on**: none
 - **Category**: bug
-- **Planned at**: commit `3f5e84b`, 2026-06-23
+- **Planned at**: commit `94df1f0`, 2026-06-23 (reconciled from `3f5e84b` after plan 014 landed)
+
+> **Reconcile note (2026-06-23):** plan 014 added a `useEffect(() => setTab("Overview"), [selectedId])` at `console-shell.tsx:56-58` and now imports `useEffect`. That is unrelated to this plan and must be left untouched. It shifted the line numbers below by ~4; excerpts here reflect the current (`94df1f0`) line numbers. This plan still adds NO `useEffect` of its own (Step 3 is a plain click handler).
 
 ## Why this matters
 
@@ -45,17 +47,22 @@ const [selectedId, setSelectedId] = useState<string | null>(null)
 const [tab, setTab] = useState<DetailTab>("Overview")
 const [statusFilter, setStatusFilter] = useState<StatusFilter>("All")
 
-// console-shell.tsx:68-69
+// console-shell.tsx:56-58 — plan 014's tab-reset effect (leave it untouched)
+useEffect(() => {
+  setTab("Overview")
+}, [selectedId])
+
+// console-shell.tsx:72-73
 const explicit = consoleVehicles.find((v) => v.id === selectedId) ?? null
 const selected = explicit ?? consoleVehicles[0] ?? null
 
-// console-shell.tsx:98-107 — FleetRail gets the filter + an onStatusFilter setter
+// console-shell.tsx:102-111 — FleetRail gets the filter + an onStatusFilter setter
 <FleetRail
   vehicles={consoleVehicles}
   selectedId={selected?.id ?? null}
   onSelect={setSelectedId}
   statusFilter={statusFilter}
-  onStatusFilter={setStatusFilter}
+  onStatusFilter={setStatusFilter}          // <-- line 107; Step 3 swaps this
   ...
 />
 ```
@@ -184,7 +191,7 @@ filter that hides the explicitly-selected van drops the explicit selection (the
 view then falls back to the first van — consistent with the rail). This fires
 ONLY on the filter-button click, so it cannot fight a map selection.
 
-Replace `onStatusFilter={setStatusFilter}` (`:103`) with
+Replace `onStatusFilter={setStatusFilter}` (`:107`) with
 `onStatusFilter={handleStatusFilter}` and add:
 
 ```tsx
