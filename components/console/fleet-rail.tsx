@@ -2,6 +2,7 @@
 
 import { ArrowRight, ChevronsLeft, ChevronsRight } from "lucide-react"
 import type { ConsoleCounts, StatusFilter } from "@/lib/console/types"
+import { matchesStatusFilter } from "@/lib/console/types"
 import type { ConsoleVehicle } from "@/lib/console/use-console-data"
 import { StatusBadge } from "@/components/console/status-badge"
 
@@ -51,13 +52,7 @@ export function FleetRail({
     )
   }
 
-  const filtered = vehicles.filter((v) =>
-    statusFilter === "All"
-      ? true
-      : statusFilter === "On Route"
-        ? v.tone === "onRoute"
-        : v.tone === "waiting"
-  )
+  const filtered = vehicles.filter((v) => matchesStatusFilter(v, statusFilter))
 
   return (
     <section className="flex h-full w-[380px] shrink-0 flex-col border-r border-border bg-background">
