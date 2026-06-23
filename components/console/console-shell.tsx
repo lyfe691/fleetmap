@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { isActive } from "@/components/map/fleet-format"
 import { useFleetRoutes, type RouteJob } from "@/lib/use-fleet-routes"
@@ -52,6 +52,10 @@ export function ConsoleShell({ displayCode }: { displayCode: string }) {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [tab, setTab] = useState<DetailTab>("Overview")
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("All")
+
+  useEffect(() => {
+    setTab("Overview")
+  }, [selectedId])
   const [sidebarCollapsed, setSidebarCollapsed] = usePersistedBoolean(
     "fleetmap.sidebar-collapsed",
     false
