@@ -19,6 +19,7 @@ import type { DetailTab, LiveData } from "@/lib/console/types"
 import type { ConsoleVehicle } from "@/lib/console/use-console-data"
 import { assumedCargoPhotos, assumedManifest } from "@/lib/console/assumed"
 import { StatusBadge } from "@/components/console/status-badge"
+import { PlaceholderNote } from "@/components/console/placeholder-note"
 
 
 export function TrackingView({
@@ -148,7 +149,7 @@ function Overview({
           <p className="mt-4 text-[15px] text-muted-foreground">
             {vehicle.loadCount} pkg · {vehicle.loadWeight} of max load
           </p>
-          <PlaceholderNote className="mt-2" />
+          <PlaceholderNote className="mt-2">Placeholder data — pending a vehicle telematics feed.</PlaceholderNote>
         </Card>
 
         <Card label="Route Progress">
@@ -221,7 +222,7 @@ function VehicleTab({ vehicle }: { vehicle: ConsoleVehicle }) {
   ]
   return (
     <div className="mt-7 flex flex-col gap-3">
-      <PlaceholderNote />
+      <PlaceholderNote>Placeholder data — pending a vehicle telematics feed.</PlaceholderNote>
       {rows.map((r) => (
         <DetailRowItem key={r.id} row={r} />
       ))}
@@ -239,7 +240,7 @@ function CargoTab({ vehicle }: { vehicle: ConsoleVehicle }) {
   }
   return (
     <div className="mt-7">
-      <PlaceholderNote />
+      <PlaceholderNote>Placeholder data — pending a vehicle telematics feed.</PlaceholderNote>
       <h3 className="mt-4 font-heading text-lg font-semibold">
         Cargo Photo Reports
       </h3>
@@ -303,13 +304,5 @@ function DetailRowItem({ row }: { row: DetailRow }) {
         {row.value}
       </div>
     </div>
-  )
-}
-
-function PlaceholderNote({ className }: { className?: string }) {
-  return (
-    <p className={`text-[13px] text-muted-foreground/70 ${className ?? ""}`}>
-      Placeholder data — pending a vehicle telematics feed.
-    </p>
   )
 }
