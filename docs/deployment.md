@@ -1,6 +1,6 @@
 # Fleetmap — VPS Deployment
 
-Deploying fleetmap to the Hostinger VPS (`srv1711452.hstgr.cloud`, Ubuntu 24.04, Docker already installed).
+Deploying fleetmap to the Hostinger VPS (`fleet.ysz.life`, Ubuntu 24.04, Docker already installed).
 
 ## What actually gets deployed
 
@@ -17,7 +17,7 @@ phone / browser ──HTTPS──> Caddy (:443) ──> Next app (:3000) ──>
 
 Three files drive it, all in the repo: `Dockerfile`, `docker-compose.prod.yml`, `caddy/Caddyfile`.
 
-Once it's up, the driver app's `API_BASE_URL` is **`https://srv1711452.hstgr.cloud`**.
+Once it's up, the driver app's `API_BASE_URL` is **`https://fleet.ysz.life`**.
 
 ---
 
@@ -50,7 +50,7 @@ ufw allow 80,443/tcp
 ufw reload
 ```
 
-> DNS: `srv1711452.hstgr.cloud` already resolves to this VPS (it's the Hostinger-assigned hostname), so Caddy can issue a cert with no extra DNS setup. If you later put it on a custom domain, point an A record at `187.124.1.41` first.
+> DNS: point an `A` record for `fleet.ysz.life` at `187.124.1.41` before first start, or Caddy can't get a cert. Confirm it resolves (`dig +short fleet.ysz.life`) before bringing Caddy up.
 
 ---
 
@@ -95,7 +95,7 @@ Fill in:
 |---|---|
 | `NEXT_PUBLIC_SUPABASE_URL` | same as your dev `.env` (managed Supabase project) |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | same as dev |
-| `NEXT_PUBLIC_MAPTILER_KEY` | your MapTiler key — **lock it to `srv1711452.hstgr.cloud` in the MapTiler dashboard** before going public |
+| `NEXT_PUBLIC_MAPTILER_KEY` | your MapTiler key — **lock it to `fleet.ysz.life` in the MapTiler dashboard** before going public |
 | `SUPABASE_SECRET_KEY` | leave it out / blank — the deployed app never needs it (dev-scripts only) |
 | `OSRM_URL` | ignored here — compose overrides it to `http://osrm:5000` |
 | `DASHBOARD_EMAIL` / `DASHBOARD_PASSWORD` / `DASHBOARD_DISPLAY_CODE` | the TV gate identity + code |
@@ -122,7 +122,7 @@ docker compose -f docker-compose.prod.yml logs -f caddy   # watch the cert get i
 Caddy logs a certificate-obtained line within a few seconds of the first request. Then:
 
 ```bash
-curl -I https://srv1711452.hstgr.cloud
+curl -I https://fleet.ysz.life
 ```
 
 A `200`/`307` over a valid TLS cert means the edge + app are live.
@@ -131,11 +131,11 @@ A `200`/`307` over a valid TLS cert means the edge + app are live.
 
 ## 6. Smoke-test the pipe
 
-- **Dashboard:** open `https://srv1711452.hstgr.cloud/dashboard`, enter the display code → the console loads.
+- **Dashboard:** open `https://fleet.ysz.life/dashboard`, enter the display code → the console loads.
 - **Ingest endpoint:** an unauthenticated POST should be rejected with `401` (proves the route is live and auth is enforced):
 
   ```bash
-  curl -s -o /dev/null -w "%{http_code}\n" -X POST https://srv1711452.hstgr.cloud/api/location \
+  curl -s -o /dev/null -w "%{http_code}\n" -X POST https://fleet.ysz.life/api/location \
     -H 'Content-Type: application/json' -d '{"lat":47.37,"lng":8.54,"recorded_at":"2026-06-25T00:00:00Z"}'
   # expect: 401
   ```
@@ -154,7 +154,7 @@ That's the full chain confirmed: TLS → app → auth → routing.
 
 ## 7. Hand the URL to the driver app
 
-Now that it's live, `API_BASE_URL = https://srv1711452.hstgr.cloud`. Update §8 of `docs/driver-app-handoff.md` and send Roman:
+Now that it's live, `API_BASE_URL = https://fleet.ysz.life`. Update §8 of `docs/driver-app-handoff.md` and send Roman:
 
 - `API_BASE_URL`
 - `NEXT_PUBLIC_SUPABASE_URL` + `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (client-public)
