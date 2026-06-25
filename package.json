@@ -13,6 +13,7 @@
     "fake-gps": "tsx --env-file=.env scripts/fake-gps.ts",
     "provision-dashboard": "tsx --env-file=.env scripts/provision-dashboard.ts",
     "provision-dispatcher": "tsx --env-file=.env scripts/provision-dispatcher.ts",
+    "provision-driver": "tsx --env-file=.env scripts/provision-driver.ts",
     "seed-stops": "tsx --env-file=.env scripts/seed-stops.ts",
     "test": "vitest run",
     "test:watch": "vitest"
