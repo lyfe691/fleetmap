@@ -1,0 +1,13 @@
+node_modules
+.next
+.git
+.env
+.env.*
+!.env.example
+npm-debug.log*
+*.log
+.DS_Store
+osrm
+caddy
+docs
+**/*.test.ts

@@ -1,0 +1,51 @@
+# Production stack for the VPS: Caddy (TLS) -> Next app -> OSRM (internal).
+# Supabase stays managed/cloud — not in this stack.
+#
+#   docker compose -f docker-compose.prod.yml up -d --build
+#
+# Reads .env in this directory for both build args (NEXT_PUBLIC_*) and runtime
+# env. Build the OSRM dataset once before first `up` (see docs/deployment.md).
+
+services:
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+
+  app:
+    build:
+      context: .
+      args:
+        # NEXT_PUBLIC_* must be present at build time (inlined into the client bundle).
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+        NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY}
+        NEXT_PUBLIC_MAPTILER_KEY: ${NEXT_PUBLIC_MAPTILER_KEY}
+    restart: unless-stopped
+    env_file: .env       # server-only secrets read at runtime (DASHBOARD_*, DISPATCHER_*, OSRM_URL, GEOFENCE_*)
+    environment:
+      OSRM_URL: http://osrm:5000   # reach OSRM by service name inside the stack
+    expose:
+      - "3000"           # internal only — Caddy is the public edge
+    depends_on:
+      - osrm
+
+  osrm:
+    image: osrm/osrm-backend@sha256:af5d4a83fb90086a43b1ae2ca22872e6768766ad5fcbb07a29ff90ec644ee409
+    command: osrm-routed --algorithm mld /data/switzerland-latest.osrm
+    volumes:
+      - ./osrm:/data
+    expose:
+      - "5000"           # internal only — never exposed publicly
+    restart: unless-stopped
+
+volumes:
+  caddy_data:
+  caddy_config:

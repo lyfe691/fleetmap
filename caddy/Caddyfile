@@ -1,0 +1,8 @@
+# Caddy auto-provisions a Let's Encrypt cert for this hostname and reverse-proxies
+# to the Next app. Requires the domain's DNS to point at this VPS and ports 80/443
+# open. Change the hostname if you move off the Hostinger subdomain.
+
+srv1711452.hstgr.cloud {
+	encode zstd gzip
+	reverse_proxy app:3000
+}
