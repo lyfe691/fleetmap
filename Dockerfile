@@ -9,7 +9,9 @@ RUN corepack enable && corepack prepare pnpm@11.8.0 --activate
 # --- deps: install with a cached pnpm store ---
 FROM base AS deps
 WORKDIR /app
-COPY package.json pnpm-lock.yaml ./
+# pnpm-workspace.yaml carries `allowBuilds` — without it, the install fails with
+# ERR_PNPM_IGNORED_BUILDS (native deps like sharp aren't approved to build).
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
 
 # --- build: compile the standalone server ---

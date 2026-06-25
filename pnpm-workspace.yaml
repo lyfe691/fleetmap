@@ -1,7 +1,10 @@
 packages: []
 
+# Native deps allowed to run install scripts. Without this, a clean install
+# (e.g. the Docker image) fails with ERR_PNPM_IGNORED_BUILDS. This file MUST be
+# copied into the Docker build context (see Dockerfile) for it to take effect.
 allowBuilds:
+  esbuild: true
   sharp: true
   unrs-resolver: true
   msw: false
-  esbuild: true
