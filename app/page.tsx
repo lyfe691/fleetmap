@@ -38,11 +38,15 @@ export default function Page() {
             sub="Live map, routes & ETAs — for the office screen"
           />
           <div className="h-px bg-border" />
+          {/* The driver client now lives in Roman's native Bubblebox app (it
+              needs background location the web PWA can't do). Retired from this
+              site; the /driver route stays only as a reference for that port. */}
           <Entry
-            href="/driver"
             icon={<Navigation className="size-6" />}
             name="Driver"
-            sub="Share your location while you drive"
+            sub="Now part of the Bubblebox app"
+            disabled
+            badge="Moved"
           />
         </nav>
       </div>
@@ -55,17 +59,18 @@ function Entry({
   icon,
   name,
   sub,
+  disabled = false,
+  badge,
 }: {
-  href: string
+  href?: string
   icon: React.ReactNode
   name: string
   sub: string
+  disabled?: boolean
+  badge?: string
 }) {
-  return (
-    <Link
-      href={href}
-      className="group flex items-center gap-4 px-5 py-4 transition-colors hover:bg-muted/60"
-    >
+  const body = (
+    <>
       <span className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-muted text-foreground">
         {icon}
       </span>
@@ -73,7 +78,33 @@ function Entry({
         <span className="block text-base font-semibold tracking-tight">{name}</span>
         <span className="mt-0.5 block truncate text-sm text-muted-foreground">{sub}</span>
       </span>
-      <ChevronRight className="size-5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+      {badge ? (
+        <span className="shrink-0 rounded-full border border-border px-2.5 py-1 text-xs font-medium text-muted-foreground">
+          {badge}
+        </span>
+      ) : (
+        <ChevronRight className="size-5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+      )}
+    </>
+  )
+
+  if (disabled || !href) {
+    return (
+      <div
+        aria-disabled
+        className="flex cursor-not-allowed items-center gap-4 px-5 py-4 opacity-55"
+      >
+        {body}
+      </div>
+    )
+  }
+
+  return (
+    <Link
+      href={href}
+      className="group flex items-center gap-4 px-5 py-4 transition-colors hover:bg-muted/60"
+    >
+      {body}
     </Link>
   )
 }
