@@ -46,7 +46,7 @@ components/map/fleet-map-view.tsx MapLibre map: routes + circular status pins (r
 components/console/console-shell.tsx  3-region console (sidebar + fleet rail + main)
 components/console/{app-sidebar,fleet-rail,map-view,tracking-view,history-view}.tsx  console views
 app/dashboard/page.tsx      TV monitoring console (gate → ConsoleShell)
-app/driver/page.tsx         driver PWA (login + GPS streaming + offline buffer)
+app/driver/page.tsx         driver PWA — retired (folded into Roman's native Bubblebox app); route kept reference-only, home-page entry disabled
 lib/supabase/driver.ts      driver client (persistent session)
 supabase/migrations/        SQL migrations
 scripts/cities.ts           dev-only multi-city config — areas + per-city demo orders
@@ -76,11 +76,11 @@ Then from the project root: `pnpm add @supabase/supabase-js`, `pnpm add -D tsx`,
 ## Conventions
 
 - **Auth + RLS is the security boundary.** App code accesses the DB as the authenticated user via `createUserClient(token)`, so RLS enforces ownership — the `.eq` filters are for clarity, not security. Every new table gets RLS enabled + explicit policies.
-- **Dashboard read path:** the TV reads via a dedicated `dashboard` Auth user carrying an `app_metadata.role='dashboard'` claim + a claim-scoped `select` policy on `vehicles`; its session is minted server-side (`POST /api/dashboard-session`) behind a display code — never anon read-all. The snapshot reads the column-scoped `vehicles_public` view (0003); the browser client auto-refreshes the session and re-arms Realtime auth on refresh (M5). Caveat: live updates still ride `postgres_changes` on `vehicles`, which requires the table `select` policy — so column-scoping bounds the snapshot, not the Realtime payload.
+- **Dashboard read path:** the TV reads via a dedicated `dashboard` Auth user carrying an `app_metadata.role='dashboard'` claim + a claim-scoped `select` policy on `vehicles`; its session is minted server-side (`POST /api/dashboard-session`) behind a display code — never anon read-all. The snapshot reads the column-scoped `vehicles_public` view (0003); the browser client auto-refreshes the session and re-arms Realtime auth on refresh (M5). Caveat: live updates still ride `postgres_changes` on `vehicles`, which requires the table `select` policy — so column-scoping bounds the snapshot, not the Realtime payload. The same is true of `stops`: the live channel ships the full row (incl. `address`/`order_id`, which the dashboard never renders) — a known exposure, bounded for now by the display-code gate + office network. The proper fix is moving customer PII off the realtime'd `stops` table (e.g. onto `orders`, already kept off Realtime) in a new migration.
 - **The dashboard is the monitoring console.** `app/dashboard` → display-code gate → `ConsoleShell` (`components/console/*`): a 3-region touchscreen layout (sidebar nav + fleet rail + tracking/map/history) on shadcn + next-themes light/dark. `components/map/fleet-map-view.tsx` is the reused, theme-aware map surface (`lib/map-theme.ts`) with circular status pins. Panels without a real source (load, fuel, cargo, history) use clearly-marked placeholders from `lib/console/assumed.ts` — replace at the seam when telematics/orders data lands.
 - **Operational areas are city reference data.** `operational_areas` (0006) + `area_id` on vehicles/stops model the multi-city fleet (read via the `dashboard` claim; `area_id` rides the `vehicles_public`/`stops_public` views). The dispatcher manages them and the seed scripts populate them. The console rebuild removed the map overlays + the `useOperationalAreas` hook — the table is data only now.
 - **The secret key (service-role-equivalent) is dev-only** (`scripts/`). Never use it in a request handler or ship it in a deployed image.
-- TypeScript throughout. Route handlers validate input and return `NextResponse.json` with explicit status codes (400 bad input, 401 no/invalid token, 409 no vehicle, 500 db error).
+- TypeScript throughout. Route handlers validate input and return `NextResponse.json` with explicit status codes (400 bad input, 401 no/invalid token, 403 wrong shared code/secret, 409 no vehicle, 500 db error).
 - SQL: lowercase keywords, snake_case columns, `create ... if not exists`, policies named in plain English.
 - Import alias `@/*` → project root.
 - Typecheck (`pnpm exec tsc --noEmit`) and run the unit suite (`pnpm test` — vitest, covers `route-slice`, `geofence`, ingest validation) before considering a change done.
@@ -112,7 +112,7 @@ Env: `.env.example` — `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLIS
 
 - [x] **M1 — pipe:** schema + `POST /api/location` + fake-GPS poster.
 - [x] **M2 — see it move:** dashboard map + Realtime subscription + markers updating live off the fake feed.
-- [x] **M3 — driver PWA:** auth + watchPosition + wake lock + POST loop + offline buffer.
+- [x] **M3 — driver PWA:** auth + watchPosition + wake lock + POST loop + offline buffer. (Retired: the driver client moved to Roman's native Bubblebox app; the web `/driver` route + `components/driver/*` + the driver `lib/` hooks stay as reference for that port. Home-page entry disabled; manifest repointed to `/dashboard`.)
 - [x] **M4 — routing:** OSRM container (`docker-compose.yml`) + `GET /api/route` proxy + click-to-route + ETA.
 - [x] **M5 — polish:** smooth marker interpolation, offline/stale flags, TV kiosk mode (fullscreen + session refresh), column-scoped read (`vehicles_public`).
 - [x] **M6 — order/stop model + ingestion seam:** orders/stops schema + RLS + Realtime, dispatcher identity, POST /api/ingest/stops, seed-stops adapter.
