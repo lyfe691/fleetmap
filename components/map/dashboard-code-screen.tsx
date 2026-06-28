@@ -1,0 +1,126 @@
+"use client"
+
+import { useState } from "react"
+import dynamic from "next/dynamic"
+import { ErrorBoundary } from "@/components/error-boundary"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Spinner } from "@/components/ui/spinner"
+
+// Client-only (WebGL) and pulls in three.js — load lazily so it never touches
+// SSR and the form paints instantly.
+const BlinkingSquares = dynamic(() => import("@/components/blinking-squares"), {
+  ssr: false,
+})
+
+type Props = {
+  /** Validate + connect with the given code (drives `submitting`/`error`). */
+  onConnect: (code: string) => void
+  /** Last failure message, shown inline under the input. */
+  error: string | null
+  /** A connect attempt is in flight. */
+  submitting: boolean
+  /** A saved code that failed transiently — offered as a one-tap retry. */
+  savedCode: string | null
+}
+
+export function DashboardCodeScreen({
+  onConnect,
+  error,
+  submitting,
+  savedCode,
+}: Props) {
+  const [code, setCode] = useState("")
+  const trimmed = code.trim()
+
+  return (
+    <div className="grid h-full w-full bg-background lg:grid-cols-2">
+      {/* Left — the form */}
+      <div className="flex items-center justify-center px-6 py-12">
+        <div className="w-full max-w-xs">
+          <h1 className="font-heading text-3xl font-semibold tracking-tight">
+            Display code
+          </h1>
+          <p className="mt-2 text-[15px] text-muted-foreground">
+            Enter the code to connect this screen to the live fleet.
+          </p>
+
+          <form
+            className="mt-8 flex flex-col gap-3"
+            onSubmit={(e) => {
+              e.preventDefault()
+              if (trimmed && !submitting) onConnect(trimmed)
+            }}
+          >
+            <label htmlFor="display-code" className="sr-only">
+              Display code
+            </label>
+            <Input
+              id="display-code"
+              type="password"
+              autoComplete="off"
+              autoFocus
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              placeholder="Enter code"
+              disabled={submitting}
+              aria-invalid={error != null}
+              className="h-12 rounded-xl px-4 text-base"
+            />
+
+            {error ? (
+              <p className="px-1 text-sm text-destructive" role="alert">
+                {error}
+              </p>
+            ) : null}
+
+            <Button
+              type="submit"
+              disabled={!trimmed || submitting}
+              className="h-12 rounded-xl text-base font-medium"
+            >
+              {submitting ? (
+                <>
+                  <Spinner />
+                  Connecting
+                </>
+              ) : (
+                "Connect"
+              )}
+            </Button>
+
+            {savedCode ? (
+              <button
+                type="button"
+                onClick={() => onConnect(savedCode)}
+                disabled={submitting}
+                className="mt-1 text-sm text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline disabled:opacity-50"
+              >
+                Retry saved code
+              </button>
+            ) : null}
+          </form>
+        </div>
+      </div>
+
+      {/* Right — animated field over the page background (desktop only) */}
+      <div className="relative hidden overflow-hidden lg:block" aria-hidden>
+        <ErrorBoundary>
+          <BlinkingSquares
+            className="absolute inset-0"
+            direction="right"
+            gridSize={58}
+            squareColor="#1bbecd"
+            falloff={1.5}
+            fadeStart={0.35}
+            fadeEnd={1}
+            squareSize={0.6}
+            minBrightness={0.4}
+            twinkleSpeed={1.1}
+            twinkleStrength={0.8}
+          />
+        </ErrorBoundary>
+      </div>
+    </div>
+  )
+}

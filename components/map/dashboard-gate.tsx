@@ -3,16 +3,7 @@
 import { useEffect, useState } from "react"
 import { ConsoleClient } from "@/components/console/console-client"
 import { ConsoleLoading } from "@/components/console/console-loading"
-import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
-import { Field, FieldLabel } from "@/components/ui/field"
-import { Input } from "@/components/ui/input"
+import { DashboardCodeScreen } from "@/components/map/dashboard-code-screen"
 import {
   clearDisplayCode,
   getDisplayCode,
@@ -29,10 +20,9 @@ type Phase = "resolving" | "reconnecting" | "prompt" | "connected"
 export function DashboardGate() {
   const [phase, setPhase] = useState<Phase>("resolving")
   const [error, setError] = useState<string | null>(null)
-  // The saved code is kept around only to offer a retry after a transient
-  // failure (invalid codes are dropped, so this is null then).
+  // Kept around only to offer a retry after a transient failure (invalid codes
+  // are dropped, so this is null then).
   const [savedCode, setSavedCode] = useState<string | null>(null)
-  const [input, setInput] = useState("")
   const [submitting, setSubmitting] = useState(false)
 
   const apply = (code: string, result: Awaited<ReturnType<typeof connectDashboard>>) => {
@@ -82,7 +72,6 @@ export function DashboardGate() {
   const disconnect = () => {
     clearDisplayCode()
     setSavedCode(null)
-    setInput("")
     setError(null)
     setPhase("prompt")
   }
@@ -91,53 +80,11 @@ export function DashboardGate() {
   if (phase === "connected") return <ConsoleClient onChangeCode={disconnect} />
 
   return (
-    <div className="flex h-full w-full items-center justify-center bg-background p-6">
-      <Card className="w-full max-w-sm">
-        <CardHeader>
-          <CardTitle className="text-lg">Fleet dashboard</CardTitle>
-          <CardDescription>Enter the display code to connect.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form
-            className="flex flex-col gap-4"
-            onSubmit={(e) => {
-              e.preventDefault()
-              const trimmed = input.trim()
-              if (trimmed && !submitting) void connect(trimmed)
-            }}
-          >
-            <Field>
-              <FieldLabel htmlFor="display-code">Display code</FieldLabel>
-              <Input
-                id="display-code"
-                type="password"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder="Display code"
-                autoFocus
-                disabled={submitting}
-                aria-invalid={error != null}
-              />
-              {error ? (
-                <p className="text-sm text-destructive">{error}</p>
-              ) : null}
-            </Field>
-            <Button type="submit" disabled={!input.trim() || submitting}>
-              {submitting ? "Connecting…" : "Connect"}
-            </Button>
-            {savedCode ? (
-              <Button
-                type="button"
-                variant="outline"
-                disabled={submitting}
-                onClick={() => void connect(savedCode)}
-              >
-                Retry saved code
-              </Button>
-            ) : null}
-          </form>
-        </CardContent>
-      </Card>
-    </div>
+    <DashboardCodeScreen
+      onConnect={connect}
+      error={error}
+      submitting={submitting}
+      savedCode={savedCode}
+    />
   )
 }
