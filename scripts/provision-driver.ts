@@ -12,62 +12,22 @@
  * Credentials come from env (TEST_DRIVER_EMAIL / TEST_DRIVER_PASSWORD /
  * TEST_DRIVER_LABEL). Uses the secret key (admin). Dev/scripts only — never shipped.
  */
-import { createClient } from "@supabase/supabase-js"
+import { adminClient, ensureUser } from "./lib/ensure-user"
 
-const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-const secretKey = process.env.SUPABASE_SECRET_KEY
 const email = process.env.TEST_DRIVER_EMAIL
 const password = process.env.TEST_DRIVER_PASSWORD
 const label = process.env.TEST_DRIVER_LABEL ?? "Test Van"
-
-if (!url || !secretKey || !email || !password) {
+if (!email || !password) {
   throw new Error(
-    "Missing env. Need NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SECRET_KEY, " +
-      "TEST_DRIVER_EMAIL, TEST_DRIVER_PASSWORD (copy .env.example -> .env)."
+    "Missing env. Need TEST_DRIVER_EMAIL, TEST_DRIVER_PASSWORD (copy .env.example -> .env)."
   )
 }
 
 async function main(): Promise<void> {
-  const admin = createClient(url!, secretKey!, {
-    auth: { persistSession: false },
-  })
+  const admin = adminClient()
 
-  // 1. Auth user (idempotent).
-  const { data: created, error: createError } =
-    await admin.auth.admin.createUser({
-      email: email!,
-      password: password!,
-      email_confirm: true,
-    })
-  if (
-    createError &&
-    !/already.*(registered|exists)/i.test(createError.message)
-  ) {
-    if (createError.code === "not_admin" || createError.status === 403) {
-      throw new Error(
-        "Supabase admin API rejected the key (403 not_admin). " +
-          "SUPABASE_SECRET_KEY must be a Secret key (sb_secret_...) from " +
-          "Dashboard -> Project Settings -> API Keys -> Secret keys."
-      )
-    }
-    throw createError
-  }
-
-  let userId = created?.user?.id ?? null
-  if (!userId) {
-    const { data: list, error: listError } = await admin.auth.admin.listUsers()
-    if (listError) throw listError
-    userId = list.users.find((u) => u.email === email)?.id ?? null
-    // Re-assert the password so a re-run with a changed password updates it.
-    if (userId) {
-      const { error: updateError } = await admin.auth.admin.updateUserById(
-        userId,
-        { password: password! }
-      )
-      if (updateError) throw updateError
-    }
-  }
-  if (!userId) throw new Error(`could not resolve driver user id for ${email}`)
+  // 1. Auth user (idempotent, no role claim — a plain driver).
+  const { id: userId } = await ensureUser({ admin, email: email!, password: password! })
 
   // 2. Exactly one vehicle assigned to that user (no area — not a city van).
   const { data: existing, error: selError } = await admin
