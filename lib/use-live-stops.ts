@@ -18,11 +18,11 @@ export type Stop = {
 const COLUMNS = "id, vehicle_id, stop_type, seq, lat, lng, status, eta_at"
 
 /**
- * Second live channel for the dashboard: stops, on the SAME session the
- * vehicles hook minted. Gate on `ready` (vehicles hook has set the session +
- * armed realtime auth) so this only snapshots/subscribes once authed; the
- * vehicles hook's TOKEN_REFRESHED handler re-arms the shared socket for both
- * channels. Returns stops grouped by vehicle id, each list sorted by seq.
+ * Second live channel for the dashboard: stops, on the SAME session the gate
+ * established. Gate on `ready` (the vehicles hook has armed realtime auth) so
+ * this only snapshots/subscribes once authed; the vehicles hook's
+ * TOKEN_REFRESHED handler re-arms the shared socket for both channels. Returns
+ * stops grouped by vehicle id, each list sorted by seq.
  */
 export function useLiveStops(ready: boolean) {
   const [stopsByVehicle, setStopsByVehicle] = useState<Map<string, Stop[]>>(

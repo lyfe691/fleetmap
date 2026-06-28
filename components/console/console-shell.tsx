@@ -8,7 +8,6 @@ import { useLiveStops } from "@/lib/use-live-stops"
 import { useLiveVehicles } from "@/lib/use-live-vehicles"
 import { useNow } from "@/lib/use-now"
 import { LIVE_TICK_MS } from "@/lib/console/intervals"
-import { clearDisplayCode } from "@/lib/dashboard-code"
 import { usePersistedBoolean } from "@/lib/use-persisted-boolean"
 import { buildConsoleVehicles } from "@/lib/console/use-console-data"
 import type {
@@ -25,8 +24,8 @@ import { MapView } from "@/components/console/map-view"
 import { TrackingView } from "@/components/console/tracking-view"
 import { HistoryView } from "@/components/console/history-view"
 
-export function ConsoleShell({ displayCode }: { displayCode: string }) {
-  const { vehicles, error, ready, loaded } = useLiveVehicles(displayCode)
+export function ConsoleShell({ onChangeCode }: { onChangeCode: () => void }) {
+  const { vehicles, error, ready, loaded } = useLiveVehicles()
   const { stopsByVehicle } = useLiveStops(ready)
   const now = useNow(LIVE_TICK_MS)
 
@@ -125,14 +124,7 @@ export function ConsoleShell({ displayCode }: { displayCode: string }) {
         {error ? (
           <div className="absolute top-4 left-1/2 z-20 flex -translate-x-1/2 items-center gap-3 rounded-2xl border border-destructive/40 bg-card px-5 py-3 text-[15px] shadow-md">
             <span className="text-destructive">{error}</span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                clearDisplayCode()
-                window.location.reload()
-              }}
-            >
+            <Button variant="outline" size="sm" onClick={onChangeCode}>
               Change code
             </Button>
           </div>

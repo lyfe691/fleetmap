@@ -19,35 +19,19 @@ export type Vehicle = {
 const COLUMNS =
   "id, label, status, last_lat, last_lng, last_heading, last_speed, last_seen_at, area_id"
 
-async function mintSession(displayCode: string) {
-  const res = await fetch("/api/dashboard-session", {
-    method: "POST",
-    headers: { "x-display-code": displayCode },
-  })
-  if (!res.ok) {
-    throw new Error(`dashboard session denied (${res.status})`)
-  }
-  return (await res.json()) as { access_token: string; refresh_token: string }
-}
-
 /**
- * Snapshot-then-subscribe over the vehicles table for the dashboard.
- * Order matters: mint session -> setSession -> realtime.setAuth -> subscribe,
- * and snapshot only once SUBSCRIBED so no event in the gap is missed.
+ * Snapshot-then-subscribe over the vehicles table for the dashboard. The gate
+ * has already established the session (connectDashboard), so this only arms
+ * Realtime auth from the live token, then subscribes and snapshots once
+ * SUBSCRIBED so no event in the gap is missed.
  */
-export function useLiveVehicles(displayCode: string) {
+export function useLiveVehicles() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
   const [error, setError] = useState<string | null>(null)
   const [ready, setReady] = useState(false)
   const [loaded, setLoaded] = useState(false)
 
   useEffect(() => {
-    if (!displayCode) return
-
-    setReady(false)
-    setLoaded(false)
-    setError(null)
-
     const supabase = getBrowserClient()
     const byId = new Map<string, Vehicle>()
     let channel: RealtimeChannel | null = null
@@ -103,10 +87,15 @@ export function useLiveVehicles(displayCode: string) {
 
     const start = async () => {
       try {
-        const { access_token, refresh_token } = await mintSession(displayCode)
+        const {
+          data: { session },
+        } = await supabase.auth.getSession()
         if (cancelled) return
-        await supabase.auth.setSession({ access_token, refresh_token })
-        await supabase.realtime.setAuth(access_token)
+        if (!session) {
+          setError("Session unavailable — reload to reconnect.")
+          return
+        }
+        await supabase.realtime.setAuth(session.access_token)
         if (cancelled) return
         setReady(true)
 
@@ -159,7 +148,7 @@ export function useLiveVehicles(displayCode: string) {
       authSub.subscription.unsubscribe()
       if (channel) void supabase.removeChannel(channel)
     }
-  }, [displayCode])
+  }, [])
 
   return { vehicles, error, ready, loaded }
 }
