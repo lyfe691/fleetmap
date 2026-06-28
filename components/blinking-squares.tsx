@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useMemo, useRef } from "react"
+import React, { useEffect, useMemo, useRef } from "react"
 import { Canvas, useFrame, useThree } from "@react-three/fiber"
 import * as THREE from "three"
 import { cn } from "@/lib/utils"
@@ -134,9 +134,10 @@ void main() {
   float mask = inside * lit * baseBright * twinkle * uIntensity;
 
   // Transparent field: squares carry alpha so it composites over whatever
-  // background sits behind it (any theme). Premultiplied for correct edges.
+  // background sits behind it (any theme). Straight (non-premultiplied) alpha
+  // to match the material's default NormalBlending.
   float a = clamp(mask, 0.0, 1.0) * uAlpha;
-  gl_FragColor = vec4(uSquare * a, a);
+  gl_FragColor = vec4(uSquare, a);
 }
 `
 
@@ -172,31 +173,6 @@ const SquaresScene: React.FC<SceneProps> = (props) => {
   const meshRef = useRef<THREE.Mesh>(null)
   const { size } = useThree()
 
-  useFrame((state) => {
-    if (!meshRef.current) return
-    const mat = meshRef.current.material as THREE.ShaderMaterial
-    const u = mat.uniforms
-
-    u.uTime.value = state.clock.elapsedTime
-    u.uRes.value.set(size.width, size.height)
-
-    u.uGrid.value = Math.max(4, Math.min(400, props.gridSize))
-    const [dx, dy] = dirToVec(props.direction)
-    u.uDir.value.set(dx, dy)
-    u.uFalloff.value = props.falloff
-    u.uFadeStart.value = props.fadeStart
-    u.uFadeEnd.value = props.fadeEnd
-    u.uSquareSize.value = props.squareSize
-    u.uMinBright.value = props.minBrightness
-    u.uTwinkleSpeed.value = props.twinkleSpeed
-    u.uTwinkleStrength.value = props.twinkleStrength
-    u.uIntensity.value = props.intensity
-    u.uAlpha.value = props.opacity
-
-    const [sr, sg, sb] = hexToRgb(props.squareColor)
-    u.uSquare.value.set(sr, sg, sb)
-  })
-
   const uniforms = useMemo(
     () => ({
       uTime: { value: 0 },
@@ -216,6 +192,50 @@ const SquaresScene: React.FC<SceneProps> = (props) => {
     }),
     []
   )
+
+  // Prop-derived uniforms are constant between frames — set them when the props
+  // change rather than re-parsing hex/dir on every rAF tick. (uniforms is the
+  // same object the material holds, reached via the mesh ref.)
+  useEffect(() => {
+    const u = (meshRef.current?.material as THREE.ShaderMaterial | undefined)
+      ?.uniforms
+    if (!u) return
+    u.uGrid.value = Math.max(4, Math.min(400, props.gridSize))
+    const [dx, dy] = dirToVec(props.direction)
+    u.uDir.value.set(dx, dy)
+    u.uFalloff.value = props.falloff
+    u.uFadeStart.value = props.fadeStart
+    u.uFadeEnd.value = props.fadeEnd
+    u.uSquareSize.value = props.squareSize
+    u.uMinBright.value = props.minBrightness
+    u.uTwinkleSpeed.value = props.twinkleSpeed
+    u.uTwinkleStrength.value = props.twinkleStrength
+    u.uIntensity.value = props.intensity
+    u.uAlpha.value = props.opacity
+    const [sr, sg, sb] = hexToRgb(props.squareColor)
+    u.uSquare.value.set(sr, sg, sb)
+  }, [
+    props.gridSize,
+    props.direction,
+    props.falloff,
+    props.fadeStart,
+    props.fadeEnd,
+    props.squareSize,
+    props.minBrightness,
+    props.twinkleSpeed,
+    props.twinkleStrength,
+    props.intensity,
+    props.opacity,
+    props.squareColor,
+  ])
+
+  // Only the clock and viewport size change per frame.
+  useFrame((state) => {
+    if (!meshRef.current) return
+    const u = (meshRef.current.material as THREE.ShaderMaterial).uniforms
+    u.uTime.value = state.clock.elapsedTime
+    u.uRes.value.set(size.width, size.height)
+  })
 
   return (
     <mesh ref={meshRef}>
