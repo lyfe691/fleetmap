@@ -23,7 +23,10 @@ function hashId(id: string): number {
 
 const ASSUMED_VEHICLE_MODEL = "Ford Transit Custom"
 
-export type AssumedDetails = {
+// Vehicles have no origin in the schema yet — placeholder depot label.
+export const ASSUMED_ORIGIN = "Depot"
+
+type AssumedDetails = {
   capacityPct: number
   loadCount: number
   loadWeight: string
@@ -51,7 +54,7 @@ export function assumedVehicleDetails(id: string): AssumedDetails {
   }
 }
 
-export type AssumedPhoto = { id: string; label: string; meta: string }
+type AssumedPhoto = { id: string; label: string; meta: string }
 
 export function assumedCargoPhotos(id: string): AssumedPhoto[] {
   const h = hashId(id)
@@ -63,7 +66,7 @@ export function assumedCargoPhotos(id: string): AssumedPhoto[] {
   }))
 }
 
-export type AssumedManifestRow = { id: string; label: string; sub: string; value: string }
+type AssumedManifestRow = { id: string; label: string; sub: string; value: string }
 
 export function assumedManifest(id: string): AssumedManifestRow[] {
   const d = assumedVehicleDetails(id)

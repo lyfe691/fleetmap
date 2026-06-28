@@ -10,7 +10,7 @@ import {
   Sun,
   type LucideIcon,
 } from "lucide-react"
-import { useTheme } from "next-themes"
+import { useThemeToggle } from "@/components/theme-toggle"
 import { useNow } from "@/lib/use-now"
 import { CLOCK_TICK_MS } from "@/lib/console/intervals"
 import type { ConsoleView } from "@/lib/console/types"
@@ -243,10 +243,8 @@ function OnlinePill({ online, total }: { online: number; total: number }) {
 }
 
 function ThemeToggle({ collapsed }: { collapsed?: boolean }) {
-  const { resolvedTheme, setTheme } = useTheme()
-  const isDark = resolvedTheme === "dark"
-  const label = isDark ? "Switch to light theme" : "Switch to dark theme"
-  const toggle = () => setTheme(isDark ? "light" : "dark")
+  // ssr:false console, so the hook's mounted guard isn't needed here.
+  const { isDark, label, toggle } = useThemeToggle()
 
   if (collapsed) {
     return (

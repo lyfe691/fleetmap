@@ -3,7 +3,7 @@ import type { Vehicle } from "@/lib/use-live-vehicles"
 import type { Stop } from "@/lib/use-live-stops"
 import type { Route } from "@/lib/route-types"
 import { isStale } from "@/components/map/vehicle-marker"
-import { assumedVehicleDetails } from "@/lib/console/assumed"
+import { ASSUMED_ORIGIN, assumedVehicleDetails } from "@/lib/console/assumed"
 
 export type StatusTone = "onRoute" | "waiting"
 
@@ -84,7 +84,7 @@ export function buildConsoleVehicles(input: {
       tone: hasActive ? "onRoute" : "waiting",
       statusLabel: hasActive ? "On Route" : "Waiting",
       stale,
-      origin: "Depot",
+      origin: ASSUMED_ORIGIN,
       dest: next ? (next.stop_type === "pickup" ? "Pickup" : "Dropoff") : "—",
       etaText: hasActive ? (etaSec != null ? formatEta(etaSec) : "—") : "Idle",
       routeTimer: route ? hms(route.totalDuration) : "—",
