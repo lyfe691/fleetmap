@@ -20,10 +20,16 @@ const COLUMNS =
   "id, label, status, last_lat, last_lng, last_heading, last_speed, last_seen_at, area_id"
 
 /**
- * Snapshot-then-subscribe over the vehicles table for the dashboard. The gate
- * has already established the session (connectDashboard), so this only arms
- * Realtime auth from the live token, then subscribes and snapshots once
- * SUBSCRIBED so no event in the gap is missed.
+ * Live vehicles for the dashboard. The gate has already established the session
+ * (connectDashboard), so this arms Realtime auth, opens the live channel, then
+ * loads the snapshot.
+ *
+ * The loader is released by the snapshot alone — a fast, reliable select — never
+ * by the websocket. Realtime is a best-effort overlay: the channel is opened
+ * first so live rows flow in (last-write-wins keeps them ahead of the snapshot),
+ * but a vehicle that stops updating simply ages into the console's stale state.
+ * So a slow or stalled socket can't hang the view — the snapshot stands on its
+ * own, and live updates layer on once the channel joins.
  */
 export function useLiveVehicles() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
@@ -36,20 +42,17 @@ export function useLiveVehicles() {
     const byId = new Map<string, Vehicle>()
     let channel: RealtimeChannel | null = null
     let cancelled = false
-    // Releases the loader gate; set on the first snapshot or first surfaced
-    // connection failure so a dead channel can't hang the loader forever.
-    let resolved = false
 
     // Re-arm Realtime when supabase-js refreshes the session, so the socket
     // stays authed and the channel keeps delivering on a long-running TV.
     const { data: authSub } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "TOKEN_REFRESHED" && session) {
         void supabase.realtime.setAuth(session.access_token)
-      } else if (event === "SIGNED_OUT") {
-        // The long-running dashboard session ended (refresh token expired/revoked).
-        // Surface it so the TV shows the error banner instead of silently freezing
-        // on stale positions. Recovery is a reload (re-mints from the stored code).
-        if (!cancelled) setError("Session ended — reload to reconnect.")
+      } else if (event === "SIGNED_OUT" && !cancelled) {
+        // The dashboard session ended (refresh token expired/revoked). Surface
+        // it so the TV shows the error banner instead of freezing on stale
+        // positions. Recovery is a reload (re-mints from the stored code).
+        setError("Session ended — reload to reconnect.")
       }
     })
 
@@ -67,22 +70,17 @@ export function useLiveVehicles() {
 
     const loadSnapshot = async () => {
       // Column-scoped view (0003): the snapshot never pulls sensitive columns.
-      // Live updates still ride the vehicles-table Realtime channel below.
       const { data, error: selErr } = await supabase
         .from("vehicles_public")
         .select(COLUMNS)
       if (cancelled) return
       if (selErr) {
-        resolved = true
         setError(selErr.message)
         return
       }
       for (const v of (data ?? []) as Vehicle[]) apply(v, true)
-      if (!cancelled) {
-        resolved = true
-        setError(null)
-        setLoaded(true)
-      }
+      setError(null)
+      setLoaded(true)
     }
 
     const start = async () => {
@@ -99,6 +97,9 @@ export function useLiveVehicles() {
         if (cancelled) return
         setReady(true)
 
+        // Open the live channel first so events start flowing, then snapshot.
+        // The snapshot doesn't wait on the channel joining — it releases the
+        // loader on its own.
         channel = supabase
           .channel("vehicles-live")
           .on(
@@ -116,24 +117,9 @@ export function useLiveVehicles() {
               apply(payload.new as Vehicle)
             }
           )
-          .subscribe((status) => {
-            if (cancelled) return
-            if (status === "SUBSCRIBED") {
-              void loadSnapshot()
-              return
-            }
-            // A terminal failure before the first snapshot would otherwise hang
-            // the loader; surface it so the shell shows the error banner.
-            if (
-              !resolved &&
-              (status === "CHANNEL_ERROR" ||
-                status === "TIMED_OUT" ||
-                status === "CLOSED")
-            ) {
-              resolved = true
-              setError(`realtime connection failed (${status})`)
-            }
-          })
+          .subscribe()
+
+        await loadSnapshot()
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : "failed to connect")

@@ -92,9 +92,10 @@ export function ConsoleShell({ onChangeCode }: { onChangeCode: () => void }) {
     [consoleVehicles]
   )
 
-  // Hold the loader until the first snapshot resolves or a connection error
-  // surfaces — so the empty "no vehicles" state never flashes before data, and
-  // a dead channel falls through to the shell's error banner instead of hanging.
+  // Hold the loader until the first snapshot resolves (or a snapshot/auth error
+  // surfaces) so the empty "no vehicles" state never flashes before data. The
+  // snapshot is independent of the live socket, so a stalled channel can't hang
+  // this — it releases on the select, and live updates layer on afterwards.
   if (!loaded && !error) return <ConsoleLoading />
 
   return (
