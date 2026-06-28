@@ -20,8 +20,10 @@ const COLUMNS = "id, vehicle_id, stop_type, seq, lat, lng, status, eta_at"
 /**
  * Second live channel for the dashboard: stops, on the SAME session the gate
  * established. Gate on `ready` (the vehicles hook has armed realtime auth) so
- * this only snapshots/subscribes once authed; the vehicles hook's
- * TOKEN_REFRESHED handler re-arms the shared socket for both channels. Returns
+ * this only runs once authed; the vehicles hook's TOKEN_REFRESHED handler
+ * re-arms the shared socket for both channels. Like the vehicles hook, the
+ * snapshot is independent of the socket joining (last-write-wins keeps live
+ * rows ahead of it), so a stalled channel can't leave stops empty. Returns
  * stops grouped by vehicle id, each list sorted by seq.
  */
 export function useLiveStops(ready: boolean) {
@@ -89,9 +91,11 @@ export function useLiveStops(ready: boolean) {
           apply(payload.new as Stop)
         }
       )
-      .subscribe((status) => {
-        if (status === "SUBSCRIBED") void loadSnapshot()
-      })
+      .subscribe()
+
+    // Snapshot regardless of the socket joining — last-write-wins keeps any
+    // live row ahead of it, so a stalled channel can't leave stops empty.
+    void loadSnapshot()
 
     return () => {
       cancelled = true
