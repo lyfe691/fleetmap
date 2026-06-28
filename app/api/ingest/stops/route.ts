@@ -1,22 +1,13 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { createUserClient } from "@/lib/supabase/server"
+import { bearerToken, isAuthError } from "@/lib/api-auth"
 import { validate } from "@/lib/ingest-validate"
 
 // supabase-js needs the Node runtime (not Edge-safe).
 export const runtime = "nodejs"
 
-// Map PostgREST JWT/auth failures (PGRST3xx) to 401, not a generic 500.
-function isAuthError(error: { code?: string; message?: string }): boolean {
-  const code = error.code ?? ""
-  const message = (error.message ?? "").toLowerCase()
-  return code.startsWith("PGRST3") || message.includes("jwt")
-}
-
 export async function POST(request: NextRequest) {
-  const authHeader = request.headers.get("authorization")
-  const token = authHeader?.startsWith("Bearer ")
-    ? authHeader.slice("Bearer ".length)
-    : null
+  const token = bearerToken(request)
   if (!token) {
     return NextResponse.json({ error: "missing bearer token" }, { status: 401 })
   }

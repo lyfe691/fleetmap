@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { createUserClient } from "@/lib/supabase/server"
+import { bearerToken, isAuthError } from "@/lib/api-auth"
 import { applyGeofence } from "@/lib/geofence"
 
 // supabase-js needs the Node runtime (not Edge-safe).
@@ -19,13 +20,6 @@ type LocationInput = {
 
 function isFiniteNumber(v: unknown): v is number {
   return typeof v === "number" && Number.isFinite(v)
-}
-
-// Map PostgREST JWT/auth failures (PGRST3xx) to 401, not a generic 500.
-function isAuthError(error: { code?: string; message?: string }): boolean {
-  const code = error.code ?? ""
-  const message = (error.message ?? "").toLowerCase()
-  return code.startsWith("PGRST3") || message.includes("jwt")
 }
 
 // Validate and narrow the request body.
@@ -91,10 +85,7 @@ function validate(body: unknown): { value: LocationInput } | { error: string } {
 
 export async function POST(request: NextRequest) {
   // 1. Auth: a Bearer token is required.
-  const authHeader = request.headers.get("authorization")
-  const token = authHeader?.startsWith("Bearer ")
-    ? authHeader.slice("Bearer ".length)
-    : null
+  const token = bearerToken(request)
   if (!token) {
     return NextResponse.json({ error: "missing bearer token" }, { status: 401 })
   }

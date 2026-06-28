@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { createUserClient } from "@/lib/supabase/server"
+import { bearerToken, isAuthError } from "@/lib/api-auth"
 
 // supabase-js needs the Node runtime (not Edge-safe).
 export const runtime = "nodejs"
@@ -7,13 +8,6 @@ export const runtime = "nodejs"
 // OSRM stays internal; the dashboard only ever talks to this proxy. Defaults to
 // the local dev container; in compose this is the service name (http://osrm:5000).
 const OSRM_URL = process.env.OSRM_URL ?? "http://localhost:5000"
-
-// Map PostgREST JWT/auth failures (PGRST3xx) to 401, not a generic 500.
-function isAuthError(error: { code?: string; message?: string }): boolean {
-  const code = error.code ?? ""
-  const message = (error.message ?? "").toLowerCase()
-  return code.startsWith("PGRST3") || message.includes("jwt")
-}
 
 type StopRow = {
   id: string
@@ -36,10 +30,7 @@ type OsrmResponse = { code: string; routes?: OsrmRoute[] }
 
 export async function GET(request: NextRequest) {
   // 1. Auth: a Bearer token is required (the dashboard session).
-  const authHeader = request.headers.get("authorization")
-  const token = authHeader?.startsWith("Bearer ")
-    ? authHeader.slice("Bearer ".length)
-    : null
+  const token = bearerToken(request)
   if (!token) {
     return NextResponse.json({ error: "missing bearer token" }, { status: 401 })
   }

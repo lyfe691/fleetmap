@@ -1,20 +1,13 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { createUserClient } from "@/lib/supabase/server"
+import { bearerToken, isAuthError } from "@/lib/api-auth"
+import { UUID_RE } from "@/lib/ingest-validate"
 
 // supabase-js needs the Node runtime (not Edge-safe).
 export const runtime = "nodejs"
 
 const STATUSES = ["arrived", "completed", "failed", "skipped"] as const
 type Status = (typeof STATUSES)[number]
-
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-
-function isAuthError(error: { code?: string; message?: string }): boolean {
-  const code = error.code ?? ""
-  const message = (error.message ?? "").toLowerCase()
-  return code.startsWith("PGRST3") || message.includes("jwt")
-}
 
 // Validate the mutation body into a stops patch. At least one mutable field.
 function validate(
@@ -66,10 +59,7 @@ export async function PATCH(
     return NextResponse.json({ error: "invalid stop id" }, { status: 400 })
   }
 
-  const authHeader = request.headers.get("authorization")
-  const token = authHeader?.startsWith("Bearer ")
-    ? authHeader.slice("Bearer ".length)
-    : null
+  const token = bearerToken(request)
   if (!token) {
     return NextResponse.json({ error: "missing bearer token" }, { status: 401 })
   }
