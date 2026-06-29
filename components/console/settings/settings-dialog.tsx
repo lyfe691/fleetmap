@@ -20,12 +20,6 @@ const CATEGORIES: { id: Category; label: string; icon: LucideIcon }[] = [
   { id: "language", label: "Language", icon: Languages },
 ]
 
-const SECTION_TITLE: Record<Category, string> = {
-  appearance: "Appearance",
-  accessibility: "Accessibility",
-  language: "Language",
-}
-
 export function SettingsDialog({
   open,
   onOpenChange,
@@ -38,6 +32,7 @@ export function SettingsDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="gap-0 overflow-hidden p-0 sm:max-w-2xl">
+        <DialogTitle className="sr-only">Settings</DialogTitle>
         <DialogDescription className="sr-only">
           Manage appearance, accessibility, and language preferences.
         </DialogDescription>
@@ -47,9 +42,9 @@ export function SettingsDialog({
             aria-label="Settings categories"
             className="flex w-[200px] shrink-0 flex-col gap-1 border-r border-border bg-surface p-3"
           >
-            <DialogTitle className="px-3 pt-2 pb-3 text-[18px] font-semibold tracking-tight">
+            <div className="px-3 pt-2 pb-3 text-[18px] font-semibold tracking-tight">
               Settings
-            </DialogTitle>
+            </div>
             {CATEGORIES.map((entry) => {
               const Icon = entry.icon
               const active = entry.id === category
@@ -74,7 +69,7 @@ export function SettingsDialog({
 
           <div className="min-w-0 flex-1 overflow-y-auto p-6">
             <h2 className="mb-1 font-heading text-[20px] font-semibold tracking-tight">
-              {SECTION_TITLE[category]}
+              {CATEGORIES.find((c) => c.id === category)?.label ?? category}
             </h2>
             <div className="mt-3">
               {category === "appearance" ? <AppearanceSection /> : null}

@@ -16,7 +16,7 @@ export function SettingsButton({
         onClick={onClick}
         aria-label="Settings"
         title="Settings"
-        className="flex size-11 items-center justify-center rounded-xl border border-sidebar-border text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground"
+        className="flex size-11 items-center justify-center rounded-xl border border-sidebar-border text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground"
       >
         <Settings className="size-5" />
       </button>
