@@ -1,16 +1,15 @@
 /**
  * Adapter #2 (STUB) — example only, not wired into package.json.
  *
- * The client's real export format is still unknown (monitoring-pivot design,
- * open-question #1). This shows the *shape* of mapping an external export into
- * the `POST /api/ingest/stops` contract — proving the ingestion seam holds
- * without building a live feed. Swap `CsvRow` + the mapping for the real source
- * when known; the contract below does not change.
+ * The client's real export format is still unknown. This shows the *shape* of
+ * mapping an external export into the `POST /api/ingest/routes` contract —
+ * proving the ingestion seam holds without building a live feed. Swap `CsvRow`
+ * + the mapping for the real source when known; the contract below does not change.
  */
 
 // One flat row as a generic CSV/ERP export might provide it.
 type CsvRow = {
-  order_ref: string
+  route_ref: string
   customer: string
   pickup_lat: string
   pickup_lng: string
@@ -21,9 +20,9 @@ type CsvRow = {
   dropoff_seq: string
 }
 
-// The exact POST /api/ingest/stops contract (see app/api/ingest/stops/route.ts).
+// The exact POST /api/ingest/routes contract (see app/api/ingest/routes/route.ts).
 type IngestPayload = {
-  orders: {
+  routes: {
     external_ref: string
     source: string
     customer_name?: string
@@ -39,8 +38,8 @@ type IngestPayload = {
 
 export function mapCsvRowsToIngestPayload(rows: CsvRow[]): IngestPayload {
   return {
-    orders: rows.map((r) => ({
-      external_ref: r.order_ref,
+    routes: rows.map((r) => ({
+      external_ref: r.route_ref,
       source: "csv",
       customer_name: r.customer,
       stops: [
@@ -63,5 +62,5 @@ export function mapCsvRowsToIngestPayload(rows: CsvRow[]): IngestPayload {
   }
 }
 
-// Usage (illustrative — do not run): POST the payload to /api/ingest/stops with a
+// Usage (illustrative — do not run): POST the payload to /api/ingest/routes with a
 // dispatcher Bearer token, exactly as scripts/seed-stops.ts does.
