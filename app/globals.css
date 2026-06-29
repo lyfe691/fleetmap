@@ -173,14 +173,6 @@ html[data-reduce-motion] *::after {
   scroll-behavior: auto !important;
 }
 
-html[data-large-text] {
-  font-size: 112.5%; /* scales the rem-based type up ~1.125x */
-}
-
-html[data-big-targets] :is(button, [role="button"], a, input, select) {
-  min-height: 2.75rem;
-}
-
 html[data-high-contrast] {
   --border: oklch(0.7 0 0);
   --muted-foreground: oklch(0.35 0 0);

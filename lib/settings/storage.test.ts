@@ -14,14 +14,12 @@ describe("loadSettings", () => {
   it("reads persisted locale + bool flags", () => {
     const get = fromMap({
       "fleetmap.settings.locale": "en",
-      "fleetmap.settings.largeText": "true",
-      "fleetmap.settings.highContrast": "false",
+      "fleetmap.settings.reduceMotion": "true",
     })
     const s = loadSettings(get)
     expect(s.locale).toBe("en")
-    expect(s.largeText).toBe(true)
-    expect(s.highContrast).toBe(false)
-    expect(s.reduceMotion).toBe(false) // unset → default
+    expect(s.reduceMotion).toBe(true)
+    expect(s.highContrast).toBe(false) // unset → default
   })
 
   it("invalid locale → default locale", () => {

@@ -6,7 +6,7 @@ import { Switch } from "@/components/ui/switch"
 import { useTranslations } from "@/lib/i18n/index"
 import type { TranslationKey } from "@/lib/i18n/en"
 
-type BoolKey = "reduceMotion" | "largeText" | "highContrast" | "bigTargets"
+type BoolKey = "reduceMotion" | "highContrast"
 
 const ROWS: { key: BoolKey; titleKey: TranslationKey; descKey: TranslationKey }[] = [
   {
@@ -15,19 +15,9 @@ const ROWS: { key: BoolKey; titleKey: TranslationKey; descKey: TranslationKey }[
     descKey: "settings.a11y.reduceMotion.desc",
   },
   {
-    key: "largeText",
-    titleKey: "settings.a11y.largeText",
-    descKey: "settings.a11y.largeText.desc",
-  },
-  {
     key: "highContrast",
     titleKey: "settings.a11y.highContrast",
     descKey: "settings.a11y.highContrast.desc",
-  },
-  {
-    key: "bigTargets",
-    titleKey: "settings.a11y.bigTargets",
-    descKey: "settings.a11y.bigTargets.desc",
   },
 ]
 
