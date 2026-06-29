@@ -207,6 +207,7 @@ export function FleetMapView({
                 stale={stale}
                 selected={v.id === selectedId}
                 fill={fill}
+                heading={v.last_heading}
               />
             </InterpolatedMarker>
           )
