@@ -1,6 +1,7 @@
 "use client"
 
 import { ArrowRight, X } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import { FleetMapView } from "@/components/map/fleet-map-view"
 import type { LiveData } from "@/lib/console/types"
 import type { ConsoleVehicle } from "@/lib/console/use-console-data"
@@ -89,23 +90,22 @@ function SummaryCard({
       </div>
 
       <div className="mt-6 flex items-center gap-2.5 text-[15px]">
-        <span className="min-w-0 flex-1 truncate text-muted-foreground">
+        <span className="max-w-[45%] truncate text-muted-foreground">
           {vehicle.origin}
         </span>
         <ArrowRight className="size-4 shrink-0 text-muted-foreground" />
-        <span className="min-w-0 flex-1 truncate text-right font-semibold">
+        <span className="max-w-[45%] truncate font-semibold">
           {vehicle.dest}
         </span>
       </div>
 
-      <button
-        type="button"
+      <Button
         onClick={onShowDetails}
-        className="mt-6 flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-[15px] font-semibold text-primary-foreground transition-[filter] hover:brightness-110 active:brightness-90"
+        className="mt-6 h-14 w-full gap-2 rounded-2xl text-[16px] font-semibold"
       >
         {t("card.viewDetails")}
-        <ArrowRight className="size-[18px]" />
-      </button>
+        <ArrowRight className="size-5" />
+      </Button>
     </div>
   )
 }
