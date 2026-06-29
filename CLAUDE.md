@@ -11,7 +11,7 @@ Full design doc: `docs/specs/live-tracking-spec.md` — that's the source of tru
 - **MapLibre GL** (`react-map-gl`) for the map. Tiles from MapTiler/Stadia — **never the public OSM tile server** (against their usage policy).
 - **OSRM**, self-hosted (Docker, Switzerland extract) for route lines + ETA — M4.
 - **Driver client:** PWA for V1 (`watchPosition` + Screen Wake Lock). Native Expo is the escape hatch if phones go in pockets or run nav up front — not now.
-- **Deployment:** Docker containers.
+- **Deployment:** Docker on a single VPS (`fleet.ysz.life`) — Caddy (auto-TLS) → standalone Next image → internal OSRM, all in `docker-compose.prod.yml`. Supabase stays managed cloud. Full guide: `docs/deployment.md`.
 
 ## Architecture
 
@@ -24,11 +24,17 @@ Keep the API thin: ingest + OSRM proxy only. It stays **stateless** — the live
 ```
 app/api/location/route.ts   ingest endpoint
 app/api/route/route.ts      OSRM proxy — route line + ETA (GET /api/route)
+app/api/dashboard-session/route.ts   mint dashboard session (display code) — TV read identity
 app/api/dispatcher-session/route.ts  mint dispatcher session (shared secret)
 app/api/ingest/stops/route.ts        ingestion seam — orders/stops (POST)
 app/api/stops/[id]/route.ts          PATCH stop — dispatcher mutation (status/reassign/reorder)
 scripts/seed-stops.ts                dev-only ingestion adapter #1
-docker-compose.yml          OSRM routing container (Switzerland extract)
+docker-compose.yml          OSRM routing container (Switzerland extract) — dev
+Dockerfile                  standalone Next image (prod build)
+docker-compose.prod.yml     prod stack — Caddy (TLS) → app → OSRM (internal)
+caddy/Caddyfile             reverse proxy + auto-TLS for fleet.ysz.life
+redeploy.sh                 VPS: git pull + rebuild the prod stack
+docs/deployment.md          VPS deploy guide (Hostinger, fleet.ysz.life)
 lib/supabase/server.ts      request-scoped Supabase client (runs as the user)
 lib/supabase/browser.ts     browser client (publishable key) — dashboard read/Realtime
 lib/use-live-vehicles.ts    dashboard vehicles live channel (snapshot + subscribe)
@@ -51,6 +57,9 @@ lib/supabase/driver.ts      driver client (persistent session)
 supabase/migrations/        SQL migrations
 scripts/cities.ts           dev-only multi-city config — areas + per-city demo orders
 scripts/fake-gps.ts         dev-only fake GPS poster (one van per city, drives each route)
+scripts/provision-{dashboard,dispatcher,driver}.ts  create the Auth identities (dev/setup, secret key)
+scripts/lib/ensure-user.ts  shared idempotent Auth-user provisioning helper
+scripts/adapters/csv-to-stops.example.ts  ingestion adapter #2 (reference stub)
 docs/specs/live-tracking-spec.md  full spec
 ```
 
@@ -104,9 +113,20 @@ supabase db push                  # apply migrations
 pnpm exec tsc --noEmit            # typecheck
 pnpm test                         # vitest unit suite (route-slice, geofence, ingest validation)
 docker compose up -d osrm         # routing engine (build the dataset first — see docker-compose.yml)
+
+# Prod (on the VPS, from /opt/fleetmap)
+./redeploy.sh                     # git pull + rebuild the prod stack (docker-compose.prod.yml)
 ```
 
 Env: `.env.example` — `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`.
+
+**Demo against prod with fake-gps:** `fake-gps` is a local tool — it needs `SUPABASE_SECRET_KEY` (admin setup + reading stops), which must never live on the VPS. Run it from your machine but point its POSTs at the deployed ingest endpoint, with local OSRM up for route geometry (prod OSRM is internal-only). Since prod reuses the same managed Supabase project, the keys are identical and the fake vans appear on the real TV:
+
+```
+FAKE_GPS_API_URL=https://fleet.ysz.life/api/location pnpm fake-gps
+```
+
+It writes into the shared Supabase, so a fake van and a real driver in the same city fight over one marker — use it for demos before real drivers stream, not alongside them.
 
 ## Milestones
 

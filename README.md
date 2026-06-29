@@ -10,8 +10,8 @@ Real-time map of a delivery fleet. Each vehicle's phone streams GPS to the backe
 | Database / Realtime / Auth | Supabase (Postgres, Realtime, RLS) |
 | Map | MapLibre GL via `react-map-gl`; tiles from MapTiler/Stadia |
 | Routing + ETA | OSRM, self-hosted (Docker, Switzerland extract) |
-| Driver client | PWA (`watchPosition` + Screen Wake Lock) |
-| Deployment | Docker containers |
+| Driver client | Native app (Bubblebox); the V1 web PWA is retired, kept as reference |
+| Deployment | Docker on one VPS — Caddy (TLS) → Next → OSRM; Supabase stays managed (see [`docs/deployment.md`](docs/deployment.md)) |
 
 ## Architecture
 
@@ -66,11 +66,29 @@ Copy `.env.example` to `.env` and fill in:
 | `pnpm seed-stops` | Dev-only: seed a day of orders/stops (dev server must be running) |
 | `pnpm provision-dashboard` | Create the dashboard TV identity |
 | `pnpm provision-dispatcher` | Create the dispatcher identity |
+| `pnpm provision-driver` | Create a driver identity |
 | `docker compose up -d osrm` | Start the OSRM routing engine (build the dataset first — see `docker-compose.yml`) |
+
+## Deployment
+
+The production stack (Caddy + Next + OSRM) runs on a single VPS via `docker-compose.prod.yml`; Supabase stays managed cloud. Full walkthrough — first-time setup, the OSRM dataset build, TLS, and smoke tests — is in [`docs/deployment.md`](docs/deployment.md).
+
+To ship new code, from `/opt/fleetmap` on the box:
+
+```bash
+./redeploy.sh   # git pull + rebuild the prod stack
+```
+
+To drive a demo feed against the deployed host, run the fake-GPS poster **locally** (it needs the dev-only secret key) but aim its POSTs at prod:
+
+```bash
+FAKE_GPS_API_URL=https://fleet.ysz.life/api/location pnpm fake-gps
+```
 
 ## Docs
 
 - [`CLAUDE.md`](CLAUDE.md) — working brief: stack decisions, conventions, layout, and milestone log.
+- [`docs/deployment.md`](docs/deployment.md) — VPS deployment guide.
 - [`docs/specs/live-tracking-spec.md`](docs/specs/live-tracking-spec.md) — full design doc (source of truth).
 
 ## Status
