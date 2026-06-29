@@ -26,17 +26,13 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     if (typeof window !== "undefined") window.localStorage.setItem(storageKey(key), String(value))
   }
 
+  // Reflect the accessibility flags onto <html> so CSS can target them.
   useEffect(() => {
     const root = document.documentElement
-    const attrs: string[] = []
     for (const key of BOOL_KEYS) {
       const attr = "data-" + key.replace(/[A-Z]/g, (c) => "-" + c.toLowerCase())
-      attrs.push(attr)
       if (settings[key]) root.setAttribute(attr, "true")
       else root.removeAttribute(attr)
-    }
-    return () => {
-      for (const attr of attrs) root.removeAttribute(attr)
     }
   }, [settings])
 
