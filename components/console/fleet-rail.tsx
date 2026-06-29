@@ -8,6 +8,7 @@ import { StatusBadge } from "@/components/console/status-badge"
 import { useTranslations, useLocale } from "@/lib/i18n"
 import { formatCount } from "@/lib/i18n/format"
 import type { TranslationKey } from "@/lib/i18n/en"
+import { PillTabs } from "@/components/ui/pill-tabs"
 
 const SEGMENTS: { filter: StatusFilter; key: keyof ConsoleCounts; tKey: TranslationKey }[] = [
   { filter: "All", key: "all", tKey: "filter.all" },
@@ -82,29 +83,23 @@ export function FleetRail({
           </button>
         </div>
 
-        <div className="mt-5 flex gap-1 rounded-full bg-muted p-1">
-          {SEGMENTS.map((seg) => {
-            const active = statusFilter === seg.filter
-            return (
-              <button
-                key={seg.filter}
-                type="button"
-                onClick={() => onStatusFilter(seg.filter)}
-                aria-pressed={active}
-                className={`flex flex-1 items-center justify-center gap-1.5 rounded-full py-3 text-[14px] font-semibold transition-colors ${
-                  active
-                    ? "bg-primary text-primary-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
+        <PillTabs
+          className="mt-5 flex w-full"
+          activeId={statusFilter}
+          onTabChange={(id) => onStatusFilter(id as StatusFilter)}
+          tabs={SEGMENTS.map((seg) => ({
+            id: seg.filter,
+            ariaLabel: t(seg.tKey),
+            label: (
+              <>
                 {t(seg.tKey)}
-                <span className={active ? "text-primary-foreground/60" : "opacity-50"}>
+                <span className="opacity-55">
                   {formatCount(counts[seg.key], locale)}
                 </span>
-              </button>
-            )
-          })}
-        </div>
+              </>
+            ),
+          }))}
+        />
       </div>
 
       <div
