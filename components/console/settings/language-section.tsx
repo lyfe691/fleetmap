@@ -4,18 +4,20 @@ import { useSettings } from "@/lib/settings/settings-provider"
 import { SettingRow } from "@/components/console/settings/setting-row"
 import { Segmented } from "@/components/console/settings/segmented"
 import type { Locale } from "@/lib/settings/types"
+import { useTranslations } from "@/lib/i18n/index"
 
 export function LanguageSection() {
   const { settings, setSetting } = useSettings()
+  const t = useTranslations()
 
   return (
     <div className="flex flex-col">
       <SettingRow
-        title="Language"
+        title={t("settings.language")}
         description="Choose the console display language."
         control={
           <Segmented
-            ariaLabel="Language"
+            ariaLabel={t("settings.language")}
             value={settings.locale}
             onChange={(value) => setSetting("locale", value as Locale)}
             options={[

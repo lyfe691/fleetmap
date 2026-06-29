@@ -3,45 +3,48 @@
 import { useSettings } from "@/lib/settings/settings-provider"
 import { SettingRow } from "@/components/console/settings/setting-row"
 import { Toggle } from "@/components/console/settings/toggle"
+import { useTranslations } from "@/lib/i18n/index"
+import type { TranslationKey } from "@/lib/i18n/en"
 
 type BoolKey = "reduceMotion" | "largeText" | "highContrast" | "bigTargets"
 
-const ROWS: { key: BoolKey; title: string; description: string }[] = [
+const ROWS: { key: BoolKey; titleKey: TranslationKey; descKey: TranslationKey }[] = [
   {
     key: "reduceMotion",
-    title: "Reduce motion",
-    description: "Minimize animations and marker movement.",
+    titleKey: "settings.a11y.reduceMotion",
+    descKey: "settings.a11y.reduceMotion.desc",
   },
   {
     key: "largeText",
-    title: "Larger text",
-    description: "Increase the interface text size.",
+    titleKey: "settings.a11y.largeText",
+    descKey: "settings.a11y.largeText.desc",
   },
   {
     key: "highContrast",
-    title: "High contrast",
-    description: "Stronger borders and text contrast.",
+    titleKey: "settings.a11y.highContrast",
+    descKey: "settings.a11y.highContrast.desc",
   },
   {
     key: "bigTargets",
-    title: "Bigger touch targets",
-    description: "Enlarge buttons and controls for touch.",
+    titleKey: "settings.a11y.bigTargets",
+    descKey: "settings.a11y.bigTargets.desc",
   },
 ]
 
 export function AccessibilitySection() {
   const { settings, setSetting } = useSettings()
+  const t = useTranslations()
 
   return (
     <div className="flex flex-col">
       {ROWS.map((row) => (
         <SettingRow
           key={row.key}
-          title={row.title}
-          description={row.description}
+          title={t(row.titleKey)}
+          description={t(row.descKey)}
           control={
             <Toggle
-              label={row.title}
+              label={t(row.titleKey)}
               checked={settings[row.key]}
               onChange={(value) => setSetting(row.key, value)}
             />

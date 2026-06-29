@@ -11,13 +11,15 @@ import {
 import { AppearanceSection } from "@/components/console/settings/appearance-section"
 import { AccessibilitySection } from "@/components/console/settings/accessibility-section"
 import { LanguageSection } from "@/components/console/settings/language-section"
+import { useTranslations } from "@/lib/i18n/index"
+import type { TranslationKey } from "@/lib/i18n/en"
 
 type Category = "appearance" | "accessibility" | "language"
 
-const CATEGORIES: { id: Category; label: string; icon: LucideIcon }[] = [
-  { id: "appearance", label: "Appearance", icon: Palette },
-  { id: "accessibility", label: "Accessibility", icon: Accessibility },
-  { id: "language", label: "Language", icon: Languages },
+const CATEGORY_DEFS: { id: Category; key: TranslationKey; icon: LucideIcon }[] = [
+  { id: "appearance", key: "settings.cat.appearance", icon: Palette },
+  { id: "accessibility", key: "settings.cat.accessibility", icon: Accessibility },
+  { id: "language", key: "settings.cat.language", icon: Languages },
 ]
 
 export function SettingsDialog({
@@ -28,11 +30,12 @@ export function SettingsDialog({
   onOpenChange: (open: boolean) => void
 }) {
   const [category, setCategory] = useState<Category>("appearance")
+  const t = useTranslations()
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="gap-0 overflow-hidden p-0 sm:max-w-2xl">
-        <DialogTitle className="sr-only">Settings</DialogTitle>
+        <DialogTitle className="sr-only">{t("settings.title")}</DialogTitle>
         <DialogDescription className="sr-only">
           Manage appearance, accessibility, and language preferences.
         </DialogDescription>
@@ -43,9 +46,9 @@ export function SettingsDialog({
             className="flex w-[200px] shrink-0 flex-col gap-1 border-r border-border bg-surface p-3"
           >
             <div className="px-3 pt-2 pb-3 text-[18px] font-semibold tracking-tight">
-              Settings
+              {t("settings.title")}
             </div>
-            {CATEGORIES.map((entry) => {
+            {CATEGORY_DEFS.map((entry) => {
               const Icon = entry.icon
               const active = entry.id === category
               return (
@@ -61,7 +64,7 @@ export function SettingsDialog({
                   }`}
                 >
                   <Icon className="size-5 shrink-0" />
-                  <span className="truncate">{entry.label}</span>
+                  <span className="truncate">{t(entry.key)}</span>
                 </button>
               )
             })}
@@ -69,7 +72,7 @@ export function SettingsDialog({
 
           <div className="min-w-0 flex-1 overflow-y-auto p-6">
             <h2 className="mb-1 font-heading text-[20px] font-semibold tracking-tight">
-              {CATEGORIES.find((c) => c.id === category)?.label ?? category}
+              {t(CATEGORY_DEFS.find((c) => c.id === category)?.key ?? "settings.title")}
             </h2>
             <div className="mt-3">
               {category === "appearance" ? <AppearanceSection /> : null}
