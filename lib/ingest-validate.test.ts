@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { validate } from "@/lib/ingest-validate"
+import { validate, validateDeleteParams } from "@/lib/ingest-validate"
 
 const VALID_STOP = {
   stop_type: "dropoff",
@@ -139,5 +139,45 @@ describe("validate", () => {
       routes: [{ external_ref: "RT-001", stops: [{ ...VALID_STOP, stop_type: "pickup" }] }],
     })
     expect("routes" in result).toBe(true)
+  })
+})
+
+describe("validateDeleteParams", () => {
+  it("valid external_ref, no source → defaults source to 'manual'", () => {
+    const result = validateDeleteParams({ external_ref: "RT-001", source: null })
+    expect("error" in result).toBe(false)
+    if (!("error" in result)) {
+      expect(result.external_ref).toBe("RT-001")
+      expect(result.source).toBe("manual")
+    }
+  })
+
+  it("explicit source → used as-is", () => {
+    const result = validateDeleteParams({ external_ref: "RT-001", source: "client-x" })
+    if (!("error" in result)) expect(result.source).toBe("client-x")
+    else throw new Error("expected ok")
+  })
+
+  it("empty string source → defaults to 'manual'", () => {
+    const result = validateDeleteParams({ external_ref: "RT-001", source: "" })
+    if (!("error" in result)) expect(result.source).toBe("manual")
+    else throw new Error("expected ok")
+  })
+
+  it("missing external_ref → error", () => {
+    const result = validateDeleteParams({ external_ref: "", source: null })
+    expect("error" in result).toBe(true)
+    if ("error" in result) expect(result.error).toMatch(/external_ref/)
+  })
+
+  it("non-string external_ref → error", () => {
+    const result = validateDeleteParams({ external_ref: 123, source: null })
+    expect("error" in result).toBe(true)
+  })
+
+  it("non-string source → error", () => {
+    const result = validateDeleteParams({ external_ref: "RT-001", source: 5 })
+    expect("error" in result).toBe(true)
+    if ("error" in result) expect(result.error).toMatch(/source/)
   })
 })
