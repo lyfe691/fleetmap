@@ -20,6 +20,23 @@ export const en = {
   "settings.language": "Language",
   "settings.language.desc": "Choose the console display language.",
   "sidebar.online": "{online} of {total} online",
+  "sidebar.subtitle": "Monitoring Console",
+  "sidebar.expand": "Expand sidebar",
+  "sidebar.collapse": "Collapse sidebar",
+  "nav.tracking": "Live Tracking",
+  "nav.map": "Live Map",
+  "nav.history": "History",
+  "nav.group.monitor": "Monitor",
+  "nav.group.records": "Records",
+  "shell.changeCode": "Change code",
+  "shell.noVehicles": "No vehicles to track yet",
+  "loading.subtitle": "Loading the fleet…",
+  "gate.title": "Display code",
+  "gate.description": "Enter the code to connect this screen to the live fleet.",
+  "gate.placeholder": "Enter code",
+  "gate.connect": "Connect",
+  "gate.connecting": "Connecting",
+  "gate.retrySaved": "Retry saved code",
 } as const
 
 export type TranslationKey = keyof typeof en

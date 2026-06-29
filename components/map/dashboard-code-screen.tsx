@@ -6,6 +6,7 @@ import { ErrorBoundary } from "@/components/error-boundary"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Spinner } from "@/components/ui/spinner"
+import { useTranslations } from "@/lib/i18n"
 
 // Client-only (WebGL) and pulls in three.js — load lazily so it never touches
 // SSR and the form paints instantly.
@@ -30,6 +31,7 @@ export function DashboardCodeScreen({
   submitting,
   savedCode,
 }: Props) {
+  const t = useTranslations()
   const [code, setCode] = useState("")
   const trimmed = code.trim()
 
@@ -39,10 +41,10 @@ export function DashboardCodeScreen({
       <div className="flex items-center justify-center px-6 py-12">
         <div className="w-full max-w-xs">
           <h1 className="font-heading text-3xl font-semibold tracking-tight">
-            Display code
+            {t("gate.title")}
           </h1>
           <p className="mt-2 text-[15px] text-muted-foreground">
-            Enter the code to connect this screen to the live fleet.
+            {t("gate.description")}
           </p>
 
           <form
@@ -53,7 +55,7 @@ export function DashboardCodeScreen({
             }}
           >
             <label htmlFor="display-code" className="sr-only">
-              Display code
+              {t("gate.title")}
             </label>
             <Input
               id="display-code"
@@ -62,7 +64,7 @@ export function DashboardCodeScreen({
               autoFocus
               value={code}
               onChange={(e) => setCode(e.target.value)}
-              placeholder="Enter code"
+              placeholder={t("gate.placeholder")}
               disabled={submitting}
               aria-invalid={error != null}
               className="h-12 rounded-xl px-4 text-base"
@@ -82,10 +84,10 @@ export function DashboardCodeScreen({
               {submitting ? (
                 <>
                   <Spinner />
-                  Connecting
+                  {t("gate.connecting")}
                 </>
               ) : (
-                "Connect"
+                t("gate.connect")
               )}
             </Button>
 
@@ -96,7 +98,7 @@ export function DashboardCodeScreen({
                 disabled={submitting}
                 className="mt-1 text-sm text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline disabled:opacity-50"
               >
-                Retry saved code
+                {t("gate.retrySaved")}
               </button>
             ) : null}
           </form>

@@ -13,6 +13,8 @@ import { CLOCK_TICK_MS } from "@/lib/console/intervals"
 import type { ConsoleView } from "@/lib/console/types"
 import { BubbleboxLogo } from "@/components/console/bubblebox-logo"
 import { SettingsButton } from "@/components/console/settings/settings-button"
+import { useTranslations, useLocale } from "@/lib/i18n"
+import { formatClock, formatCount } from "@/lib/i18n/format"
 
 type NavEntry = {
   id: ConsoleView
@@ -40,11 +42,12 @@ export function AppSidebar({
   onToggleCollapse: () => void
   onOpenSettings: () => void
 }) {
+  const t = useTranslations()
   const monitor: NavEntry[] = [
-    { id: "tracking", label: "Live Tracking", icon: Navigation, badge: onRouteCount },
-    { id: "map", label: "Live Map", icon: MapIcon },
+    { id: "tracking", label: t("nav.tracking"), icon: Navigation, badge: onRouteCount },
+    { id: "map", label: t("nav.map"), icon: MapIcon },
   ]
-  const records: NavEntry[] = [{ id: "history", label: "History", icon: HistoryIcon }]
+  const records: NavEntry[] = [{ id: "history", label: t("nav.history"), icon: HistoryIcon }]
 
   if (collapsed) {
     return (
@@ -69,7 +72,7 @@ export function AppSidebar({
           <button
             type="button"
             onClick={onToggleCollapse}
-            aria-label="Expand sidebar"
+            aria-label={t("sidebar.expand")}
             className="flex size-11 items-center justify-center rounded-xl border border-sidebar-border text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground"
           >
             <ChevronsRight className="size-5" />
@@ -90,13 +93,13 @@ export function AppSidebar({
             Fleetmap
           </div>
           <div className="mt-1.5 text-[13px] text-muted-foreground">
-            Monitoring Console
+            {t("sidebar.subtitle")}
           </div>
         </div>
       </div>
 
       <div className="flex-1 overflow-y-auto px-3 py-2">
-        <NavGroup label="Monitor">
+        <NavGroup label={t("nav.group.monitor")}>
           {monitor.map((e) => (
             <NavItem
               key={e.id}
@@ -106,7 +109,7 @@ export function AppSidebar({
             />
           ))}
         </NavGroup>
-        <NavGroup label="Records" className="mt-2">
+        <NavGroup label={t("nav.group.records")} className="mt-2">
           {records.map((e) => (
             <NavItem
               key={e.id}
@@ -125,7 +128,7 @@ export function AppSidebar({
           <button
             type="button"
             onClick={onToggleCollapse}
-            aria-label="Collapse sidebar"
+            aria-label={t("sidebar.collapse")}
             className="flex size-12 shrink-0 items-center justify-center rounded-2xl border border-sidebar-border text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground"
           >
             <ChevronsLeft className="size-5" />
@@ -221,11 +224,9 @@ function IconNavItem({
 }
 
 function OnlinePill({ online, total }: { online: number; total: number }) {
+  const t = useTranslations()
+  const locale = useLocale()
   const now = useNow(CLOCK_TICK_MS)
-  const d = new Date(now)
-  const clock = `${String(d.getHours()).padStart(2, "0")}:${String(
-    d.getMinutes()
-  ).padStart(2, "0")}`
   return (
     <div className="flex items-center gap-2.5 rounded-2xl bg-sidebar-accent px-4 py-3.5">
       <span className="relative flex size-3 shrink-0">
@@ -233,10 +234,10 @@ function OnlinePill({ online, total }: { online: number; total: number }) {
         <span className="relative inline-flex size-3 rounded-full bg-success" />
       </span>
       <span className="flex-1 text-[15px] font-semibold">
-        {online} of {total} online
+        {t("sidebar.online", { online: formatCount(online, locale), total: formatCount(total, locale) })}
       </span>
       <span className="shrink-0 font-mono text-[13px] text-muted-foreground">
-        {clock}
+        {formatClock(now, locale)}
       </span>
     </div>
   )
