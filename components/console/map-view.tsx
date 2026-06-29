@@ -57,7 +57,7 @@ function SummaryCard({
     <div className="absolute top-6 left-6 z-10 w-[360px] rounded-[20px] border border-border bg-surface p-6 shadow-md">
       <div className="flex items-center gap-2.5">
         <span className="font-mono text-[20px] font-semibold">{vehicle.reg}</span>
-        <StatusBadge tone={vehicle.tone} label={vehicle.statusLabel} size="md" />
+        <StatusBadge tone={vehicle.tone} size="md" />
         {vehicle.stale ? (
           <span className="rounded-full bg-muted px-2 py-0.5 text-[12px] font-semibold text-muted-foreground">
             {t("card.stale")}
@@ -77,7 +77,7 @@ function SummaryCard({
       <div className={`mt-5 flex gap-5 ${vehicle.stale ? "opacity-60" : ""}`}>
         <Stat label={t("card.speed")} value={vehicle.speedText} />
         <Stat label={t("card.eta")} value={vehicle.etaText} />
-        <Stat label={t("card.load")} value={`${vehicle.capacityPct}%`} note />
+        <Stat label={t("card.load")} value={`${vehicle.capacityPct}%`} note={t("card.loadNote")} />
       </div>
 
       <div className="mt-5 flex items-center gap-2.5 text-[15px]">
@@ -105,13 +105,13 @@ function Stat({
 }: {
   label: string
   value: string
-  note?: boolean
+  note?: string
 }) {
   return (
     <div>
       <div className="text-[12.5px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">
         {label}
-        {note ? <span title="Placeholder value">*</span> : null}
+        {note ? <span title={note}>*</span> : null}
       </div>
       <div className="mt-1 font-mono text-[22px] font-semibold">{value}</div>
     </div>

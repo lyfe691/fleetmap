@@ -43,7 +43,7 @@ export function TrackingView({
             <h2 className="font-mono text-[28px] font-semibold tracking-tight">
               {vehicle.reg}
             </h2>
-            <StatusBadge tone={vehicle.tone} label={vehicle.statusLabel} size="md" />
+            <StatusBadge tone={vehicle.tone} size="md" />
           </div>
           <button
             type="button"

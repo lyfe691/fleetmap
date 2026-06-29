@@ -13,7 +13,6 @@ export function StatusBadge({
   size = "sm",
 }: {
   tone: StatusTone
-  label?: string
   size?: "sm" | "md"
 }) {
   const t = useTranslations()

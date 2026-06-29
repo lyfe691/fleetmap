@@ -69,7 +69,7 @@ export function FleetRail({
               {t("rail.fleet")}
             </h1>
             <span className="text-[15px] text-muted-foreground">
-              {t("rail.vehicles", { n: formatCount(counts.all, locale) })}
+              {t(counts.all === 1 ? "rail.vehicles.one" : "rail.vehicles.other", { n: formatCount(counts.all, locale) })}
             </span>
           </div>
           <button
@@ -98,7 +98,7 @@ export function FleetRail({
                 }`}
               >
                 {t(seg.tKey)}
-                <span className="font-medium opacity-65">{counts[seg.key]}</span>
+                <span className="font-medium opacity-65">{formatCount(counts[seg.key], locale)}</span>
               </button>
             )
           })}
@@ -148,7 +148,7 @@ function VehicleCard({
     >
       <div className="flex items-center justify-between gap-2">
         <span className="font-mono text-[15px] font-semibold">{vehicle.reg}</span>
-        <StatusBadge tone={vehicle.tone} label={vehicle.statusLabel} />
+        <StatusBadge tone={vehicle.tone} />
       </div>
 
       <div className="mt-3.5 flex items-center gap-3">
