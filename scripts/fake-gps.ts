@@ -17,6 +17,7 @@
  */
 import { createClient, type SupabaseClient } from "@supabase/supabase-js"
 import { CITIES, upsertAreas, type City } from "./cities"
+import { ensureUser } from "./lib/ensure-user"
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL
 const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
@@ -43,36 +44,7 @@ async function ensureDriverAndVehicle(
   areaId: string
 ): Promise<string> {
   const { email, password, label } = city.driver
-  const { data: created, error: createError } =
-    await admin.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,
-    })
-  if (
-    createError &&
-    !/already.*(registered|exists)/i.test(createError.message)
-  ) {
-    if (createError.code === "not_admin" || createError.status === 403) {
-      throw new Error(
-        "Supabase admin API rejected the key (403 not_admin). " +
-          "SUPABASE_SECRET_KEY must be a Secret key (sb_secret_...) from " +
-          "Dashboard -> Project Settings -> API Keys -> Secret keys — " +
-          "not the publishable key."
-      )
-    }
-    throw createError
-  }
-
-  let userId = created?.user?.id ?? null
-  if (!userId) {
-    const { data: list, error: listError } = await admin.auth.admin.listUsers({
-      perPage: 1000,
-    })
-    if (listError) throw listError
-    userId = list.users.find((u) => u.email === email)?.id ?? null
-  }
-  if (!userId) throw new Error(`could not resolve test driver id for ${email}`)
+  const { id: userId } = await ensureUser({ admin, email, password })
 
   const { data: existing, error: selError } = await admin
     .from("vehicles")
