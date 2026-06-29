@@ -1,6 +1,10 @@
+"use client"
+
 import { BubbleboxLogo } from "@/components/console/bubblebox-logo"
+import { useTranslations } from "@/lib/i18n"
 
 export function ConsoleLoading() {
+  const t = useTranslations()
   return (
     <div className="flex h-screen w-screen flex-col items-center justify-center gap-6 bg-background">
       <div className="relative flex size-20 items-center justify-center">
@@ -12,7 +16,7 @@ export function ConsoleLoading() {
           Fleetmap
         </div>
         <div className="mt-1.5 text-[15px] text-muted-foreground">
-          Loading the fleet…
+          {t("loading.subtitle")}
         </div>
       </div>
     </div>

@@ -1,11 +1,10 @@
 import { getBrowserClient } from "@/lib/supabase/browser"
 
-// Outcome of exchanging a display code for a dashboard session. `invalid-code`
-// is the wrong-code case (stay on the gate, show "Incorrect code"); everything
-// else is `unavailable` (server/network — worth a retry with the same code).
+export type ConnectErrorKind = "incorrect" | "unavailable" | "unreachable" | "session"
+
 export type ConnectResult =
   | { ok: true }
-  | { ok: false; kind: "invalid-code" | "unavailable"; message: string }
+  | { ok: false; kind: ConnectErrorKind }
 
 /**
  * Exchanges the display code for a read-only dashboard session and installs it
@@ -23,22 +22,14 @@ export async function connectDashboard(code: string): Promise<ConnectResult> {
       headers: { "x-display-code": code },
     })
   } catch {
-    return {
-      ok: false,
-      kind: "unavailable",
-      message: "Can't reach the dashboard. Check the connection.",
-    }
+    return { ok: false, kind: "unreachable" }
   }
 
   if (res.status === 403) {
-    return { ok: false, kind: "invalid-code", message: "Incorrect code." }
+    return { ok: false, kind: "incorrect" }
   }
   if (!res.ok) {
-    return {
-      ok: false,
-      kind: "unavailable",
-      message: "Dashboard unavailable. Try again.",
-    }
+    return { ok: false, kind: "unavailable" }
   }
 
   const { access_token, refresh_token } = (await res.json()) as {
@@ -51,11 +42,7 @@ export async function connectDashboard(code: string): Promise<ConnectResult> {
     refresh_token,
   })
   if (error) {
-    return {
-      ok: false,
-      kind: "unavailable",
-      message: "Couldn't start the session. Try again.",
-    }
+    return { ok: false, kind: "session" }
   }
 
   return { ok: true }

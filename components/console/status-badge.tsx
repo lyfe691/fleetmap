@@ -1,4 +1,7 @@
+"use client"
+
 import type { StatusTone } from "@/lib/console/use-console-data"
+import { useTranslations } from "@/lib/i18n"
 
 const TONE_STYLES: Record<StatusTone, { tint: string; dot: string }> = {
   onRoute: { tint: "bg-success/15 text-success", dot: "bg-success" },
@@ -7,13 +10,12 @@ const TONE_STYLES: Record<StatusTone, { tint: string; dot: string }> = {
 
 export function StatusBadge({
   tone,
-  label,
   size = "sm",
 }: {
   tone: StatusTone
-  label: string
   size?: "sm" | "md"
 }) {
+  const t = useTranslations()
   const { tint, dot } = TONE_STYLES[tone]
   return (
     <span
@@ -22,7 +24,7 @@ export function StatusBadge({
       }`}
     >
       <span className={`size-2 rounded-full ${dot}`} />
-      {label}
+      {t(tone === "onRoute" ? "status.onRoute" : "status.waiting")}
     </span>
   )
 }

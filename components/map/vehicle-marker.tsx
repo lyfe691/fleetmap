@@ -19,6 +19,10 @@ export function isStale(lastSeenAt: string | null, now: number): boolean {
 }
 
 function reducedMotion(): boolean {
+  if (typeof document !== "undefined" &&
+      document.documentElement.getAttribute("data-reduce-motion") === "true") {
+    return true
+  }
   return (
     typeof window !== "undefined" &&
     window.matchMedia("(prefers-reduced-motion: reduce)").matches

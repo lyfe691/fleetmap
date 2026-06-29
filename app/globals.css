@@ -162,3 +162,22 @@
     scroll-behavior: auto !important;
     }
 }
+
+/* Accessibility settings (toggled via <html data-*> by SettingsProvider) */
+html[data-reduce-motion] *,
+html[data-reduce-motion] *::before,
+html[data-reduce-motion] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+html[data-high-contrast] {
+  --border: oklch(0.7 0 0);
+  --muted-foreground: oklch(0.35 0 0);
+}
+html[data-high-contrast].dark {
+  --border: oklch(1 0 0 / 35%);
+  --muted-foreground: oklch(0.8 0 0);
+}

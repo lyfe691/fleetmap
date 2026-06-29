@@ -12,6 +12,7 @@ import {
   type MapRef,
 } from "react-map-gl/maplibre"
 import { mapColors, mapStyleUrl, type MapTheme } from "@/lib/map-theme"
+import { useTranslations } from "@/lib/i18n"
 import { useRouteFeatures } from "@/lib/use-route-features"
 import type { Vehicle } from "@/lib/use-live-vehicles"
 import type { Stop } from "@/lib/use-live-stops"
@@ -244,11 +245,12 @@ function ZoomControls({
   onZoomIn: () => void
   onZoomOut: () => void
 }) {
+  const t = useTranslations()
   return (
     <div className="absolute right-5 bottom-5 z-10 flex flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-md">
       <button
         type="button"
-        aria-label="Zoom in"
+        aria-label={t("map.zoomIn")}
         onClick={onZoomIn}
         className="flex size-14 items-center justify-center border-b border-border text-foreground transition-colors hover:bg-muted active:bg-muted"
       >
@@ -256,7 +258,7 @@ function ZoomControls({
       </button>
       <button
         type="button"
-        aria-label="Zoom out"
+        aria-label={t("map.zoomOut")}
         onClick={onZoomOut}
         className="flex size-14 items-center justify-center text-foreground transition-colors hover:bg-muted active:bg-muted"
       >

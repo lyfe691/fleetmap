@@ -9,7 +9,7 @@ import {
   getDisplayCode,
   setDisplayCode,
 } from "@/lib/dashboard-code"
-import { connectDashboard } from "@/lib/dashboard-session"
+import { connectDashboard, type ConnectErrorKind } from "@/lib/dashboard-session"
 
 // resolving: reading the saved code (server + first hydration render).
 // reconnecting: validating a saved code on load (full-screen loader).
@@ -19,7 +19,7 @@ type Phase = "resolving" | "reconnecting" | "prompt" | "connected"
 
 export function DashboardGate() {
   const [phase, setPhase] = useState<Phase>("resolving")
-  const [error, setError] = useState<string | null>(null)
+  const [errorKind, setErrorKind] = useState<ConnectErrorKind | null>(null)
   // Kept around only to offer a retry after a transient failure (invalid codes
   // are dropped, so this is null then).
   const [savedCode, setSavedCode] = useState<string | null>(null)
@@ -29,16 +29,16 @@ export function DashboardGate() {
     if (result.ok) {
       setDisplayCode(code)
       setSavedCode(code)
-      setError(null)
+      setErrorKind(null)
       setPhase("connected")
       return
     }
     // A wrong code is never kept; a transient failure keeps it for retry.
-    if (result.kind === "invalid-code") {
+    if (result.kind === "incorrect") {
       clearDisplayCode()
       setSavedCode(null)
     }
-    setError(result.message)
+    setErrorKind(result.kind)
     setPhase("prompt")
   }
 
@@ -63,7 +63,7 @@ export function DashboardGate() {
 
   const connect = async (code: string) => {
     setSubmitting(true)
-    setError(null)
+    setErrorKind(null)
     const result = await connectDashboard(code)
     setSubmitting(false)
     apply(code, result)
@@ -72,7 +72,7 @@ export function DashboardGate() {
   const disconnect = () => {
     clearDisplayCode()
     setSavedCode(null)
-    setError(null)
+    setErrorKind(null)
     setPhase("prompt")
   }
 
@@ -82,7 +82,7 @@ export function DashboardGate() {
   return (
     <DashboardCodeScreen
       onConnect={connect}
-      error={error}
+      errorKind={errorKind}
       submitting={submitting}
       savedCode={savedCode}
     />
