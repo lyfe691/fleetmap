@@ -7,7 +7,7 @@
  *   1. Secret key (dev-only): upsert the operational_areas and resolve each
  *      city's van (by its driver's email) to assign that city's stops to.
  *   2. Mint a dispatcher session via POST /api/dispatcher-session (shared secret).
- *   3. POST every city's orders+stops to /api/ingest/stops, exercising the real
+ *   3. POST every city's orders+stops to /api/ingest/routes, exercising the real
  *      authed seam. Each stop carries its vehicle_id + area_id.
  *
  * The secret key is used ONLY for setup/resolution and never leaves scripts/.
@@ -115,13 +115,13 @@ async function main(): Promise<void> {
   }
 
   const token = await mintDispatcherToken()
-  const res = await fetch(`${API}/api/ingest/stops`, {
+  const res = await fetch(`${API}/api/ingest/routes`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ orders }),
+    body: JSON.stringify({ routes: orders }),
   })
   if (!res.ok) {
     throw new Error(`ingest failed (${res.status}): ${await res.text()}`)
