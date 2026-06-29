@@ -23,6 +23,8 @@ import { FleetRail } from "@/components/console/fleet-rail"
 import { MapView } from "@/components/console/map-view"
 import { TrackingView } from "@/components/console/tracking-view"
 import { HistoryView } from "@/components/console/history-view"
+import { SettingsDialog } from "@/components/console/settings/settings-dialog"
+import { useTranslations } from "@/lib/i18n"
 
 export function ConsoleShell({ onChangeCode }: { onChangeCode: () => void }) {
   const { vehicles, error, ready, loaded } = useLiveVehicles()
@@ -66,6 +68,10 @@ export function ConsoleShell({ onChangeCode }: { onChangeCode: () => void }) {
     }
   }
 
+  const t = useTranslations()
+
+  const [settingsOpen, setSettingsOpen] = useState(false)
+
   const [sidebarCollapsed, setSidebarCollapsed] = usePersistedBoolean(
     "fleetmap.sidebar-collapsed",
     false
@@ -108,6 +114,7 @@ export function ConsoleShell({ onChangeCode }: { onChangeCode: () => void }) {
         onRouteCount={counts.onRoute}
         collapsed={sidebarCollapsed}
         onToggleCollapse={() => setSidebarCollapsed((c) => !c)}
+        onOpenSettings={() => setSettingsOpen(true)}
       />
 
       <FleetRail
@@ -126,7 +133,7 @@ export function ConsoleShell({ onChangeCode }: { onChangeCode: () => void }) {
           <div className="absolute top-4 left-1/2 z-20 flex -translate-x-1/2 items-center gap-3 rounded-2xl border border-destructive/40 bg-card px-5 py-3 text-[15px] shadow-md">
             <span className="text-destructive">{error}</span>
             <Button variant="outline" size="sm" onClick={onChangeCode}>
-              Change code
+              {t("shell.changeCode")}
             </Button>
           </div>
         ) : null}
@@ -141,7 +148,7 @@ export function ConsoleShell({ onChangeCode }: { onChangeCode: () => void }) {
               onLocate={() => setView("map")}
             />
           ) : (
-            <EmptyMain label="No vehicles to track yet" />
+            <EmptyMain label={t("shell.noVehicles")} />
           )
         ) : null}
 
@@ -158,6 +165,8 @@ export function ConsoleShell({ onChangeCode }: { onChangeCode: () => void }) {
 
         {view === "history" ? <HistoryView /> : null}
       </main>
+
+      <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
     </div>
   )
 }

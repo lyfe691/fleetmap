@@ -5,11 +5,14 @@ import type { ConsoleCounts, StatusFilter } from "@/lib/console/types"
 import { matchesStatusFilter } from "@/lib/console/types"
 import type { ConsoleVehicle } from "@/lib/console/use-console-data"
 import { StatusBadge } from "@/components/console/status-badge"
+import { useTranslations, useLocale } from "@/lib/i18n"
+import { formatCount } from "@/lib/i18n/format"
+import type { TranslationKey } from "@/lib/i18n/en"
 
-const SEGMENTS: { label: StatusFilter; key: keyof ConsoleCounts }[] = [
-  { label: "All", key: "all" },
-  { label: "On Route", key: "onRoute" },
-  { label: "Waiting", key: "waiting" },
+const SEGMENTS: { filter: StatusFilter; key: keyof ConsoleCounts; tKey: TranslationKey }[] = [
+  { filter: "All", key: "all", tKey: "filter.all" },
+  { filter: "On Route", key: "onRoute", tKey: "filter.onRoute" },
+  { filter: "Waiting", key: "waiting", tKey: "filter.waiting" },
 ]
 
 export function FleetRail({
@@ -31,21 +34,24 @@ export function FleetRail({
   collapsed: boolean
   onToggleCollapse: () => void
 }) {
+  const t = useTranslations()
+  const locale = useLocale()
+
   if (collapsed) {
     return (
       <aside className="flex h-full w-14 shrink-0 flex-col items-center gap-4 border-r border-border bg-background py-4">
         <button
           type="button"
           onClick={onToggleCollapse}
-          aria-label="Expand fleet panel"
+          aria-label={t("rail.expandPanel")}
           className="flex size-11 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
           <ChevronsRight className="size-5" />
         </button>
         <div className="flex flex-col items-center gap-2">
-          <span className="font-mono text-[15px] font-semibold">{counts.all}</span>
+          <span className="font-mono text-[15px] font-semibold">{formatCount(counts.all, locale)}</span>
           <span className="text-[11px] font-medium tracking-wider text-muted-foreground uppercase [writing-mode:vertical-rl]">
-            Fleet
+            {t("rail.fleet")}
           </span>
         </div>
       </aside>
@@ -60,16 +66,16 @@ export function FleetRail({
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-baseline gap-2.5">
             <h1 className="font-heading text-[28px] font-semibold tracking-tight">
-              Fleet
+              {t("rail.fleet")}
             </h1>
             <span className="text-[15px] text-muted-foreground">
-              {counts.all} vehicles
+              {t(counts.all === 1 ? "rail.vehicles.one" : "rail.vehicles.other", { n: formatCount(counts.all, locale) })}
             </span>
           </div>
           <button
             type="button"
             onClick={onToggleCollapse}
-            aria-label="Collapse fleet panel"
+            aria-label={t("rail.collapsePanel")}
             className="flex size-10 shrink-0 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           >
             <ChevronsLeft className="size-5" />
@@ -78,12 +84,12 @@ export function FleetRail({
 
         <div className="mt-4 flex gap-2">
           {SEGMENTS.map((seg) => {
-            const active = statusFilter === seg.label
+            const active = statusFilter === seg.filter
             return (
               <button
-                key={seg.label}
+                key={seg.filter}
                 type="button"
-                onClick={() => onStatusFilter(seg.label)}
+                onClick={() => onStatusFilter(seg.filter)}
                 aria-pressed={active}
                 className={`flex h-[54px] flex-1 items-center justify-center gap-1.5 rounded-[14px] border text-[15px] font-semibold transition-[filter] active:brightness-95 ${
                   active
@@ -91,8 +97,8 @@ export function FleetRail({
                     : "border-border bg-surface text-muted-foreground"
                 }`}
               >
-                {seg.label}
-                <span className="font-medium opacity-65">{counts[seg.key]}</span>
+                {t(seg.tKey)}
+                <span className="font-medium opacity-65">{formatCount(counts[seg.key], locale)}</span>
               </button>
             )
           })}
@@ -111,7 +117,7 @@ export function FleetRail({
           ))}
           {filtered.length === 0 ? (
             <p className="px-1 py-8 text-center text-sm text-muted-foreground">
-              No vehicles
+              {t("rail.noVehicles")}
             </p>
           ) : null}
         </div>
@@ -129,6 +135,7 @@ function VehicleCard({
   selected: boolean
   onSelect: () => void
 }) {
+  const t = useTranslations()
   const onRoute = vehicle.tone === "onRoute"
   return (
     <button
@@ -141,19 +148,21 @@ function VehicleCard({
     >
       <div className="flex items-center justify-between gap-2">
         <span className="font-mono text-[15px] font-semibold">{vehicle.reg}</span>
-        <StatusBadge tone={vehicle.tone} label={vehicle.statusLabel} />
+        <StatusBadge tone={vehicle.tone} />
       </div>
 
       <div className="mt-3.5 flex items-center gap-3">
         <div className="min-w-0 flex-1">
           <div className="font-mono text-[26px] leading-none font-semibold tracking-tight">
-            {onRoute ? vehicle.etaText : "Idle"}
+            {onRoute ? vehicle.etaText : t("rail.idle")}
           </div>
           <div className="mt-1.5 text-[14px] text-muted-foreground">
             {onRoute
-              ? `${vehicle.stopsLeft} stop${vehicle.stopsLeft === 1 ? "" : "s"} left`
-              : "Awaiting dispatch"}
-            {vehicle.stale ? " · stale" : ""}
+              ? vehicle.stopsLeft === 1
+                ? t("rail.stopsLeft.one", { n: vehicle.stopsLeft })
+                : t("rail.stopsLeft.other", { n: vehicle.stopsLeft })
+              : t("rail.awaitingDispatch")}
+            {vehicle.stale ? ` · ${t("rail.stale")}` : ""}
           </div>
           <div className="mt-3.5 flex items-center gap-2 text-[14px]">
             <span className="max-w-[92px] truncate text-muted-foreground">
