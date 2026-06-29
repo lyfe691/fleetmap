@@ -20,7 +20,14 @@ import type { ConsoleVehicle } from "@/lib/console/use-console-data"
 import { assumedCargoPhotos, assumedManifest } from "@/lib/console/assumed"
 import { StatusBadge } from "@/components/console/status-badge"
 import { PlaceholderNote } from "@/components/console/placeholder-note"
+import { useTranslations } from "@/lib/i18n"
+import type { TranslationKey } from "@/lib/i18n/en"
 
+const TAB_LABELS: Record<DetailTab, TranslationKey> = {
+  Overview: "tab.Overview",
+  Vehicle: "tab.Vehicle",
+  Cargo: "tab.Cargo",
+}
 
 export function TrackingView({
   vehicle,
@@ -35,6 +42,7 @@ export function TrackingView({
   onTab: (tab: DetailTab) => void
   onLocate: () => void
 }) {
+  const t = useTranslations()
   return (
     <div className="h-full overflow-y-auto">
       <div className="mx-auto max-w-[1200px] px-8 pt-7 pb-12">
@@ -51,13 +59,13 @@ export function TrackingView({
             className="flex h-14 items-center gap-2 rounded-full bg-primary px-6 text-[16px] font-semibold text-primary-foreground shadow-md transition-[filter] active:brightness-90"
           >
             <MapPin className="size-5" />
-            Locate on Map
+            {t("tracking.locateOnMap")}
           </button>
         </div>
 
         <div
           role="tablist"
-          aria-label="Vehicle details"
+          aria-label={t("tracking.tabList")}
           className="mt-6 flex flex-wrap gap-3"
           onKeyDown={(e) => {
             const dir =
@@ -71,25 +79,25 @@ export function TrackingView({
               ?.focus()
           }}
         >
-          {DETAIL_TABS.map((t) => {
-            const active = tab === t
+          {DETAIL_TABS.map((tabKey) => {
+            const active = tab === tabKey
             return (
               <button
-                key={t}
+                key={tabKey}
                 type="button"
                 role="tab"
-                id={`tab-${t}`}
+                id={`tab-${tabKey}`}
                 aria-selected={active}
-                aria-controls={`panel-${t}`}
+                aria-controls={`panel-${tabKey}`}
                 tabIndex={active ? 0 : -1}
-                onClick={() => onTab(t)}
+                onClick={() => onTab(tabKey)}
                 className={`flex h-12 items-center rounded-full px-6 text-[16px] font-semibold transition-colors ${
                   active
                     ? "bg-primary text-primary-foreground shadow-md"
                     : "bg-muted text-muted-foreground hover:text-foreground"
                 }`}
               >
-                {t}
+                {t(TAB_LABELS[tabKey])}
               </button>
             )
           })}
@@ -118,6 +126,7 @@ function Overview({
   vehicle: ConsoleVehicle
   live: LiveData
 }) {
+  const t = useTranslations()
   const miniLive: LiveData = useMemo(() => {
     const raw = live.vehicles.find((v) => v.id === vehicle.id)
     const stops = live.stopsByVehicle.get(vehicle.id) ?? []
@@ -133,7 +142,7 @@ function Overview({
   return (
     <div>
       <div className="mt-7 grid grid-cols-1 gap-5 md:grid-cols-2">
-        <Card label="Load Capacity">
+        <Card label={t("tracking.loadCapacity")}>
           <div className="mt-3 flex items-center gap-3">
             <span className="font-heading text-[52px] leading-none font-bold tracking-tight">
               {vehicle.capacityPct}%
@@ -147,12 +156,12 @@ function Overview({
             />
           </div>
           <p className="mt-4 text-[15px] text-muted-foreground">
-            {vehicle.loadCount} pkg · {vehicle.loadWeight} of max load
+            {t("tracking.loadSummary", { n: vehicle.loadCount, weight: vehicle.loadWeight })}
           </p>
-          <PlaceholderNote className="mt-2">Placeholder data — pending a vehicle telematics feed.</PlaceholderNote>
+          <PlaceholderNote className="mt-2" textKey="placeholder.telematics" />
         </Card>
 
-        <Card label="Route Progress">
+        <Card label={t("tracking.routeProgress")}>
           <div className="mt-3 font-mono text-[40px] font-semibold tracking-tight">
             {vehicle.routeTimer}
           </div>
@@ -172,7 +181,7 @@ function Overview({
         </Card>
       </div>
 
-      <h3 className="mt-7 font-heading text-lg font-semibold">Live Location</h3>
+      <h3 className="mt-7 font-heading text-lg font-semibold">{t("tracking.liveLocation")}</h3>
       <div className="mt-3 h-[460px] overflow-hidden rounded-[20px] border border-border shadow-md">
         <FleetMapView
           vehicles={miniLive.vehicles}
@@ -213,16 +222,17 @@ type DetailRow = {
 }
 
 function VehicleTab({ vehicle }: { vehicle: ConsoleVehicle }) {
+  const t = useTranslations()
   const rows: DetailRow[] = [
-    { id: "model", icon: Truck, label: vehicle.model, sub: "Vehicle model", value: vehicle.plate },
-    { id: "driver", icon: User, label: vehicle.driver, sub: "Assigned driver", value: "On shift", good: true },
-    { id: "odo", icon: Gauge, label: "Odometer", sub: "Total distance", value: vehicle.odometer },
-    { id: "fuel", icon: Fuel, label: "Fuel level", sub: "Current tank", value: `${vehicle.fuelPct}%`, good: true },
-    { id: "temp", icon: Thermometer, label: "Cargo temperature", sub: "Cargo hold", value: vehicle.cargoTemp },
+    { id: "model", icon: Truck, label: vehicle.model, sub: t("tracking.vehicleModel"), value: vehicle.plate },
+    { id: "driver", icon: User, label: vehicle.driver, sub: t("tracking.assignedDriver"), value: t("tracking.onShift"), good: true },
+    { id: "odo", icon: Gauge, label: t("tracking.odometer"), sub: t("tracking.totalDistance"), value: vehicle.odometer },
+    { id: "fuel", icon: Fuel, label: t("tracking.fuelLevel"), sub: t("tracking.currentTank"), value: `${vehicle.fuelPct}%`, good: true },
+    { id: "temp", icon: Thermometer, label: t("tracking.cargoTemperature"), sub: t("tracking.cargoHold"), value: vehicle.cargoTemp },
   ]
   return (
     <div className="mt-7 flex flex-col gap-3">
-      <PlaceholderNote>Placeholder data — pending a vehicle telematics feed.</PlaceholderNote>
+      <PlaceholderNote textKey="placeholder.telematics" />
       {rows.map((r) => (
         <DetailRowItem key={r.id} row={r} />
       ))}
@@ -231,6 +241,7 @@ function VehicleTab({ vehicle }: { vehicle: ConsoleVehicle }) {
 }
 
 function CargoTab({ vehicle }: { vehicle: ConsoleVehicle }) {
+  const t = useTranslations()
   const photos = assumedCargoPhotos(vehicle.id)
   const manifest = assumedManifest(vehicle.id)
   const manifestIcons: Record<string, LucideIcon> = {
@@ -240,9 +251,9 @@ function CargoTab({ vehicle }: { vehicle: ConsoleVehicle }) {
   }
   return (
     <div className="mt-7">
-      <PlaceholderNote>Placeholder data — pending a vehicle telematics feed.</PlaceholderNote>
+      <PlaceholderNote textKey="placeholder.telematics" />
       <h3 className="mt-4 font-heading text-lg font-semibold">
-        Cargo Photo Reports
+        {t("tracking.cargoPhotoReports")}
       </h3>
       <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
         {photos.map((p) => (
@@ -264,7 +275,7 @@ function CargoTab({ vehicle }: { vehicle: ConsoleVehicle }) {
         ))}
       </div>
 
-      <h3 className="mt-8 font-heading text-lg font-semibold">Manifest</h3>
+      <h3 className="mt-8 font-heading text-lg font-semibold">{t("tracking.manifest")}</h3>
       <div className="mt-4 flex flex-col gap-3">
         {manifest.map((m) => (
           <DetailRowItem

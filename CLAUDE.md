@@ -47,11 +47,14 @@ lib/geofence.ts             server-side geofence auto-arrive (POST /api/location
 lib/map-theme.ts            MapTiler style + marker palette per light/dark theme
 lib/console/use-console-data.ts  ConsoleVehicle view-model (real data + assumed placeholders)
 lib/console/assumed.ts      placeholder vehicle/cargo/history data (no telematics yet)
+lib/settings/               locale + a11y flags store (localStorage, `useSettings`, `setSetting`)
+lib/i18n/                   en/de-CH translation engine — `useTranslations()`, typed key parity
 components/theme-provider.tsx     next-themes provider (+ 'd' toggle hotkey)
 components/map/dashboard-gate.tsx display-code gate → console
 components/map/fleet-map-view.tsx MapLibre map: routes + circular status pins (reused everywhere)
 components/console/console-shell.tsx  3-region console (sidebar + fleet rail + main)
 components/console/{app-sidebar,fleet-rail,map-view,tracking-view,history-view}.tsx  console views
+components/console/settings/        settings dialog (appearance/accessibility/language) + sub-components
 app/dashboard/page.tsx      TV monitoring console (gate → ConsoleShell)
 app/driver/page.tsx         driver PWA — retired (folded into Roman's native Bubblebox app); route kept reference-only, home-page entry disabled
 lib/supabase/driver.ts      driver client (persistent session)
@@ -90,6 +93,7 @@ Then from the project root: `pnpm add @supabase/supabase-js`, `pnpm add -D tsx`,
 - **The dashboard is the monitoring console.** `app/dashboard` → display-code gate → `ConsoleShell` (`components/console/*`): a 3-region touchscreen layout (sidebar nav + fleet rail + tracking/map/history) on shadcn + next-themes light/dark. `components/map/fleet-map-view.tsx` is the reused, theme-aware map surface (`lib/map-theme.ts`) with circular status pins. Panels without a real source (load, fuel, cargo, history) use clearly-marked placeholders from `lib/console/assumed.ts` — replace at the seam when telematics/orders data lands.
 - **Operational areas are city reference data.** `operational_areas` (0006) + `area_id` on vehicles/stops model the multi-city fleet (read via the `dashboard` claim; `area_id` rides the `vehicles_public`/`stops_public` views). The dispatcher manages them and the seed scripts populate them. The console rebuild removed the map overlays + the `useOperationalAreas` hook — the table is data only now.
 - **The secret key (service-role-equivalent) is dev-only** (`scripts/`). Never use it in a request handler or ship it in a deployed image.
+- **i18n + settings:** All console chrome is translated via `useTranslations()` (`lib/i18n/`) with type-enforced de-CH key parity (`de-CH = Record<TranslationKey,string>`). Locale + a11y flags are per-device `localStorage` (`lib/settings/`); a11y flags ride `<html data-*>` attributes + CSS in `globals.css`.
 - TypeScript throughout. Route handlers validate input and return `NextResponse.json` with explicit status codes (400 bad input, 401 no/invalid token, 403 wrong shared code/secret, 409 no vehicle, 500 db error).
 - SQL: lowercase keywords, snake_case columns, `create ... if not exists`, policies named in plain English.
 - Import alias `@/*` → project root.
