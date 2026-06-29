@@ -23,6 +23,7 @@ import { FleetRail } from "@/components/console/fleet-rail"
 import { MapView } from "@/components/console/map-view"
 import { TrackingView } from "@/components/console/tracking-view"
 import { HistoryView } from "@/components/console/history-view"
+import { SettingsDialog } from "@/components/console/settings/settings-dialog"
 
 export function ConsoleShell({ onChangeCode }: { onChangeCode: () => void }) {
   const { vehicles, error, ready, loaded } = useLiveVehicles()
@@ -66,6 +67,8 @@ export function ConsoleShell({ onChangeCode }: { onChangeCode: () => void }) {
     }
   }
 
+  const [settingsOpen, setSettingsOpen] = useState(false)
+
   const [sidebarCollapsed, setSidebarCollapsed] = usePersistedBoolean(
     "fleetmap.sidebar-collapsed",
     false
@@ -108,6 +111,7 @@ export function ConsoleShell({ onChangeCode }: { onChangeCode: () => void }) {
         onRouteCount={counts.onRoute}
         collapsed={sidebarCollapsed}
         onToggleCollapse={() => setSidebarCollapsed((c) => !c)}
+        onOpenSettings={() => setSettingsOpen(true)}
       />
 
       <FleetRail
@@ -158,6 +162,8 @@ export function ConsoleShell({ onChangeCode }: { onChangeCode: () => void }) {
 
         {view === "history" ? <HistoryView /> : null}
       </main>
+
+      <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
     </div>
   )
 }

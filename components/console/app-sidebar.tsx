@@ -5,16 +5,14 @@ import {
   ChevronsRight,
   History as HistoryIcon,
   Map as MapIcon,
-  Moon,
   Navigation,
-  Sun,
   type LucideIcon,
 } from "lucide-react"
-import { useThemeToggle } from "@/components/theme-toggle"
 import { useNow } from "@/lib/use-now"
 import { CLOCK_TICK_MS } from "@/lib/console/intervals"
 import type { ConsoleView } from "@/lib/console/types"
 import { BubbleboxLogo } from "@/components/console/bubblebox-logo"
+import { SettingsButton } from "@/components/console/settings/settings-button"
 
 type NavEntry = {
   id: ConsoleView
@@ -31,6 +29,7 @@ export function AppSidebar({
   onRouteCount,
   collapsed,
   onToggleCollapse,
+  onOpenSettings,
 }: {
   view: ConsoleView
   onNavigate: (view: ConsoleView) => void
@@ -39,6 +38,7 @@ export function AppSidebar({
   onRouteCount: number
   collapsed: boolean
   onToggleCollapse: () => void
+  onOpenSettings: () => void
 }) {
   const monitor: NavEntry[] = [
     { id: "tracking", label: "Live Tracking", icon: Navigation, badge: onRouteCount },
@@ -65,7 +65,7 @@ export function AppSidebar({
         </nav>
 
         <div className="flex flex-col items-center gap-2">
-          <ThemeToggle collapsed />
+          <SettingsButton collapsed onClick={onOpenSettings} />
           <button
             type="button"
             onClick={onToggleCollapse}
@@ -121,7 +121,7 @@ export function AppSidebar({
       <div className="flex flex-col gap-2.5 border-t border-sidebar-border p-3">
         <OnlinePill online={onlineCount} total={totalCount} />
         <div className="flex gap-2.5">
-          <ThemeToggle />
+          <SettingsButton onClick={onOpenSettings} />
           <button
             type="button"
             onClick={onToggleCollapse}
@@ -239,36 +239,5 @@ function OnlinePill({ online, total }: { online: number; total: number }) {
         {clock}
       </span>
     </div>
-  )
-}
-
-function ThemeToggle({ collapsed }: { collapsed?: boolean }) {
-  // ssr:false console, so the hook's mounted guard isn't needed here.
-  const { isDark, label, toggle } = useThemeToggle()
-
-  if (collapsed) {
-    return (
-      <button
-        type="button"
-        aria-label={label}
-        title={label}
-        onClick={toggle}
-        className="flex size-11 items-center justify-center rounded-xl border border-sidebar-border text-sidebar-foreground transition-colors hover:bg-sidebar-accent"
-      >
-        {isDark ? <Sun className="size-5" /> : <Moon className="size-5" />}
-      </button>
-    )
-  }
-
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      onClick={toggle}
-      className="flex h-12 flex-1 items-center justify-center gap-2.5 rounded-2xl border border-sidebar-border text-[15px] font-medium text-sidebar-foreground transition-colors hover:bg-sidebar-accent"
-    >
-      {isDark ? <Sun className="size-5" /> : <Moon className="size-5" />}
-      {isDark ? "Light mode" : "Dark mode"}
-    </button>
   )
 }
