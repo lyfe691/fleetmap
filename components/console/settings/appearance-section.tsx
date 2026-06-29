@@ -29,6 +29,7 @@ export function AppearanceSection() {
       />
       <SettingRow
         title={t("settings.theme.darkMode")}
+        description={t("settings.theme.darkMode.desc")}
         control={
           <Switch
             aria-label={t("settings.theme.darkMode")}

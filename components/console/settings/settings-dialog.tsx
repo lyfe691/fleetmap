@@ -42,7 +42,7 @@ export function SettingsDialog({
 
         <div className="flex min-h-[440px]">
           <nav
-            aria-label="Settings categories"
+            aria-label={t("settings.categories")}
             className="flex w-[200px] shrink-0 flex-col gap-1 border-r border-border bg-surface p-3"
           >
             <div className="px-3 pt-2 pb-3 text-[18px] font-semibold tracking-tight">

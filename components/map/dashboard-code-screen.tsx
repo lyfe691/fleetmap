@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Spinner } from "@/components/ui/spinner"
 import { useTranslations } from "@/lib/i18n"
+import type { ConnectErrorKind } from "@/lib/dashboard-session"
+import type { TranslationKey } from "@/lib/i18n/en"
 
 // Client-only (WebGL) and pulls in three.js — load lazily so it never touches
 // SSR and the form paints instantly.
@@ -15,10 +17,10 @@ const BlinkingSquares = dynamic(() => import("@/components/blinking-squares"), {
 })
 
 type Props = {
-  /** Validate + connect with the given code (drives `submitting`/`error`). */
+  /** Validate + connect with the given code (drives `submitting`/`errorKind`). */
   onConnect: (code: string) => void
-  /** Last failure message, shown inline under the input. */
-  error: string | null
+  /** Last failure kind, translated and shown inline under the input. */
+  errorKind: ConnectErrorKind | null
   /** A connect attempt is in flight. */
   submitting: boolean
   /** A saved code that failed transiently — offered as a one-tap retry. */
@@ -27,7 +29,7 @@ type Props = {
 
 export function DashboardCodeScreen({
   onConnect,
-  error,
+  errorKind,
   submitting,
   savedCode,
 }: Props) {
@@ -66,13 +68,13 @@ export function DashboardCodeScreen({
               onChange={(e) => setCode(e.target.value)}
               placeholder={t("gate.placeholder")}
               disabled={submitting}
-              aria-invalid={error != null}
+              aria-invalid={errorKind != null}
               className="h-12 rounded-xl px-4 text-base"
             />
 
-            {error ? (
+            {errorKind ? (
               <p className="px-1 text-sm text-destructive" role="alert">
-                {error}
+                {t(("gate.error." + errorKind) as TranslationKey)}
               </p>
             ) : null}
 

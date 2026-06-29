@@ -12,23 +12,31 @@ type SettingsContextValue = {
 const SettingsContext = createContext<SettingsContextValue | null>(null)
 
 export function SettingsProvider({ children }: { children: ReactNode }) {
-  const [settings, setSettings] = useState<Settings>(() =>
-    typeof window === "undefined"
-      ? DEFAULT_SETTINGS
-      : loadSettings((k) => window.localStorage.getItem(k))
-  )
+  const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS)
+
+  // Load stored settings after mount so server and first client render are
+  // identical (both use DEFAULT_SETTINGS), eliminating the hydration mismatch.
+  useEffect(() => {
+    const stored = loadSettings((k) => window.localStorage.getItem(k))
+    setSettings(stored)
+  }, [])
 
   const setSetting = <K extends keyof Settings>(key: K, value: Settings[K]) => {
     setSettings((prev) => ({ ...prev, [key]: value }))
-    window.localStorage.setItem(storageKey(key), String(value))
+    if (typeof window !== "undefined") window.localStorage.setItem(storageKey(key), String(value))
   }
 
   useEffect(() => {
     const root = document.documentElement
+    const attrs: string[] = []
     for (const key of BOOL_KEYS) {
       const attr = "data-" + key.replace(/[A-Z]/g, (c) => "-" + c.toLowerCase())
+      attrs.push(attr)
       if (settings[key]) root.setAttribute(attr, "true")
       else root.removeAttribute(attr)
+    }
+    return () => {
+      for (const attr of attrs) root.removeAttribute(attr)
     }
   }, [settings])
 
