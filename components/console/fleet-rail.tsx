@@ -8,6 +8,7 @@ import { StatusBadge } from "@/components/console/status-badge"
 import { useTranslations, useLocale } from "@/lib/i18n"
 import { formatCount } from "@/lib/i18n/format"
 import type { TranslationKey } from "@/lib/i18n/en"
+import { PillTabs } from "@/components/ui/pill-tabs"
 
 const SEGMENTS: { filter: StatusFilter; key: keyof ConsoleCounts; tKey: TranslationKey }[] = [
   { filter: "All", key: "all", tKey: "filter.all" },
@@ -63,49 +64,53 @@ export function FleetRail({
   return (
     <section className="flex h-full w-[380px] shrink-0 flex-col border-r border-border bg-background">
       <div className="px-5 pt-6 pb-4">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-baseline gap-2.5">
-            <h1 className="font-heading text-[28px] font-semibold tracking-tight">
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <h1 className="font-heading text-[26px] leading-none font-semibold tracking-tight">
               {t("rail.fleet")}
             </h1>
-            <span className="text-[15px] text-muted-foreground">
+            <p className="mt-2 text-[14px] text-muted-foreground">
               {t(counts.all === 1 ? "rail.vehicles.one" : "rail.vehicles.other", { n: formatCount(counts.all, locale) })}
-            </span>
+            </p>
           </div>
           <button
             type="button"
             onClick={onToggleCollapse}
             aria-label={t("rail.collapsePanel")}
-            className="flex size-10 shrink-0 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            className="-mt-1 -mr-1.5 flex size-10 shrink-0 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           >
             <ChevronsLeft className="size-5" />
           </button>
         </div>
 
-        <div className="mt-4 flex gap-2">
-          {SEGMENTS.map((seg) => {
-            const active = statusFilter === seg.filter
-            return (
-              <button
-                key={seg.filter}
-                type="button"
-                onClick={() => onStatusFilter(seg.filter)}
-                aria-pressed={active}
-                className={`flex h-[54px] flex-1 items-center justify-center gap-1.5 rounded-[14px] border text-[15px] font-semibold transition-[filter] active:brightness-95 ${
-                  active
-                    ? "border-primary bg-primary text-primary-foreground"
-                    : "border-border bg-surface text-muted-foreground"
-                }`}
-              >
+        <PillTabs
+          className="mt-5 flex w-full"
+          activeId={statusFilter}
+          onTabChange={(id) => onStatusFilter(id as StatusFilter)}
+          tabs={SEGMENTS.map((seg) => ({
+            id: seg.filter,
+            ariaLabel: t(seg.tKey),
+            label: (
+              <>
                 {t(seg.tKey)}
-                <span className="font-medium opacity-65">{formatCount(counts[seg.key], locale)}</span>
-              </button>
-            )
-          })}
-        </div>
+                <span className="opacity-55">
+                  {formatCount(counts[seg.key], locale)}
+                </span>
+              </>
+            ),
+          }))}
+        />
       </div>
 
-      <div className="flex-1 overflow-y-auto px-5 pt-1 pb-5">
+      <div
+        className="flex-1 overflow-y-auto px-5 pt-2 pb-6"
+        style={{
+          maskImage:
+            "linear-gradient(to bottom, transparent 0, #000 14px, #000 calc(100% - 24px), transparent 100%)",
+          WebkitMaskImage:
+            "linear-gradient(to bottom, transparent 0, #000 14px, #000 calc(100% - 24px), transparent 100%)",
+        }}
+      >
         <div className="flex flex-col gap-3">
           {filtered.map((v) => (
             <VehicleCard
@@ -142,12 +147,16 @@ function VehicleCard({
       type="button"
       onClick={onSelect}
       aria-pressed={selected}
-      className={`rounded-[18px] border-2 bg-card p-[18px] text-left transition-[transform,border-color,box-shadow] duration-150 active:scale-[0.985] ${
-        selected ? "border-primary/35 shadow-sm" : "border-border"
+      className={`rounded-2xl bg-card p-[18px] text-left transition-[scale,box-shadow] duration-200 ease-out active:scale-[0.97] ${
+        selected
+          ? "shadow-[0_10px_30px_-10px_rgb(0_0_0/0.25)] ring-2 ring-primary/30 dark:shadow-[0_10px_30px_-8px_rgb(0_0_0/0.6)]"
+          : "shadow-[0_1px_2px_rgb(0_0_0/0.05),0_5px_14px_-6px_rgb(0_0_0/0.08)] hover:shadow-[0_4px_18px_-6px_rgb(0_0_0/0.14)] dark:shadow-[0_2px_8px_-2px_rgb(0_0_0/0.5)]"
       }`}
     >
       <div className="flex items-center justify-between gap-2">
-        <span className="font-mono text-[15px] font-semibold">{vehicle.reg}</span>
+        <span className="min-w-0 flex-1 truncate text-[15px] font-semibold">
+          {vehicle.reg}
+        </span>
         <StatusBadge tone={vehicle.tone} />
       </div>
 
@@ -174,7 +183,7 @@ function VehicleCard({
             </span>
           </div>
         </div>
-        <div className="flex h-[76px] w-[112px] shrink-0 items-center justify-center overflow-hidden rounded-[14px] bg-muted">
+        <div className="flex h-[76px] w-[112px] shrink-0 items-center justify-center overflow-hidden rounded-xl bg-muted">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/bubblebox-van.png"

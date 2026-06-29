@@ -1,6 +1,7 @@
 "use client"
 
 import { ArrowRight, X } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import { FleetMapView } from "@/components/map/fleet-map-view"
 import type { LiveData } from "@/lib/console/types"
 import type { ConsoleVehicle } from "@/lib/console/use-console-data"
@@ -54,46 +55,57 @@ function SummaryCard({
 }) {
   const t = useTranslations()
   return (
-    <div className="absolute top-6 left-6 z-10 w-[360px] rounded-[20px] border border-border bg-surface p-6 shadow-md">
-      <div className="flex items-center gap-2.5">
-        <span className="font-mono text-[20px] font-semibold">{vehicle.reg}</span>
-        <StatusBadge tone={vehicle.tone} size="md" />
-        {vehicle.stale ? (
-          <span className="rounded-full bg-muted px-2 py-0.5 text-[12px] font-semibold text-muted-foreground">
-            {t("card.stale")}
-          </span>
-        ) : null}
+    <div className="absolute top-6 left-6 z-10 w-[360px] rounded-2xl border border-border bg-surface p-6 shadow-lg">
+      {/* Header: name + status stack on the left (each on its own row so a long
+          name and the status never collide), close button pinned top-right. */}
+      <div className="flex items-start gap-3">
+        <div className="min-w-0 flex-1">
+          <h2 className="truncate text-[19px] leading-tight font-semibold">
+            {vehicle.reg}
+          </h2>
+          <div className="mt-2 flex items-center gap-2">
+            <StatusBadge tone={vehicle.tone} size="sm" />
+            {vehicle.stale ? (
+              <span className="text-[13px] font-medium text-muted-foreground">
+                {t("card.stale")}
+              </span>
+            ) : null}
+          </div>
+        </div>
         <button
           type="button"
           onClick={onClose}
           aria-label={t("card.viewAll")}
           title={t("card.viewAll")}
-          className="ml-auto flex size-11 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          className="-mt-1 -mr-1.5 flex size-10 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
           <X className="size-5" />
         </button>
       </div>
 
-      <div className={`mt-5 flex gap-5 ${vehicle.stale ? "opacity-60" : ""}`}>
+      <div className={`mt-6 flex gap-6 ${vehicle.stale ? "opacity-60" : ""}`}>
         <Stat label={t("card.speed")} value={vehicle.speedText} />
         <Stat label={t("card.eta")} value={vehicle.etaText} />
         <Stat label={t("card.load")} value={`${vehicle.capacityPct}%`} note={t("card.loadNote")} />
       </div>
 
-      <div className="mt-5 flex items-center gap-2.5 text-[15px]">
-        <span className="truncate text-muted-foreground">{vehicle.origin}</span>
+      <div className="mt-6 flex items-center gap-2.5 text-[15px]">
+        <span className="max-w-[45%] truncate text-muted-foreground">
+          {vehicle.origin}
+        </span>
         <ArrowRight className="size-4 shrink-0 text-muted-foreground" />
-        <span className="truncate font-semibold">{vehicle.dest}</span>
+        <span className="max-w-[45%] truncate font-semibold">
+          {vehicle.dest}
+        </span>
       </div>
 
-      <button
-        type="button"
+      <Button
         onClick={onShowDetails}
-        className="mt-5 flex h-14 w-full items-center justify-center gap-2 rounded-full bg-primary text-[16px] font-semibold text-primary-foreground shadow-md transition-[filter] active:brightness-90"
+        className="mt-6 h-14 w-full gap-2 rounded-2xl text-[16px] font-semibold"
       >
         {t("card.viewDetails")}
         <ArrowRight className="size-5" />
-      </button>
+      </Button>
     </div>
   )
 }
