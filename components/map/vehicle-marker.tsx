@@ -87,36 +87,47 @@ export const VehicleMarker = memo(function VehicleMarker({
   stale,
   selected,
   fill,
+  heading,
 }: {
   label: string | null
   stale: boolean
   selected: boolean
   fill: string
+  heading: number | null
 }) {
-  const w = selected ? 58 : 48
+  const w = selected ? 56 : 46
   return (
     <div
       className="relative flex cursor-pointer items-center justify-center"
-      style={{ width: w, height: w, opacity: stale ? 0.6 : 1 }}
+      style={{ width: w, height: w }}
     >
+      {/* status-coloured pulse on the selected van (sits behind, never rotates) */}
       {selected ? (
         <span
           className="absolute m-auto animate-ping rounded-full"
-          style={{ width: w * 0.66, height: w * 0.66, background: fill, opacity: 0.3 }}
+          style={{ width: w * 0.72, height: w * 0.72, background: fill, opacity: 0.3 }}
         />
       ) : null}
+      {/* Top-down van rotated to its heading — the source image points north at
+          0°, and CSS rotate is clockwise, matching a compass bearing. */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src="/bubblebox-van-icon.png"
+        src="/bubblebox-van-top.png"
         alt=""
         width={w}
         height={w}
         draggable={false}
         className="relative select-none"
-        style={{ filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.35))" }}
+        style={{
+          transform: `rotate(${heading ?? 0}deg)`,
+          transition: "transform 0.5s ease-out",
+          filter: "drop-shadow(0 2px 4px rgb(0 0 0 / 0.3))",
+        }}
       />
+      {/* Identity label — upright, below the van (doesn't rotate). Stale is shown
+          here (the status dot greys + a "stale" suffix), never on the van itself. */}
       {label ? (
-        <span className="absolute top-full left-1/2 -mt-1 flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-border bg-surface px-2 py-0.5 font-mono text-[12.5px] leading-none font-semibold whitespace-nowrap">
+        <span className="absolute top-full left-1/2 mt-1.5 flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-surface px-2.5 py-1 text-[12px] leading-none font-semibold whitespace-nowrap text-foreground shadow-md">
           <span className="size-2 shrink-0 rounded-full" style={{ background: fill }} />
           {stale ? `${label} · stale` : label}
         </span>
