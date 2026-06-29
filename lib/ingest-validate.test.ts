@@ -53,6 +53,12 @@ describe("validate", () => {
     expect("error" in result).toBe(true)
   })
 
+  it("empty route.stops → error", () => {
+    const result = validate({ routes: [{ external_ref: "RT-001", stops: [] }] })
+    expect("error" in result).toBe(true)
+    if ("error" in result) expect(result.error).toMatch(/non-empty/)
+  })
+
   it("bad stop_type → error", () => {
     const result = validate({
       routes: [{ external_ref: "RT-001", stops: [{ ...VALID_STOP, stop_type: "delivery" }] }],
@@ -173,6 +179,7 @@ describe("validateDeleteParams", () => {
   it("non-string external_ref → error", () => {
     const result = validateDeleteParams({ external_ref: 123, source: null })
     expect("error" in result).toBe(true)
+    if ("error" in result) expect(result.error).toMatch(/external_ref/)
   })
 
   it("non-string source → error", () => {
