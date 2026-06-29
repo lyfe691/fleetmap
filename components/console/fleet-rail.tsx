@@ -142,12 +142,16 @@ function VehicleCard({
       type="button"
       onClick={onSelect}
       aria-pressed={selected}
-      className={`rounded-[18px] border-2 bg-card p-[18px] text-left transition-[transform,border-color,box-shadow] duration-150 active:scale-[0.985] ${
-        selected ? "border-primary/35 shadow-sm" : "border-border"
+      className={`rounded-2xl bg-card p-[18px] text-left transition-[scale,box-shadow] duration-200 ease-out active:scale-[0.97] ${
+        selected
+          ? "shadow-[0_10px_30px_-10px_rgb(0_0_0/0.25)] ring-2 ring-primary/30 dark:shadow-[0_10px_30px_-8px_rgb(0_0_0/0.6)]"
+          : "shadow-[0_1px_2px_rgb(0_0_0/0.05),0_5px_14px_-6px_rgb(0_0_0/0.08)] hover:shadow-[0_4px_18px_-6px_rgb(0_0_0/0.14)] dark:shadow-[0_2px_8px_-2px_rgb(0_0_0/0.5)]"
       }`}
     >
       <div className="flex items-center justify-between gap-2">
-        <span className="font-mono text-[15px] font-semibold">{vehicle.reg}</span>
+        <span className="min-w-0 flex-1 truncate text-[15px] font-semibold">
+          {vehicle.reg}
+        </span>
         <StatusBadge tone={vehicle.tone} />
       </div>
 
@@ -174,7 +178,7 @@ function VehicleCard({
             </span>
           </div>
         </div>
-        <div className="flex h-[76px] w-[112px] shrink-0 items-center justify-center overflow-hidden rounded-[14px] bg-muted">
+        <div className="flex h-[76px] w-[112px] shrink-0 items-center justify-center overflow-hidden rounded-xl bg-muted">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/bubblebox-van.png"
