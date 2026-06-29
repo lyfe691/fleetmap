@@ -5,12 +5,19 @@ import { SettingRow } from "@/components/console/settings/setting-row"
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
 import type { Locale } from "@/lib/settings/types"
 import { useTranslations } from "@/lib/i18n/index"
+
+// Autonyms (not translated); value -> label map for <SelectValue>.
+const LANGUAGE_ITEMS: Record<string, string> = {
+  en: "English",
+  "de-CH": "Deutsch (Schweiz)",
+}
 
 export function LanguageSection() {
   const { settings, setSetting } = useSettings()
@@ -23,6 +30,7 @@ export function LanguageSection() {
         description={t("settings.language.desc")}
         control={
           <Select
+            items={LANGUAGE_ITEMS}
             value={settings.locale}
             onValueChange={(v) => setSetting("locale", String(v) as Locale)}
           >
@@ -30,8 +38,10 @@ export function LanguageSection() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="en">English</SelectItem>
-              <SelectItem value="de-CH">Deutsch (Schweiz)</SelectItem>
+              <SelectGroup>
+                <SelectItem value="en">{LANGUAGE_ITEMS.en}</SelectItem>
+                <SelectItem value="de-CH">{LANGUAGE_ITEMS["de-CH"]}</SelectItem>
+              </SelectGroup>
             </SelectContent>
           </Select>
         }
