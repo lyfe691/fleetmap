@@ -69,3 +69,18 @@ export function validate(body: unknown): { routes: unknown[] } | { error: string
   }
   return { routes }
 }
+
+export function validateDeleteParams(input: {
+  external_ref: unknown
+  source: unknown
+}): { external_ref: string; source: string } | { error: string } {
+  const { external_ref, source } = input
+  if (typeof external_ref !== "string" || external_ref.length === 0) {
+    return { error: "external_ref is required" }
+  }
+  if (source != null && source !== "" && typeof source !== "string") {
+    return { error: "source must be a string" }
+  }
+  const src = typeof source === "string" && source.length > 0 ? source : "manual"
+  return { external_ref, source: src }
+}
