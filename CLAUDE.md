@@ -26,7 +26,7 @@ app/api/location/route.ts   ingest endpoint
 app/api/route/route.ts      OSRM proxy — route line + ETA (GET /api/route)
 app/api/dashboard-session/route.ts   mint dashboard session (display code) — TV read identity
 app/api/dispatcher-session/route.ts  mint dispatcher session (shared secret)
-app/api/ingest/stops/route.ts        ingestion seam — orders/stops (POST)
+app/api/ingest/routes/route.ts       ingestion seam — routes (POST create/update)
 app/api/stops/[id]/route.ts          PATCH stop — dispatcher mutation (status/reassign/reorder)
 scripts/seed-stops.ts                dev-only ingestion adapter #1
 docker-compose.yml          OSRM routing container (Switzerland extract) — dev
@@ -135,7 +135,7 @@ It writes into the shared Supabase, so a fake van and a real driver in the same 
 - [x] **M3 — driver PWA:** auth + watchPosition + wake lock + POST loop + offline buffer. (Retired: the driver client moved to Roman's native Bubblebox app; the web `/driver` route + `components/driver/*` + the driver `lib/` hooks stay as reference for that port. Home-page entry disabled; manifest repointed to `/dashboard`.)
 - [x] **M4 — routing:** OSRM container (`docker-compose.yml`) + `GET /api/route` proxy + click-to-route + ETA.
 - [x] **M5 — polish:** smooth marker interpolation, offline/stale flags, TV kiosk mode (fullscreen + session refresh), column-scoped read (`vehicles_public`).
-- [x] **M6 — order/stop model + ingestion seam:** orders/stops schema + RLS + Realtime, dispatcher identity, POST /api/ingest/stops, seed-stops adapter.
+- [x] **M6 — order/stop model + ingestion seam:** orders/stops schema + RLS + Realtime, dispatcher identity, POST /api/ingest/routes, seed-stops adapter.
 - [x] **M7 — live routes on the TV:** vehicleId-only `/api/route` (multi-waypoint + legs/stopOffsets), `useLiveStops` channel, per-vehicle route lines from real stop data; click-to-route removed.
 - [x] **M8 — greying + side rail + ETA:** client-side traveled/remaining split (turf, forward-clamped), shared route sources, next-stop emphasis + terminal fade, fleet side rail (next stop · ETA · stops-left · freshness).
 - [x] **M9 — stop lifecycle:** server-side geofence auto-arrive in POST /api/location (two-radius hysteresis, next-stop-by-seq) + driver SELECT RLS (0005) + PATCH /api/stops/:id (dispatcher reassign/reorder/cancel/status); fake-gps drives only; adapter-2 stub.

@@ -25,15 +25,16 @@ export async function POST(request: NextRequest) {
   }
 
   // Runs as the dispatcher — RLS (role='dispatcher') is the write boundary.
+  // The RPC upserts each route as an orders row + replace-sets its stops.
   const supabase = createUserClient(token)
   const { error } = await supabase.rpc("ingest_stops", {
-    p_orders: parsed.orders,
+    p_orders: parsed.routes,
   })
   if (error) {
     if (isAuthError(error)) {
       return NextResponse.json({ error: "invalid token" }, { status: 401 })
     }
-    console.error("[/api/ingest/stops] rpc failed:", error)
+    console.error("[/api/ingest/routes] rpc failed:", error)
     return NextResponse.json({ error: "ingest failed" }, { status: 500 })
   }
 
