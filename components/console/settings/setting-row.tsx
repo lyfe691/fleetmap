@@ -2,6 +2,9 @@
 
 import type { ReactNode } from "react"
 
+// Rendered as a <label> so tapping anywhere on the row (title, description, or
+// the control) activates the control — a big touch target for the wall-mounted
+// TV. Native label forwarding toggles the Switch / opens the Select.
 export function SettingRow({
   title,
   description,
@@ -12,7 +15,7 @@ export function SettingRow({
   control: ReactNode
 }) {
   return (
-    <div className="flex items-center justify-between gap-4 border-b border-border py-4 last:border-0">
+    <label className="flex cursor-pointer items-center justify-between gap-4 border-b border-border py-4 transition-colors last:border-0 active:bg-muted/40">
       <div className="min-w-0">
         <div className="text-[15px] font-medium text-foreground">{title}</div>
         {description ? (
@@ -22,6 +25,6 @@ export function SettingRow({
         ) : null}
       </div>
       <div className="shrink-0">{control}</div>
-    </div>
+    </label>
   )
 }
