@@ -1,6 +1,7 @@
 "use client"
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react"
+import { MotionConfig } from "motion/react"
 import { BOOL_KEYS, DEFAULT_SETTINGS, type Settings } from "@/lib/settings/types"
 import { loadSettings, storageKey } from "@/lib/settings/storage"
 
@@ -36,9 +37,13 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     }
   }, [settings])
 
+  // Drive ALL Motion animations (JS-based, not caught by the CSS reduce-motion
+  // rule) from the in-app flag: "always" reduces; "user" defers to the OS pref.
   return (
     <SettingsContext.Provider value={{ settings, setSetting }}>
-      {children}
+      <MotionConfig reducedMotion={settings.reduceMotion ? "always" : "user"}>
+        {children}
+      </MotionConfig>
     </SettingsContext.Provider>
   )
 }
