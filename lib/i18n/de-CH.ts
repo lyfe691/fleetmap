@@ -2,10 +2,12 @@ import type { TranslationKey } from "@/lib/i18n/en"
 
 export const deCH: Record<TranslationKey, string> = {
   "settings.title": "Einstellungen",
+  "settings.description": "Darstellung, Barrierefreiheit und Sprache verwalten.",
   "settings.cat.appearance": "Darstellung",
   "settings.cat.accessibility": "Barrierefreiheit",
   "settings.cat.language": "Sprache",
   "settings.theme": "Erscheinungsbild",
+  "settings.theme.desc": "Dem System folgen oder ein festes Erscheinungsbild wählen.",
   "settings.theme.system": "System",
   "settings.theme.light": "Hell",
   "settings.theme.dark": "Dunkel",
@@ -18,4 +20,6 @@ export const deCH: Record<TranslationKey, string> = {
   "settings.a11y.bigTargets": "Grössere Schaltflächen",
   "settings.a11y.bigTargets.desc": "Grössere Tippflächen für Touch",
   "settings.language": "Sprache",
+  "settings.language.desc": "Anzeigesprache der Konsole wählen.",
+  "sidebar.online": "{online} von {total} online",
 }

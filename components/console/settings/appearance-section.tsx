@@ -13,7 +13,7 @@ export function AppearanceSection() {
     <div className="flex flex-col">
       <SettingRow
         title={t("settings.theme")}
-        description="Match the system or pick a fixed appearance."
+        description={t("settings.theme.desc")}
         control={
           <Segmented
             ariaLabel={t("settings.theme")}

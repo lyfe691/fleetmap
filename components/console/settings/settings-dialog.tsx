@@ -37,7 +37,7 @@ export function SettingsDialog({
       <DialogContent className="gap-0 overflow-hidden p-0 sm:max-w-2xl">
         <DialogTitle className="sr-only">{t("settings.title")}</DialogTitle>
         <DialogDescription className="sr-only">
-          Manage appearance, accessibility, and language preferences.
+          {t("settings.description")}
         </DialogDescription>
 
         <div className="flex min-h-[440px]">
@@ -72,7 +72,7 @@ export function SettingsDialog({
 
           <div className="min-w-0 flex-1 overflow-y-auto p-6">
             <h2 className="mb-1 font-heading text-[20px] font-semibold tracking-tight">
-              {t(CATEGORY_DEFS.find((c) => c.id === category)?.key ?? "settings.title")}
+              {t(CATEGORY_DEFS.find((c) => c.id === category)!.key)}
             </h2>
             <div className="mt-3">
               {category === "appearance" ? <AppearanceSection /> : null}

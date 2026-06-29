@@ -17,8 +17,10 @@ describe("translate", () => {
     expect(translate("en", "settings.title")).toBe("Settings")
   })
   it("interpolates {params}", () => {
-    // uses a runtime key; cast through unknown for the test fixture
-    const out = translate("en", "settings.title", { unused: 1 })
-    expect(out).toBe("Settings")
+    expect(translate("en", "sidebar.online", { online: 2, total: 3 })).toBe("2 of 3 online")
+    expect(translate("de-CH", "sidebar.online", { online: 2, total: 3 })).toBe("2 von 3 online")
+  })
+  it("leaves missing param placeholders intact", () => {
+    expect(translate("en", "sidebar.online", { online: 2 })).toContain("{total}")
   })
 })

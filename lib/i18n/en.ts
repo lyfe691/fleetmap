@@ -1,9 +1,11 @@
 export const en = {
   "settings.title": "Settings",
+  "settings.description": "Manage appearance, accessibility, and language preferences.",
   "settings.cat.appearance": "Appearance",
   "settings.cat.accessibility": "Accessibility",
   "settings.cat.language": "Language",
   "settings.theme": "Theme",
+  "settings.theme.desc": "Match the system or pick a fixed appearance.",
   "settings.theme.system": "System",
   "settings.theme.light": "Light",
   "settings.theme.dark": "Dark",
@@ -16,6 +18,8 @@ export const en = {
   "settings.a11y.bigTargets": "Bigger touch targets",
   "settings.a11y.bigTargets.desc": "Larger tap areas for touch",
   "settings.language": "Language",
+  "settings.language.desc": "Choose the console display language.",
+  "sidebar.online": "{online} of {total} online",
 } as const
 
 export type TranslationKey = keyof typeof en

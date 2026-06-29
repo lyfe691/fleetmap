@@ -14,7 +14,7 @@ export function LanguageSection() {
     <div className="flex flex-col">
       <SettingRow
         title={t("settings.language")}
-        description="Choose the console display language."
+        description={t("settings.language.desc")}
         control={
           <Segmented
             ariaLabel={t("settings.language")}
