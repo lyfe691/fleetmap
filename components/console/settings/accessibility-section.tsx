@@ -2,7 +2,7 @@
 
 import { useSettings } from "@/lib/settings/settings-provider"
 import { SettingRow } from "@/components/console/settings/setting-row"
-import { Switch } from "@/components/ui/switch"
+import { ToggleSwitch } from "@/components/ui/toggle-switch"
 import { useTranslations } from "@/lib/i18n/index"
 import type { TranslationKey } from "@/lib/i18n/en"
 
@@ -33,9 +33,10 @@ export function AccessibilitySection() {
           title={t(row.titleKey)}
           description={t(row.descKey)}
           control={
-            <Switch
+            <ToggleSwitch
               aria-label={t(row.titleKey)}
               checked={settings[row.key]}
+              reduceMotion={settings.reduceMotion}
               onCheckedChange={(value) => setSetting(row.key, value)}
             />
           }
