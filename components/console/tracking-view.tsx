@@ -1,6 +1,14 @@
 "use client"
 
-import { useMemo } from "react"
+import {
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react"
+import { motion, useReducedMotion } from "motion/react"
 import {
   Fuel,
   Gauge,
@@ -14,44 +22,74 @@ import {
   type LucideIcon,
 } from "lucide-react"
 import { FleetMapView } from "@/components/map/fleet-map-view"
-import { DETAIL_TABS } from "@/lib/console/types"
-import type { DetailTab, LiveData } from "@/lib/console/types"
+import type { LiveData } from "@/lib/console/types"
 import type { ConsoleVehicle } from "@/lib/console/use-console-data"
 import { assumedCargoPhotos, assumedManifest } from "@/lib/console/assumed"
 import { StatusBadge } from "@/components/console/status-badge"
 import { PlaceholderNote } from "@/components/console/placeholder-note"
 import { useTranslations } from "@/lib/i18n"
 import type { TranslationKey } from "@/lib/i18n/en"
+import { cn } from "@/lib/utils"
 
-const TAB_LABELS: Record<DetailTab, TranslationKey> = {
-  Overview: "tab.Overview",
-  Vehicle: "tab.Vehicle",
-  Cargo: "tab.Cargo",
-}
+// The detail panel is one scrolling page: stacked sections with a sticky
+// jump-nav instead of tabs (fewer clicks — everything's one scroll away). The
+// console is a single route with view state in React, not the URL, so the nav
+// only scrolls + highlights; it deliberately doesn't read or write the hash
+// (that would resurface the last section when you leave and re-enter the view).
+type SectionDef = { id: string; label: TranslationKey }
+const SECTIONS: readonly SectionDef[] = [
+  { id: "overview", label: "tab.Overview" },
+  { id: "vehicle", label: "tab.Vehicle" },
+  { id: "cargo", label: "tab.Cargo" },
+]
+const SECTION_IDS = SECTIONS.map((s) => s.id)
+// The line below the sticky nav that decides which section is "current". Kept in
+// sync with the `scroll-mt-[88px]` offset on each <Section>.
+const NAV_OFFSET = 88
+
+const spring = {
+  type: "spring",
+  stiffness: 350,
+  damping: 30,
+  mass: 0.8,
+} as const
 
 export function TrackingView({
   vehicle,
   live,
-  tab,
-  onTab,
   onLocate,
 }: {
   vehicle: ConsoleVehicle
   live: LiveData
-  tab: DetailTab
-  onTab: (tab: DetailTab) => void
   onLocate: () => void
 }) {
   const t = useTranslations()
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const active = useScrollSpy(scrollRef, vehicle.id)
+
+  // Switching vehicles resets to the top — the previous scroll position carries
+  // no meaning for a different van.
+  const prevId = useRef(vehicle.id)
+  useEffect(() => {
+    if (prevId.current === vehicle.id) return
+    prevId.current = vehicle.id
+    scrollRef.current?.scrollTo({ top: 0 })
+  }, [vehicle.id])
+
   return (
-    <div className="h-full overflow-y-auto">
-      <div className="mx-auto max-w-[1200px] px-8 pt-7 pb-12">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-3.5">
-            <h2 className="font-mono text-[28px] font-semibold tracking-tight">
-              {vehicle.reg}
-            </h2>
-            <StatusBadge tone={vehicle.tone} size="md" />
+    <div ref={scrollRef} className="h-full overflow-y-auto scroll-smooth">
+      <div className="mx-auto max-w-[1200px] px-8 pb-16">
+        <header className="flex flex-wrap items-center justify-between gap-4 pt-7">
+          <div className="min-w-0">
+            <div className="flex items-center gap-3.5">
+              <h2 className="text-[28px] leading-none font-semibold tracking-tight">
+                {vehicle.reg}
+              </h2>
+              <StatusBadge tone={vehicle.tone} size="md" />
+            </div>
+            <p className="mt-2 truncate text-[15px] text-muted-foreground">
+              {vehicle.driver} · {vehicle.model}
+            </p>
           </div>
           <button
             type="button"
@@ -61,65 +99,149 @@ export function TrackingView({
             <MapPin className="size-5" />
             {t("tracking.locateOnMap")}
           </button>
-        </div>
+        </header>
 
-        <div
-          role="tablist"
-          aria-label={t("tracking.tabList")}
-          className="mt-6 flex flex-wrap gap-3"
-          onKeyDown={(e) => {
-            const dir =
-              e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0
-            if (!dir) return
-            e.preventDefault()
-            const next = DETAIL_TABS[(DETAIL_TABS.indexOf(tab) + dir + DETAIL_TABS.length) % DETAIL_TABS.length]
-            onTab(next)
-            e.currentTarget
-              .querySelector<HTMLButtonElement>(`#tab-${next}`)
-              ?.focus()
-          }}
-        >
-          {DETAIL_TABS.map((tabKey) => {
-            const active = tab === tabKey
-            return (
-              <button
-                key={tabKey}
-                type="button"
-                role="tab"
-                id={`tab-${tabKey}`}
-                aria-selected={active}
-                aria-controls={`panel-${tabKey}`}
-                tabIndex={active ? 0 : -1}
-                onClick={() => onTab(tabKey)}
-                className={`flex h-12 items-center rounded-full px-6 text-[16px] font-semibold transition-colors ${
-                  active
-                    ? "bg-primary text-primary-foreground shadow-md"
-                    : "bg-muted text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {t(TAB_LABELS[tabKey])}
-              </button>
-            )
-          })}
-        </div>
+        <SectionNav active={active} />
 
-        <div
-          role="tabpanel"
-          id={`panel-${tab}`}
-          aria-labelledby={`tab-${tab}`}
-          tabIndex={0}
-          className="outline-none"
-        >
-          {tab === "Overview" ? <Overview vehicle={vehicle} live={live} /> : null}
-          {tab === "Vehicle" ? <VehicleTab vehicle={vehicle} /> : null}
-          {tab === "Cargo" ? <CargoTab vehicle={vehicle} /> : null}
-        </div>
+        <Section id="overview" title={t("tab.Overview")}>
+          <OverviewBody vehicle={vehicle} live={live} />
+        </Section>
+        <Section id="vehicle" title={t("tab.Vehicle")}>
+          <VehicleBody vehicle={vehicle} />
+        </Section>
+        <Section id="cargo" title={t("tab.Cargo")} fill>
+          <CargoBody vehicle={vehicle} />
+        </Section>
       </div>
     </div>
   )
 }
 
-function Overview({
+// Active = the last section whose top has scrolled above the line under the nav.
+// A rAF-throttled scroll listener is simpler and more predictable here than an
+// IntersectionObserver with hand-tuned rootMargins. The last section's bottom
+// padding (see <Section fill>) guarantees it can scroll up to the line, so this
+// plain rule lands on it too — no special-casing the end of the scroll.
+// `resetKey` re-inits it when the selected vehicle changes.
+function useScrollSpy(
+  scrollRef: React.RefObject<HTMLDivElement | null>,
+  resetKey: string
+) {
+  const [active, setActive] = useState(SECTION_IDS[0])
+  useEffect(() => {
+    const root = scrollRef.current
+    if (!root) return
+    let raf = 0
+    const compute = () => {
+      raf = 0
+      const line = root.getBoundingClientRect().top + NAV_OFFSET
+      let current = SECTION_IDS[0]
+      for (const id of SECTION_IDS) {
+        const el = document.getElementById(id)
+        if (el && el.getBoundingClientRect().top <= line) current = id
+      }
+      setActive(current)
+    }
+    const onScroll = () => {
+      if (!raf) raf = requestAnimationFrame(compute)
+    }
+    root.addEventListener("scroll", onScroll, { passive: true })
+    compute()
+    return () => {
+      root.removeEventListener("scroll", onScroll)
+      if (raf) cancelAnimationFrame(raf)
+    }
+  }, [scrollRef, resetKey])
+  return active
+}
+
+function SectionNav({ active }: { active: string }) {
+  const t = useTranslations()
+  const reduceMotion = useReducedMotion()
+  const layoutId = useId()
+
+  // Scroll to the section without touching the URL (no router here). The href is
+  // a real in-page anchor for semantics + keyboard, but the click is intercepted
+  // so a tap doesn't push a #hash into the address bar.
+  const jumpTo = (id: string) => {
+    document.getElementById(id)?.scrollIntoView({ block: "start" })
+  }
+
+  return (
+    <div className="sticky top-0 z-40 -mx-8 mt-7 border-b border-border/60 bg-background/80 px-8 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/70">
+      <nav
+        aria-label={t("tracking.tabList")}
+        className="inline-flex items-center rounded-full bg-muted p-1"
+      >
+        {SECTIONS.map((s) => {
+          const isActive = active === s.id
+          return (
+            <a
+              key={s.id}
+              href={`#${s.id}`}
+              aria-current={isActive ? "location" : undefined}
+              onClick={(e) => {
+                e.preventDefault()
+                jumpTo(s.id)
+              }}
+              className={cn(
+                "relative isolate rounded-full px-5 py-3 text-[15px] font-semibold whitespace-nowrap outline-none transition-colors",
+                "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-muted",
+                isActive
+                  ? "text-foreground"
+                  : "text-muted-foreground hover:text-foreground/80"
+              )}
+            >
+              {isActive ? (
+                <motion.span
+                  layoutId={`section-${layoutId}`}
+                  transition={reduceMotion ? { duration: 0 } : spring}
+                  style={{ borderRadius: 999 }}
+                  className="absolute inset-0 -z-10 rounded-full bg-background shadow-sm ring-1 ring-black/4 dark:bg-foreground/10 dark:shadow-none dark:ring-white/5"
+                />
+              ) : null}
+              <span className="relative">{t(s.label)}</span>
+            </a>
+          )
+        })}
+      </nav>
+    </div>
+  )
+}
+
+function Section({
+  id,
+  title,
+  children,
+  fill,
+}: {
+  id: string
+  title: string
+  children: ReactNode
+  // The last section is shorter than the viewport, so on its own it can't scroll
+  // its top up under the nav — the jump lands short and the previous section
+  // stays on screen. A min-height of ~one viewport gives it the room to reach
+  // the top, which also makes the scroll-spy land on it naturally.
+  fill?: boolean
+}) {
+  return (
+    <section
+      id={id}
+      aria-labelledby={`${id}-heading`}
+      className={cn("scroll-mt-[88px] pt-9", fill && "min-h-[calc(100vh-5rem)]")}
+    >
+      <h3
+        id={`${id}-heading`}
+        className="font-heading text-xl font-semibold tracking-tight"
+      >
+        {title}
+      </h3>
+      <div className="mt-5">{children}</div>
+    </section>
+  )
+}
+
+function OverviewBody({
   vehicle,
   live,
 }: {
@@ -141,7 +263,7 @@ function Overview({
 
   return (
     <div>
-      <div className="mt-7 grid grid-cols-1 gap-5 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
         <Card label={t("tracking.loadCapacity")}>
           <div className="mt-3 flex items-center gap-3">
             <span className="font-heading text-[52px] leading-none font-bold tracking-tight">
@@ -181,8 +303,11 @@ function Overview({
         </Card>
       </div>
 
-      <h3 className="mt-7 font-heading text-lg font-semibold">{t("tracking.liveLocation")}</h3>
-      <div className="mt-3 h-[460px] overflow-hidden rounded-[20px] border border-border shadow-md">
+      <h4 className="mt-7 font-heading text-lg font-semibold">{t("tracking.liveLocation")}</h4>
+      {/* Viewport-relative so the map grows with the screen instead of sitting at
+          a fixed 460px island on a big wall TV — floored/capped to stay sane on
+          laptops and very tall displays. */}
+      <div className="mt-3 h-[clamp(420px,52vh,760px)] overflow-hidden rounded-[20px] border border-border shadow-md">
         <FleetMapView
           vehicles={miniLive.vehicles}
           stopsByVehicle={miniLive.stopsByVehicle}
@@ -195,13 +320,7 @@ function Overview({
   )
 }
 
-function Card({
-  label,
-  children,
-}: {
-  label: string
-  children: React.ReactNode
-}) {
+function Card({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="flex flex-col rounded-[20px] border border-border bg-card p-6 shadow-md">
       <div className="text-[14px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">
@@ -221,7 +340,7 @@ type DetailRow = {
   good?: boolean
 }
 
-function VehicleTab({ vehicle }: { vehicle: ConsoleVehicle }) {
+function VehicleBody({ vehicle }: { vehicle: ConsoleVehicle }) {
   const t = useTranslations()
   const rows: DetailRow[] = [
     { id: "model", icon: Truck, label: vehicle.model, sub: t("tracking.vehicleModel"), value: vehicle.plate },
@@ -231,7 +350,7 @@ function VehicleTab({ vehicle }: { vehicle: ConsoleVehicle }) {
     { id: "temp", icon: Thermometer, label: t("tracking.cargoTemperature"), sub: t("tracking.cargoHold"), value: vehicle.cargoTemp },
   ]
   return (
-    <div className="mt-7 flex flex-col gap-3">
+    <div className="flex flex-col gap-3">
       <PlaceholderNote textKey="placeholder.telematics" />
       {rows.map((r) => (
         <DetailRowItem key={r.id} row={r} />
@@ -240,7 +359,7 @@ function VehicleTab({ vehicle }: { vehicle: ConsoleVehicle }) {
   )
 }
 
-function CargoTab({ vehicle }: { vehicle: ConsoleVehicle }) {
+function CargoBody({ vehicle }: { vehicle: ConsoleVehicle }) {
   const t = useTranslations()
   const photos = assumedCargoPhotos(vehicle.id)
   const manifest = assumedManifest(vehicle.id)
@@ -250,11 +369,11 @@ function CargoTab({ vehicle }: { vehicle: ConsoleVehicle }) {
     temp: Thermometer,
   }
   return (
-    <div className="mt-7">
+    <div>
       <PlaceholderNote textKey="placeholder.telematics" />
-      <h3 className="mt-4 font-heading text-lg font-semibold">
+      <h4 className="mt-4 font-heading text-lg font-semibold">
         {t("tracking.cargoPhotoReports")}
-      </h3>
+      </h4>
       <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
         {photos.map((p) => (
           <div
@@ -275,7 +394,7 @@ function CargoTab({ vehicle }: { vehicle: ConsoleVehicle }) {
         ))}
       </div>
 
-      <h3 className="mt-8 font-heading text-lg font-semibold">{t("tracking.manifest")}</h3>
+      <h4 className="mt-8 font-heading text-lg font-semibold">{t("tracking.manifest")}</h4>
       <div className="mt-4 flex flex-col gap-3">
         {manifest.map((m) => (
           <DetailRowItem

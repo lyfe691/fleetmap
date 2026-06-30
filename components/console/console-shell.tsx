@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { isActive } from "@/components/map/fleet-format"
 import { useFleetRoutes, type RouteJob } from "@/lib/use-fleet-routes"
@@ -12,7 +12,6 @@ import { usePersistedBoolean } from "@/lib/use-persisted-boolean"
 import { buildConsoleVehicles } from "@/lib/console/use-console-data"
 import type {
   ConsoleView,
-  DetailTab,
   LiveData,
   StatusFilter,
 } from "@/lib/console/types"
@@ -53,12 +52,7 @@ export function ConsoleShell({ onChangeCode }: { onChangeCode: () => void }) {
 
   const [view, setView] = useState<ConsoleView>("tracking")
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [tab, setTab] = useState<DetailTab>("Overview")
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("All")
-
-  useEffect(() => {
-    setTab("Overview")
-  }, [selectedId])
 
   const handleStatusFilter = (filter: StatusFilter) => {
     setStatusFilter(filter)
@@ -143,8 +137,6 @@ export function ConsoleShell({ onChangeCode }: { onChangeCode: () => void }) {
             <TrackingView
               vehicle={selected}
               live={live}
-              tab={tab}
-              onTab={setTab}
               onLocate={() => setView("map")}
             />
           ) : (

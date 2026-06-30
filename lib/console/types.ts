@@ -5,8 +5,6 @@ import type { ConsoleVehicle } from "@/lib/console/use-console-data"
 
 export type ConsoleView = "tracking" | "map" | "history"
 export type StatusFilter = "All" | "On Route" | "Waiting"
-export const DETAIL_TABS = ["Overview", "Vehicle", "Cargo"] as const
-export type DetailTab = (typeof DETAIL_TABS)[number]
 
 export function matchesStatusFilter(
   v: Pick<ConsoleVehicle, "tone">,
