@@ -45,7 +45,7 @@ export function DashboardCodeScreen({
           <h1 className="font-heading text-3xl font-semibold tracking-tight">
             {t("gate.title")}
           </h1>
-          <p className="mt-2 text-[15px] text-muted-foreground">
+          <p className="mt-2 text-[0.9375rem] text-muted-foreground">
             {t("gate.description")}
           </p>
 

@@ -55,18 +55,18 @@ function SummaryCard({
 }) {
   const t = useTranslations()
   return (
-    <div className="absolute top-6 left-6 z-10 w-[360px] rounded-2xl border border-border bg-surface p-6 shadow-lg">
+    <div className="absolute top-6 left-6 z-10 w-[22.5rem] rounded-2xl border border-border bg-surface p-6 shadow-lg">
       {/* Header: name + status stack on the left (each on its own row so a long
           name and the status never collide), close button pinned top-right. */}
       <div className="flex items-start gap-3">
         <div className="min-w-0 flex-1">
-          <h2 className="truncate text-[19px] leading-tight font-semibold">
+          <h2 className="truncate text-[1.125rem] leading-tight font-semibold">
             {vehicle.reg}
           </h2>
           <div className="mt-2 flex items-center gap-2">
             <StatusBadge tone={vehicle.tone} size="sm" />
             {vehicle.stale ? (
-              <span className="text-[13px] font-medium text-muted-foreground">
+              <span className="text-[0.8125rem] font-medium text-muted-foreground">
                 {t("card.stale")}
               </span>
             ) : null}
@@ -89,7 +89,7 @@ function SummaryCard({
         <Stat label={t("card.load")} value={`${vehicle.capacityPct}%`} note={t("card.loadNote")} />
       </div>
 
-      <div className="mt-6 flex items-center gap-2.5 text-[15px]">
+      <div className="mt-6 flex items-center gap-2.5 text-[0.9375rem]">
         <span className="max-w-[45%] truncate text-muted-foreground">
           {vehicle.origin}
         </span>
@@ -101,7 +101,7 @@ function SummaryCard({
 
       <Button
         onClick={onShowDetails}
-        className="mt-6 h-14 w-full gap-2 rounded-2xl text-[16px] font-semibold"
+        className="mt-6 h-14 w-full gap-2 rounded-2xl text-[1rem] font-semibold"
       >
         {t("card.viewDetails")}
         <ArrowRight className="size-5" />
@@ -125,7 +125,7 @@ function Stat({
         {label}
         {note ? <span title={note}>*</span> : null}
       </div>
-      <div className="mt-1 font-mono text-[22px] font-semibold">{value}</div>
+      <div className="mt-1 font-mono text-[1.25rem] font-semibold">{value}</div>
     </div>
   )
 }

@@ -12,8 +12,6 @@
     --color-sidebar-border: var(--sidebar-border);
     --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
     --color-sidebar-accent: var(--sidebar-accent);
-    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-    --color-sidebar-primary: var(--sidebar-primary);
     --color-sidebar-foreground: var(--sidebar-foreground);
     --color-sidebar: var(--sidebar);
     --color-chart-5: var(--chart-5);
@@ -30,6 +28,9 @@
     --color-warning: var(--warning);
     --color-warning-foreground: var(--warning-foreground);
     --color-warning-strong: var(--warning-strong);
+    --color-brand: var(--brand);
+    --color-brand-strong: var(--brand-strong);
+    --color-brand-foreground: var(--brand-foreground);
     --color-surface: var(--surface);
     --color-accent-foreground: var(--accent-foreground);
     --color-accent: var(--accent);
@@ -75,10 +76,17 @@
     --warning: oklch(0.74 0.15 75);
     --warning-foreground: oklch(0.205 0 0);
     --warning-strong: oklch(0.46 0.13 70);
+    /* Bubblebox brand teal — the exact logo/gate hex, so the accent, focus ring
+       and map route all read as one colour. Identity accent for non-status chrome
+       only — status colors above stay load-bearing. `strong` is the readable
+       text/icon tint; the base is for fills, rings, and the route line. */
+    --brand: #1bbecd;
+    --brand-strong: oklch(0.52 0.095 200);
+    --brand-foreground: oklch(0.985 0 0);
     --surface: oklch(1 0 0);
     --border: oklch(0.922 0 0);
     --input: oklch(0.922 0 0);
-    --ring: oklch(0.708 0 0);
+    --ring: var(--brand);
     --chart-1: oklch(0.87 0 0);
     --chart-2: oklch(0.556 0 0);
     --chart-3: oklch(0.439 0 0);
@@ -87,12 +95,13 @@
     --radius: 0.625rem;
     --sidebar: oklch(0.985 0 0);
     --sidebar-foreground: oklch(0.145 0 0);
-    --sidebar-primary: oklch(0.205 0 0);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
     --sidebar-accent: oklch(0.97 0 0);
     --sidebar-accent-foreground: oklch(0.205 0 0);
     --sidebar-border: oklch(0.922 0 0);
-    --sidebar-ring: oklch(0.708 0 0);
+    --sidebar-ring: var(--brand);
+    /* Card elevation — one soft, layered shadow for every resting card (was a
+       generic shadow-md). Theme-aware via this var so dark gets its own depth. */
+    --shadow-card: 0 1px 2px rgb(0 0 0 / 0.05), 0 6px 16px -8px rgb(0 0 0 / 0.10);
 }
 
 .dark {
@@ -116,10 +125,14 @@
     --warning: oklch(0.828 0.189 84.429);
     --warning-foreground: oklch(0.205 0 0);
     --warning-strong: oklch(0.85 0.16 85);
+    /* Brand teal, lifted for contrast on dark surfaces (matches the dark route). */
+    --brand: #34d3df;
+    --brand-strong: oklch(0.82 0.10 196);
+    --brand-foreground: oklch(0.205 0 0);
     --surface: oklch(0.205 0 0);
     --border: oklch(1 0 0 / 10%);
     --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.556 0 0);
+    --ring: var(--brand);
     --chart-1: oklch(0.87 0 0);
     --chart-2: oklch(0.556 0 0);
     --chart-3: oklch(0.439 0 0);
@@ -127,12 +140,11 @@
     --chart-5: oklch(0.269 0 0);
     --sidebar: oklch(0.205 0 0);
     --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-primary: oklch(0.488 0.243 264.376);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
     --sidebar-accent: oklch(0.269 0 0);
     --sidebar-accent-foreground: oklch(0.985 0 0);
     --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: oklch(0.556 0 0);
+    --sidebar-ring: var(--brand);
+    --shadow-card: 0 2px 10px -3px rgb(0 0 0 / 0.55);
 }
 
 @layer base {
@@ -147,6 +159,10 @@
     }
   html {
     @apply font-sans;
+    /* Scale the whole console with the viewport. The type scale + spacing are
+       rem-based, so this single lever grows everything proportionally on a big
+       wall TV while leaving laptops (≤ ~1536px) at the usual 16px base. */
+    font-size: clamp(16px, 11px + 0.33vw, 20px);
     /* Kiosk touch surface: no blue/grey flash when a finger taps a control. */
     -webkit-tap-highlight-color: transparent;
     }

@@ -273,7 +273,7 @@ function ZoomControls({
 function MapLegend() {
   const t = useTranslations()
   return (
-    <div className="absolute bottom-5 left-5 z-10 flex gap-5 rounded-2xl border border-border bg-surface/85 px-5 py-3.5 text-[15px] font-medium shadow-md backdrop-blur">
+    <div className="absolute bottom-5 left-5 z-10 flex gap-5 rounded-2xl border border-border bg-surface/85 px-5 py-3.5 text-[0.9375rem] font-medium shadow-md backdrop-blur">
       <LegendDot className="bg-success" label={t("status.onRoute")} />
       <LegendDot className="bg-warning" label={t("status.waiting")} />
       <LegendDot className="bg-muted-foreground" label={t("status.stale")} />

@@ -15,7 +15,7 @@ export function ConsoleLoading() {
         <div className="font-heading text-2xl font-semibold tracking-tight">
           Fleetmap
         </div>
-        <div className="mt-1.5 text-[15px] text-muted-foreground">
+        <div className="mt-1.5 text-[0.9375rem] text-muted-foreground">
           {t("loading.subtitle")}
         </div>
       </div>

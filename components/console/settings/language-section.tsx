@@ -34,7 +34,7 @@ export function LanguageSection() {
             value={settings.locale}
             onValueChange={(v) => setSetting("locale", String(v) as Locale)}
           >
-            <SelectTrigger className="w-[200px]" aria-label={t("settings.language")}>
+            <SelectTrigger className="w-[12.5rem]" aria-label={t("settings.language")}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

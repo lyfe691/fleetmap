@@ -31,7 +31,7 @@ export function SettingsButton({
       type="button"
       onClick={onClick}
       aria-label={t("settings.title")}
-      className="flex h-12 flex-1 items-center justify-center gap-2.5 rounded-2xl border border-sidebar-border text-[15px] font-medium text-sidebar-foreground transition-colors hover:bg-sidebar-accent"
+      className="flex h-12 flex-1 items-center justify-center gap-2.5 rounded-2xl border border-sidebar-border text-[0.9375rem] font-medium text-sidebar-foreground transition-colors hover:bg-sidebar-accent"
     >
       <Settings className="size-5" />
       {t("settings.title")}

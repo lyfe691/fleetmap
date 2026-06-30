@@ -34,7 +34,7 @@ export function AppearanceSection() {
             value={theme ?? "system"}
             onValueChange={(v) => setTheme(String(v))}
           >
-            <SelectTrigger className="w-[160px]" aria-label={t("settings.theme")}>
+            <SelectTrigger className="w-[10rem]" aria-label={t("settings.theme")}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

@@ -129,7 +129,7 @@ export const VehicleMarker = memo(function VehicleMarker({
       {/* Identity label — upright, below the van (doesn't rotate). Stale is shown
           here (the status dot greys + a "stale" suffix), never on the van itself. */}
       {label ? (
-        <span className="absolute top-full left-1/2 mt-1.5 flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-surface px-2.5 py-1 text-[12px] leading-none font-semibold whitespace-nowrap text-foreground shadow-md">
+        <span className="absolute top-full left-1/2 mt-1.5 flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-surface px-2.5 py-1 text-[0.75rem] leading-none font-semibold whitespace-nowrap text-foreground shadow-md">
           <span className="size-2 shrink-0 rounded-full" style={{ background: fill }} />
           {stale ? `${label} · ${t("rail.stale")}` : label}
         </span>

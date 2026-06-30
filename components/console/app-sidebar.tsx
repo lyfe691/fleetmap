@@ -51,7 +51,7 @@ export function AppSidebar({
 
   if (collapsed) {
     return (
-      <aside className="flex h-full w-[76px] shrink-0 flex-col items-center border-r border-sidebar-border bg-sidebar py-4 text-sidebar-foreground">
+      <aside className="flex h-full w-[4.75rem] shrink-0 flex-col items-center border-r border-sidebar-border bg-sidebar py-4 text-sidebar-foreground">
         <div className="flex size-12 items-center justify-center rounded-xl bg-muted">
           <BubbleboxLogo className="size-7 text-foreground" />
         </div>
@@ -83,16 +83,16 @@ export function AppSidebar({
   }
 
   return (
-    <aside className="flex h-full w-[262px] shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
+    <aside className="flex h-full w-[16.375rem] shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
       <div className="flex items-center gap-3 px-4 py-5">
         <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-muted">
           <BubbleboxLogo className="size-7 text-foreground" />
         </div>
         <div className="min-w-0 leading-none">
-          <div className="font-heading text-[20px] font-semibold tracking-tight">
+          <div className="font-heading text-[1.25rem] font-semibold tracking-tight">
             Fleetmap
           </div>
-          <div className="mt-1.5 text-[13px] text-muted-foreground">
+          <div className="mt-1.5 text-[0.8125rem] text-muted-foreground">
             {t("sidebar.subtitle")}
           </div>
         </div>
@@ -150,7 +150,7 @@ function NavGroup({
 }) {
   return (
     <div className={className}>
-      <div className="px-3.5 pt-3 pb-1.5 text-[12px] font-medium tracking-wider text-muted-foreground uppercase">
+      <div className="px-3.5 pt-3 pb-1.5 text-[0.75rem] font-medium tracking-wider text-muted-foreground uppercase">
         {label}
       </div>
       <div className="flex flex-col gap-1">{children}</div>
@@ -173,16 +173,16 @@ function NavItem({
       type="button"
       onClick={onClick}
       aria-current={active ? "page" : undefined}
-      className={`flex h-14 items-center gap-3.5 rounded-xl px-3.5 text-[16px] font-medium transition-colors ${
+      className={`flex h-14 items-center gap-3.5 rounded-xl px-3.5 text-[1rem] font-medium transition-colors ${
         active
-          ? "bg-sidebar-accent text-sidebar-accent-foreground"
+          ? "bg-brand/14 font-semibold text-brand-strong"
           : "text-muted-foreground hover:bg-sidebar-accent/70 hover:text-sidebar-accent-foreground"
       }`}
     >
       <Icon className="size-6 shrink-0" />
       <span className="flex-1 text-left whitespace-nowrap">{entry.label}</span>
       {entry.badge ? (
-        <span className="rounded-full bg-success/15 px-2 py-0.5 text-[13px] font-semibold text-success tabular-nums">
+        <span className="rounded-full bg-success/15 px-2 py-0.5 text-[0.8125rem] font-semibold text-success tabular-nums">
           {entry.badge}
         </span>
       ) : null}
@@ -209,13 +209,13 @@ function IconNavItem({
       aria-current={active ? "page" : undefined}
       className={`relative flex size-12 items-center justify-center rounded-xl transition-colors ${
         active
-          ? "bg-sidebar-accent text-sidebar-accent-foreground"
+          ? "bg-brand/14 text-brand-strong"
           : "text-muted-foreground hover:bg-sidebar-accent/70 hover:text-foreground"
       }`}
     >
       <Icon className="size-6" />
       {entry.badge ? (
-        <span className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-success px-1 text-[11px] font-bold text-success-foreground tabular-nums">
+        <span className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-success px-1 text-[0.75rem] font-bold text-success-foreground tabular-nums">
           {entry.badge}
         </span>
       ) : null}
@@ -233,10 +233,10 @@ function OnlinePill({ online, total }: { online: number; total: number }) {
         <span className="absolute inline-flex size-full animate-ping rounded-full bg-success opacity-60" />
         <span className="relative inline-flex size-3 rounded-full bg-success" />
       </span>
-      <span className="flex-1 text-[15px] font-semibold">
+      <span className="flex-1 text-[0.9375rem] font-semibold">
         {t("sidebar.online", { online: formatCount(online, locale), total: formatCount(total, locale) })}
       </span>
-      <span className="shrink-0 font-mono text-[13px] text-muted-foreground">
+      <span className="shrink-0 font-mono text-[0.8125rem] text-muted-foreground">
         {formatClock(now, locale)}
       </span>
     </div>

@@ -50,8 +50,8 @@ export function FleetRail({
           <ChevronsRight className="size-5" />
         </button>
         <div className="flex flex-col items-center gap-2">
-          <span className="font-mono text-[15px] font-semibold">{formatCount(counts.all, locale)}</span>
-          <span className="text-[11px] font-medium tracking-wider text-muted-foreground uppercase [writing-mode:vertical-rl]">
+          <span className="font-mono text-[0.9375rem] font-semibold">{formatCount(counts.all, locale)}</span>
+          <span className="text-[0.75rem] font-medium tracking-wider text-muted-foreground uppercase [writing-mode:vertical-rl]">
             {t("rail.fleet")}
           </span>
         </div>
@@ -62,14 +62,14 @@ export function FleetRail({
   const filtered = vehicles.filter((v) => matchesStatusFilter(v, statusFilter))
 
   return (
-    <section className="flex h-full w-[380px] shrink-0 flex-col border-r border-border bg-background">
+    <section className="flex h-full w-[23.75rem] shrink-0 flex-col border-r border-border bg-background">
       <div className="px-5 pt-6 pb-4">
         <div className="flex items-start justify-between gap-2">
           <div>
-            <h1 className="font-heading text-[26px] leading-none font-semibold tracking-tight">
+            <h1 className="font-heading text-[1.625rem] leading-none font-semibold tracking-tight">
               {t("rail.fleet")}
             </h1>
-            <p className="mt-2 text-[14px] text-muted-foreground">
+            <p className="mt-2 text-[0.875rem] text-muted-foreground">
               {t(counts.all === 1 ? "rail.vehicles.one" : "rail.vehicles.other", { n: formatCount(counts.all, locale) })}
             </p>
           </div>
@@ -154,7 +154,7 @@ function VehicleCard({
       }`}
     >
       <div className="flex items-center justify-between gap-2">
-        <span className="min-w-0 flex-1 truncate text-[15px] font-semibold">
+        <span className="min-w-0 flex-1 truncate text-[0.9375rem] font-semibold">
           {vehicle.reg}
         </span>
         <StatusBadge tone={vehicle.tone} />
@@ -162,10 +162,10 @@ function VehicleCard({
 
       <div className="mt-3.5 flex items-center gap-3">
         <div className="min-w-0 flex-1">
-          <div className="font-mono text-[26px] leading-none font-semibold tracking-tight">
+          <div className="font-mono text-[1.625rem] leading-none font-semibold tracking-tight">
             {onRoute ? vehicle.etaText : t("rail.idle")}
           </div>
-          <div className="mt-1.5 text-[14px] text-muted-foreground">
+          <div className="mt-1.5 text-[0.875rem] text-muted-foreground">
             {onRoute
               ? vehicle.stopsLeft === 1
                 ? t("rail.stopsLeft.one", { n: vehicle.stopsLeft })
@@ -173,17 +173,17 @@ function VehicleCard({
               : t("rail.awaitingDispatch")}
             {vehicle.stale ? ` · ${t("rail.stale")}` : ""}
           </div>
-          <div className="mt-3.5 flex items-center gap-2 text-[14px]">
-            <span className="max-w-[92px] truncate text-muted-foreground">
+          <div className="mt-3.5 flex items-center gap-2 text-[0.875rem]">
+            <span className="max-w-[5.75rem] truncate text-muted-foreground">
               {vehicle.origin}
             </span>
             <ArrowRight className="size-[18px] shrink-0 text-muted-foreground" />
-            <span className="max-w-[92px] truncate font-semibold">
+            <span className="max-w-[5.75rem] truncate font-semibold">
               {vehicle.dest}
             </span>
           </div>
         </div>
-        <div className="flex h-[76px] w-[112px] shrink-0 items-center justify-center overflow-hidden rounded-xl bg-muted">
+        <div className="flex h-[4.75rem] w-[7rem] shrink-0 items-center justify-center overflow-hidden rounded-xl bg-muted">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/bubblebox-van.png"
