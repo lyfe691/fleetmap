@@ -40,12 +40,12 @@ export function SettingsDialog({
           {t("settings.description")}
         </DialogDescription>
 
-        <div className="flex min-h-[440px]">
+        <div className="flex min-h-[27.5rem]">
           <nav
             aria-label={t("settings.categories")}
-            className="flex w-[200px] shrink-0 flex-col gap-1 border-r border-border bg-surface p-3"
+            className="flex w-[12.5rem] shrink-0 flex-col gap-1 border-r border-border bg-surface p-3"
           >
-            <div className="px-3 pt-2 pb-3 text-[18px] font-semibold tracking-tight">
+            <div className="px-3 pt-2 pb-3 text-[1.125rem] font-semibold tracking-tight">
               {t("settings.title")}
             </div>
             {CATEGORY_DEFS.map((entry) => {
@@ -57,7 +57,7 @@ export function SettingsDialog({
                   type="button"
                   aria-current={active ? "true" : undefined}
                   onClick={() => setCategory(entry.id)}
-                  className={`flex h-11 items-center gap-3 rounded-xl px-3 text-[15px] font-medium transition-colors ${
+                  className={`flex h-11 items-center gap-3 rounded-xl px-3 text-[0.9375rem] font-medium transition-colors ${
                     active
                       ? "bg-muted text-foreground"
                       : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
@@ -71,7 +71,7 @@ export function SettingsDialog({
           </nav>
 
           <div className="min-w-0 flex-1 overflow-y-auto p-6">
-            <h2 className="mb-1 font-heading text-[20px] font-semibold tracking-tight">
+            <h2 className="mb-1 font-heading text-[1.25rem] font-semibold tracking-tight">
               {t(CATEGORY_DEFS.find((c) => c.id === category)!.key)}
             </h2>
             <div className="mt-3">

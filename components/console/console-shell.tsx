@@ -17,6 +17,7 @@ import type {
 } from "@/lib/console/types"
 import { matchesStatusFilter } from "@/lib/console/types"
 import { ConsoleLoading } from "@/components/console/console-loading"
+import { BubbleboxLogo } from "@/components/console/bubblebox-logo"
 import { AppSidebar } from "@/components/console/app-sidebar"
 import { FleetRail } from "@/components/console/fleet-rail"
 import { MapView } from "@/components/console/map-view"
@@ -124,7 +125,7 @@ export function ConsoleShell({ onChangeCode }: { onChangeCode: () => void }) {
 
       <main className="relative min-w-0 flex-1">
         {error ? (
-          <div className="absolute top-4 left-1/2 z-20 flex -translate-x-1/2 items-center gap-3 rounded-2xl border border-destructive/40 bg-card px-5 py-3 text-[15px] shadow-md">
+          <div className="absolute top-4 left-1/2 z-20 flex -translate-x-1/2 items-center gap-3 rounded-2xl border border-destructive/40 bg-card px-5 py-3 text-[0.9375rem] shadow-md">
             <span className="text-destructive">{error}</span>
             <Button variant="outline" size="sm" onClick={onChangeCode}>
               {t("shell.changeCode")}
@@ -165,8 +166,11 @@ export function ConsoleShell({ onChangeCode }: { onChangeCode: () => void }) {
 
 function EmptyMain({ label }: { label: string }) {
   return (
-    <div className="flex h-full w-full items-center justify-center">
-      <p className="text-sm text-muted-foreground">{label}</p>
+    <div className="flex h-full w-full flex-col items-center justify-center gap-4">
+      <div className="flex size-16 items-center justify-center rounded-2xl bg-muted">
+        <BubbleboxLogo className="size-8 text-muted-foreground" />
+      </div>
+      <p className="text-[0.9375rem] text-muted-foreground">{label}</p>
     </div>
   )
 }

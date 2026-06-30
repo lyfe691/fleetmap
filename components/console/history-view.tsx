@@ -16,11 +16,11 @@ export function HistoryView() {
   const trips = assumedHistory()
   return (
     <div className="h-full overflow-y-auto">
-      <div className="mx-auto max-w-[860px] px-8 pt-7 pb-12">
-        <h2 className="font-heading text-[28px] font-semibold tracking-tight">
+      <div className="mx-auto max-w-[53.75rem] px-8 pt-7 pb-12">
+        <h2 className="font-heading text-[1.75rem] font-semibold tracking-tight">
           {t("history.title")}
         </h2>
-        <p className="mt-1.5 text-[15px] text-muted-foreground">
+        <p className="mt-1.5 text-[0.9375rem] text-muted-foreground">
           {t("history.subtitle")}
         </p>
         <PlaceholderNote className="mt-1" textKey="placeholder.orders" />
@@ -39,7 +39,7 @@ function TripRow({ trip }: { trip: AssumedTrip }) {
   const t = useTranslations()
   const delivered = trip.status === "Delivered"
   return (
-    <div className="flex items-center gap-4 rounded-2xl border border-border bg-card px-6 py-5 shadow-md">
+    <div className="flex items-center gap-4 rounded-2xl border border-border bg-card px-6 py-5 shadow-[var(--shadow-card)]">
       <div
         className={`flex size-12 shrink-0 items-center justify-center rounded-[14px] ${
           delivered ? "bg-success/15 text-success" : "bg-warning/15 text-warning-strong"
@@ -50,16 +50,16 @@ function TripRow({ trip }: { trip: AssumedTrip }) {
 
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-3">
-          <span className="font-mono text-[16px] font-semibold">{trip.reg}</span>
+          <span className="font-mono text-[1rem] font-semibold">{trip.reg}</span>
           <span
-            className={`rounded-full px-2.5 py-0.5 text-[13px] font-semibold ${
+            className={`rounded-full px-2.5 py-0.5 text-[0.8125rem] font-semibold ${
               delivered ? "bg-success/15 text-success" : "bg-warning/15 text-warning-strong"
             }`}
           >
             {t(STATUS_KEY[trip.status])}
           </span>
         </div>
-        <div className="mt-1.5 flex items-center gap-2 text-[15px] text-muted-foreground">
+        <div className="mt-1.5 flex items-center gap-2 text-[0.9375rem] text-muted-foreground">
           <span className="truncate">{trip.origin}</span>
           <ArrowRight className="size-[18px] shrink-0" />
           <span className="truncate font-medium text-foreground">{trip.dest}</span>
@@ -67,10 +67,10 @@ function TripRow({ trip }: { trip: AssumedTrip }) {
       </div>
 
       <div className="shrink-0 text-right">
-        <div className="font-mono text-[15px] font-semibold">
+        <div className="font-mono text-[0.9375rem] font-semibold">
           {t(trip.day)} · {trip.time}
         </div>
-        <div className="mt-1 text-[13px] text-muted-foreground">
+        <div className="mt-1 text-[0.8125rem] text-muted-foreground">
           {trip.duration} · {trip.distance}
         </div>
       </div>

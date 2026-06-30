@@ -108,7 +108,7 @@ export function PillTabs({
             whileTap={reduceMotion ? undefined : { scale: 0.96 }}
             className={cn(
               // TV-sized: comfortable tap target + readable from a distance.
-              "relative isolate flex-1 rounded-full px-5 py-3 text-[15px] font-semibold whitespace-nowrap outline-none transition-colors duration-200 ease-out select-none",
+              "relative isolate flex-1 rounded-full px-5 py-3 text-[0.9375rem] font-semibold whitespace-nowrap outline-none transition-colors duration-200 ease-out select-none",
               "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-muted",
               isActive
                 ? "text-foreground"

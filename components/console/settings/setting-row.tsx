@@ -17,9 +17,9 @@ export function SettingRow({
   return (
     <label className="flex cursor-pointer items-center justify-between gap-4 border-b border-border py-4 transition-colors last:border-0 active:bg-muted/40">
       <div className="min-w-0">
-        <div className="text-[15px] font-medium text-foreground">{title}</div>
+        <div className="text-[0.9375rem] font-medium text-foreground">{title}</div>
         {description ? (
-          <div className="mt-0.5 text-[13px] text-muted-foreground">
+          <div className="mt-0.5 text-[0.8125rem] text-muted-foreground">
             {description}
           </div>
         ) : null}

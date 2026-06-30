@@ -24,11 +24,13 @@ type MapColors = {
 export function mapColors(theme: MapTheme): MapColors {
   if (theme === "dark") {
     return {
-      route: "#ededed",
+      // Remaining route is the brand teal (lifted for dark tiles); the traveled
+      // portion stays neutral grey so progress still reads as colour → grey.
+      route: "#34d3df",
       routeCasing: "#34343a",
       traveled: "#8f8f93",
       pickup: "#34d399",
-      dropoff: "#818cf8",
+      dropoff: "#cbd5e1",
       vehicleOnRoute: "#34d399",
       vehicleWaiting: "#fbbf24",
       vehicleStale: "#8f8f93",
@@ -36,11 +38,11 @@ export function mapColors(theme: MapTheme): MapColors {
     }
   }
   return {
-    route: "#1f1f23",
+    route: "#1bbecd",
     routeCasing: "#ffffff",
     traveled: "#9a9a9f",
     pickup: "#16a34a",
-    dropoff: "#6366f1",
+    dropoff: "#475569",
     vehicleOnRoute: "#16a34a",
     vehicleWaiting: "#d97706",
     vehicleStale: "#9ca3af",
