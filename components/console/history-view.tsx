@@ -67,7 +67,9 @@ function TripRow({ trip }: { trip: AssumedTrip }) {
       </div>
 
       <div className="shrink-0 text-right">
-        <div className="font-mono text-[15px] font-semibold">{trip.date}</div>
+        <div className="font-mono text-[15px] font-semibold">
+          {t(trip.day)} · {trip.time}
+        </div>
         <div className="mt-1 text-[13px] text-muted-foreground">
           {trip.duration} · {trip.distance}
         </div>

@@ -77,7 +77,7 @@ function SummaryCard({
           onClick={onClose}
           aria-label={t("card.viewAll")}
           title={t("card.viewAll")}
-          className="-mt-1 -mr-1.5 flex size-10 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          className="-mt-1 -mr-1.5 flex size-11 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground active:bg-muted active:text-foreground"
         >
           <X className="size-5" />
         </button>

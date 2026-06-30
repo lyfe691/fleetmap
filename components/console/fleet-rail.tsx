@@ -77,7 +77,7 @@ export function FleetRail({
             type="button"
             onClick={onToggleCollapse}
             aria-label={t("rail.collapsePanel")}
-            className="-mt-1 -mr-1.5 flex size-10 shrink-0 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            className="-mt-1 -mr-1.5 flex size-11 shrink-0 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-muted hover:text-foreground active:bg-muted active:text-foreground"
           >
             <ChevronsLeft className="size-5" />
           </button>

@@ -147,6 +147,25 @@
     }
   html {
     @apply font-sans;
+    /* Kiosk touch surface: no blue/grey flash when a finger taps a control. */
+    -webkit-tap-highlight-color: transparent;
+    }
+  /* Touchscreen TV: chrome isn't selectable text — a long-press shouldn't drag a
+     selection out of a button or label. Re-enabled below for real text entry.
+     Scoped to UI elements (not `*`) so the MapLibre canvas keeps its own gesture
+     handling untouched. */
+  :where(button, [role="button"], a, label, h1, h2, h3, h4, p, span, time) {
+    user-select: none;
+    -webkit-user-select: none;
+    }
+  :where(input, textarea, [contenteditable]) {
+    user-select: text;
+    -webkit-user-select: text;
+    }
+  /* Faster taps + no accidental double-tap zoom on controls. Deliberately NOT on
+     the map: its canvas needs the default touch-action for pinch/pan. */
+  :where(button, [role="button"], a, [role="tab"]) {
+    touch-action: manipulation;
     }
   :where(button, [role="button"], a, input, select, textarea):focus-visible {
     outline: 2px solid var(--ring);

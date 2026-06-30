@@ -83,18 +83,21 @@ export type AssumedTrip = {
   status: "Delivered" | "Delayed"
   origin: string
   dest: string
-  date: string
+  // Relative-day translation key + clock time, composed in the view so the date
+  // localizes (de-CH shows "Heute"/"Gestern", not a hardcoded "Today").
+  day: "history.today" | "history.yesterday"
+  time: string
   duration: string
   distance: string
 }
 
 export function assumedHistory(): AssumedTrip[] {
   return [
-    { id: "h1", reg: "ZH 48201", status: "Delivered", origin: "Zürich depot", dest: "Oerlikon", date: "Today · 11:20", duration: "42 min", distance: "11.4 km" },
-    { id: "h2", reg: "ZH 71663", status: "Delivered", origin: "Zürich depot", dest: "Altstetten", date: "Today · 10:05", duration: "38 min", distance: "9.1 km" },
-    { id: "h3", reg: "BE 30948", status: "Delayed", origin: "Bern depot", dest: "Köniz", date: "Today · 09:32", duration: "1 h 06 min", distance: "14.7 km" },
-    { id: "h4", reg: "ZH 55012", status: "Delivered", origin: "Zürich depot", dest: "Wiedikon", date: "Today · 08:48", duration: "29 min", distance: "7.3 km" },
-    { id: "h5", reg: "BS 11784", status: "Delivered", origin: "Basel depot", dest: "Kleinbasel", date: "Yesterday · 17:14", duration: "51 min", distance: "12.9 km" },
-    { id: "h6", reg: "BE 41220", status: "Delayed", origin: "Bern depot", dest: "Bümpliz", date: "Yesterday · 16:02", duration: "1 h 12 min", distance: "16.2 km" },
+    { id: "h1", reg: "ZH 48201", status: "Delivered", origin: "Zürich depot", dest: "Oerlikon", day: "history.today", time: "11:20", duration: "42 min", distance: "11.4 km" },
+    { id: "h2", reg: "ZH 71663", status: "Delivered", origin: "Zürich depot", dest: "Altstetten", day: "history.today", time: "10:05", duration: "38 min", distance: "9.1 km" },
+    { id: "h3", reg: "BE 30948", status: "Delayed", origin: "Bern depot", dest: "Köniz", day: "history.today", time: "09:32", duration: "1 h 06 min", distance: "14.7 km" },
+    { id: "h4", reg: "ZH 55012", status: "Delivered", origin: "Zürich depot", dest: "Wiedikon", day: "history.today", time: "08:48", duration: "29 min", distance: "7.3 km" },
+    { id: "h5", reg: "BS 11784", status: "Delivered", origin: "Basel depot", dest: "Kleinbasel", day: "history.yesterday", time: "17:14", duration: "51 min", distance: "12.9 km" },
+    { id: "h6", reg: "BE 41220", status: "Delayed", origin: "Bern depot", dest: "Bümpliz", day: "history.yesterday", time: "16:02", duration: "1 h 12 min", distance: "16.2 km" },
   ]
 }

@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from "react"
 import { Marker } from "react-map-gl/maplibre"
+import { useTranslations } from "@/lib/i18n"
 
 const STALE_AFTER_MS = 30_000
 
@@ -95,6 +96,7 @@ export const VehicleMarker = memo(function VehicleMarker({
   fill: string
   heading: number | null
 }) {
+  const t = useTranslations()
   const w = selected ? 56 : 46
   return (
     <div
@@ -129,7 +131,7 @@ export const VehicleMarker = memo(function VehicleMarker({
       {label ? (
         <span className="absolute top-full left-1/2 mt-1.5 flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-surface px-2.5 py-1 text-[12px] leading-none font-semibold whitespace-nowrap text-foreground shadow-md">
           <span className="size-2 shrink-0 rounded-full" style={{ background: fill }} />
-          {stale ? `${label} · stale` : label}
+          {stale ? `${label} · ${t("rail.stale")}` : label}
         </span>
       ) : null}
     </div>
