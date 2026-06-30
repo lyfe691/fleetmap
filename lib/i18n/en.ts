@@ -61,6 +61,7 @@ export const en = {
   "card.stale": "stale",
   "status.onRoute": "On Route",
   "status.waiting": "Waiting",
+  "status.stale": "Stale",
   "placeholder.telematics": "Placeholder data — pending a vehicle telematics feed.",
   "placeholder.orders": "Placeholder data — pending the orders/deliveries model.",
   "tab.Overview": "Overview",
@@ -87,8 +88,12 @@ export const en = {
   "history.subtitle": "Completed deliveries, most recent first",
   "history.status.delivered": "Delivered",
   "history.status.delayed": "Delayed",
+  "history.today": "Today",
+  "history.yesterday": "Yesterday",
   "map.zoomIn": "Zoom in",
   "map.zoomOut": "Zoom out",
+  "map.enterFullscreen": "Enter fullscreen",
+  "map.exitFullscreen": "Exit fullscreen",
 } as const
 
 export type TranslationKey = keyof typeof en

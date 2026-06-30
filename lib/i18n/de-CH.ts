@@ -63,6 +63,7 @@ export const deCH: Record<TranslationKey, string> = {
   "card.stale": "veraltet",
   "status.onRoute": "Unterwegs",
   "status.waiting": "Wartend",
+  "status.stale": "Veraltet",
   "placeholder.telematics": "Platzhalterdaten — warte auf Telematikdaten.",
   "placeholder.orders": "Platzhalterdaten — warte auf Auftrags-/Lieferungsmodell.",
   "tab.Overview": "Übersicht",
@@ -89,6 +90,10 @@ export const deCH: Record<TranslationKey, string> = {
   "history.subtitle": "Abgeschlossene Lieferungen, neueste zuerst",
   "history.status.delivered": "Zugestellt",
   "history.status.delayed": "Verzögert",
+  "history.today": "Heute",
+  "history.yesterday": "Gestern",
   "map.zoomIn": "Vergrössern",
   "map.zoomOut": "Verkleinern",
+  "map.enterFullscreen": "Vollbild",
+  "map.exitFullscreen": "Vollbild beenden",
 }

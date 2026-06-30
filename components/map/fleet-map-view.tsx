@@ -218,6 +218,7 @@ export function FleetMapView({
 }
 
 function FullscreenButton() {
+  const t = useTranslations()
   const [fs, setFs] = useState(false)
   useEffect(() => {
     const onChange = () => setFs(Boolean(document.fullscreenElement))
@@ -227,7 +228,7 @@ function FullscreenButton() {
   return (
     <button
       type="button"
-      aria-label={fs ? "Exit fullscreen" : "Enter fullscreen"}
+      aria-label={fs ? t("map.exitFullscreen") : t("map.enterFullscreen")}
       onClick={() => {
         if (document.fullscreenElement) void document.exitFullscreen()
         else void document.documentElement.requestFullscreen()
@@ -270,11 +271,12 @@ function ZoomControls({
 }
 
 function MapLegend() {
+  const t = useTranslations()
   return (
-    <div className="absolute bottom-5 left-5 z-10 flex gap-5 rounded-2xl border border-border bg-surface/85 px-5 py-3.5 text-[14px] font-medium shadow-md backdrop-blur">
-      <LegendDot className="bg-success" label="On Route" />
-      <LegendDot className="bg-warning" label="Waiting" />
-      <LegendDot className="bg-muted-foreground" label="Stale" />
+    <div className="absolute bottom-5 left-5 z-10 flex gap-5 rounded-2xl border border-border bg-surface/85 px-5 py-3.5 text-[15px] font-medium shadow-md backdrop-blur">
+      <LegendDot className="bg-success" label={t("status.onRoute")} />
+      <LegendDot className="bg-warning" label={t("status.waiting")} />
+      <LegendDot className="bg-muted-foreground" label={t("status.stale")} />
     </div>
   )
 }
@@ -282,7 +284,7 @@ function MapLegend() {
 function LegendDot({ className, label }: { className: string; label: string }) {
   return (
     <span className="flex items-center gap-2">
-      <span className={`size-3 rounded-full ${className}`} />
+      <span className={`size-3.5 rounded-full ${className}`} />
       {label}
     </span>
   )
