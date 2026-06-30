@@ -43,6 +43,10 @@ const SECTIONS: readonly SectionDef[] = [
   { id: "cargo", label: "tab.Cargo" },
 ]
 const SECTION_IDS = SECTIONS.map((s) => s.id)
+// Approximate sticky-nav height — the section scroll offset and the "current"
+// line both key off it. A plain constant on purpose; at larger scaled font sizes
+// the nav is a touch taller, which only nudges the active line slightly.
+const NAV_OFFSET = 88
 
 const spring = {
   type: "spring",
@@ -62,23 +66,7 @@ export function TrackingView({
 }) {
   const t = useTranslations()
   const scrollRef = useRef<HTMLDivElement>(null)
-  const navRef = useRef<HTMLDivElement>(null)
-  // Measure the sticky nav so the active-section line + scroll offsets follow its
-  // real height. It's rem-based, so it grows with the root font-size on a big TV
-  // — a hardcoded px offset would drift and highlight the wrong section.
-  const [navH, setNavH] = useState(76)
-  useEffect(() => {
-    const el = navRef.current
-    if (!el) return
-    const measure = () => setNavH(el.offsetHeight)
-    measure()
-    const ro = new ResizeObserver(measure)
-    ro.observe(el)
-    return () => ro.disconnect()
-  }, [])
-  // The "current" line sits just below the nav; clicked sections land here too.
-  const offset = navH + 12
-  const active = useScrollSpy(scrollRef, vehicle.id, offset)
+  const active = useScrollSpy(scrollRef, vehicle.id)
 
   // Switching vehicles resets to the top — the previous scroll position carries
   // no meaning for a different van.
@@ -90,11 +78,7 @@ export function TrackingView({
   }, [vehicle.id])
 
   return (
-    <div
-      ref={scrollRef}
-      className="h-full overflow-y-auto scroll-smooth"
-      style={{ scrollPaddingTop: offset }}
-    >
+    <div ref={scrollRef} className="h-full overflow-y-auto scroll-smooth">
       <div className="mx-auto max-w-[75rem] px-8 pb-16">
         <header className="flex flex-wrap items-center justify-between gap-4 pt-7">
           <div className="min-w-0">
@@ -118,7 +102,7 @@ export function TrackingView({
           </button>
         </header>
 
-        <SectionNav active={active} navRef={navRef} />
+        <SectionNav active={active} />
 
         <Section id="overview" title={t("tab.Overview")}>
           <OverviewBody vehicle={vehicle} live={live} />
@@ -126,11 +110,7 @@ export function TrackingView({
         <Section id="vehicle" title={t("tab.Vehicle")}>
           <VehicleBody vehicle={vehicle} />
         </Section>
-        <Section
-          id="cargo"
-          title={t("tab.Cargo")}
-          fill={`calc(100vh - ${navH}px)`}
-        >
+        <Section id="cargo" title={t("tab.Cargo")} fill>
           <CargoBody vehicle={vehicle} />
         </Section>
       </div>
@@ -142,12 +122,11 @@ export function TrackingView({
 // A rAF-throttled scroll listener is simpler and more predictable here than an
 // IntersectionObserver with hand-tuned rootMargins. The last section's min-height
 // (see <Section fill>) guarantees it can scroll up to the line, so this plain rule
-// lands on it too — no special-casing the end of the scroll. `offset` is the live
-// nav height (re-inits on resize/scaling); `resetKey` re-inits on vehicle change.
+// lands on it too — no special-casing the end of the scroll. `resetKey` re-inits
+// it when the selected vehicle changes.
 function useScrollSpy(
   scrollRef: React.RefObject<HTMLDivElement | null>,
-  resetKey: string,
-  offset: number
+  resetKey: string
 ) {
   const [active, setActive] = useState(SECTION_IDS[0])
   useEffect(() => {
@@ -156,7 +135,7 @@ function useScrollSpy(
     let raf = 0
     const compute = () => {
       raf = 0
-      const line = root.getBoundingClientRect().top + offset
+      const line = root.getBoundingClientRect().top + NAV_OFFSET
       let current = SECTION_IDS[0]
       for (const id of SECTION_IDS) {
         const el = document.getElementById(id)
@@ -173,17 +152,11 @@ function useScrollSpy(
       root.removeEventListener("scroll", onScroll)
       if (raf) cancelAnimationFrame(raf)
     }
-  }, [scrollRef, resetKey, offset])
+  }, [scrollRef, resetKey])
   return active
 }
 
-function SectionNav({
-  active,
-  navRef,
-}: {
-  active: string
-  navRef: React.RefObject<HTMLDivElement | null>
-}) {
+function SectionNav({ active }: { active: string }) {
   const t = useTranslations()
   const reduceMotion = useReducedMotion()
   const layoutId = useId()
@@ -196,10 +169,7 @@ function SectionNav({
   }
 
   return (
-    <div
-      ref={navRef}
-      className="sticky top-0 z-40 -mx-8 mt-7 border-b border-border/60 bg-background/80 px-8 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/70"
-    >
+    <div className="sticky top-0 z-40 -mx-8 mt-7 border-b border-border/60 bg-background/80 px-8 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/70">
       <nav
         aria-label={t("tracking.tabList")}
         className="inline-flex items-center rounded-full bg-muted p-1"
@@ -251,17 +221,15 @@ function Section({
   children: ReactNode
   // The last section is shorter than the viewport, so on its own it can't scroll
   // its top up under the nav — the jump lands short and the previous section
-  // stays on screen. Pass a min-height (~one viewport minus the nav) to give it
-  // the room to reach the top, which also makes the scroll-spy land on it. The
-  // scroll offset itself is handled by the container's scroll-padding-top.
-  fill?: string
+  // stays on screen. A min-height of ~one viewport gives it the room to reach the
+  // top, which also makes the scroll-spy land on it naturally.
+  fill?: boolean
 }) {
   return (
     <section
       id={id}
       aria-labelledby={`${id}-heading`}
-      className="pt-9"
-      style={fill ? { minHeight: fill } : undefined}
+      className={cn("scroll-mt-[88px] pt-9", fill && "min-h-[calc(100vh-5rem)]")}
     >
       <h3
         id={`${id}-heading`}
