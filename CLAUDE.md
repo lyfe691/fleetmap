@@ -55,8 +55,9 @@ components/map/fleet-map-view.tsx MapLibre map: routes + circular status pins (r
 components/console/console-shell.tsx  3-region console (sidebar + fleet rail + main)
 components/console/{app-sidebar,fleet-rail,map-view,tracking-view,history-view}.tsx  console views
 components/console/settings/        settings dialog (appearance/accessibility/language) + sub-components
+app/page.tsx                root — redirects to /dashboard (landing page retired)
 app/dashboard/page.tsx      TV monitoring console (gate → ConsoleShell)
-app/driver/page.tsx         driver PWA — retired (folded into Roman's native Bubblebox app); route kept reference-only, home-page entry disabled
+app/driver/page.tsx         driver PWA — retired (folded into Roman's native Bubblebox app); route kept reference-only
 lib/supabase/driver.ts      driver client (persistent session)
 supabase/migrations/        SQL migrations
 scripts/cities.ts           dev-only multi-city config — areas + per-city demo orders
@@ -137,7 +138,7 @@ It writes into the shared Supabase, so a fake van and a real driver in the same 
 
 - [x] **M1 — pipe:** schema + `POST /api/location` + fake-GPS poster.
 - [x] **M2 — see it move:** dashboard map + Realtime subscription + markers updating live off the fake feed.
-- [x] **M3 — driver PWA:** auth + watchPosition + wake lock + POST loop + offline buffer. (Retired: the driver client moved to Roman's native Bubblebox app; the web `/driver` route + `components/driver/*` + the driver `lib/` hooks stay as reference for that port. Home-page entry disabled; manifest repointed to `/dashboard`.)
+- [x] **M3 — driver PWA:** auth + watchPosition + wake lock + POST loop + offline buffer. (Retired: the driver client moved to Roman's native Bubblebox app; the web `/driver` route + `components/driver/*` + the driver `lib/` hooks stay as reference for that port. Landing page later removed entirely — `/` redirects to `/dashboard`, which the manifest also targets.)
 - [x] **M4 — routing:** OSRM container (`docker-compose.yml`) + `GET /api/route` proxy + click-to-route + ETA.
 - [x] **M5 — polish:** smooth marker interpolation, offline/stale flags, TV kiosk mode (fullscreen + session refresh), column-scoped read (`vehicles_public`).
 - [x] **M6 — order/stop model + ingestion seam:** orders/stops schema + RLS + Realtime, dispatcher identity, POST /api/ingest/routes, seed-stops adapter. The ingestion seam is now full CRUD: create/update via `POST /api/ingest/routes`, delete via `DELETE /api/ingest/routes/:external_ref?source=…` (keyed by `(source, external_ref)`; stops cascade and the TV evicts them via Realtime).
