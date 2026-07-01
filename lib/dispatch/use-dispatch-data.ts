@@ -2,19 +2,9 @@
 
 import { useCallback, useEffect, useState } from "react"
 import type { SupabaseClient } from "@supabase/supabase-js"
+import type { Stop } from "@/lib/use-live-stops"
 
-export type DispatchStop = {
-  id: string
-  order_id: string
-  vehicle_id: string | null
-  stop_type: "pickup" | "dropoff"
-  seq: number
-  lat: number
-  lng: number
-  address: string | null
-  status: string
-  eta_at: string | null
-}
+export type DispatchStop = Stop & { order_id: string; address: string | null }
 
 export type DispatchOrder = {
   id: string
@@ -33,6 +23,11 @@ export type DispatchVehicle = { id: string; label: string | null }
  * order + its stops (dispatcher RLS is full-read on both, no status filter —
  * `orders.status` never advances past 'assigned' today, per M9's deliberate
  * scope cut, so filtering by it would just be dead code).
+ *
+ * Vehicles are static reference data in this console (nothing here ever
+ * mutates one) and are fetched once; only `orders` is refetched after a
+ * mutation, so a single-stop status change doesn't also re-pull the vehicle
+ * list or blank a part of the screen that didn't change.
  */
 export function useDispatchData(supabase: SupabaseClient) {
   const [vehicles, setVehicles] = useState<DispatchVehicle[]>([])
@@ -40,29 +35,39 @@ export function useDispatchData(supabase: SupabaseClient) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  useEffect(() => {
+    let cancelled = false
+    void supabase
+      .from("vehicles")
+      .select("id, label")
+      .order("label")
+      .then(({ data, error: vehiclesError }) => {
+        if (cancelled) return
+        if (vehiclesError) {
+          setError(vehiclesError.message)
+          return
+        }
+        setVehicles((data ?? []) as DispatchVehicle[])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [supabase])
+
   const refresh = useCallback(async () => {
     setLoading(true)
     setError(null)
-    const [vehiclesRes, ordersRes] = await Promise.all([
-      supabase.from("vehicles").select("id, label").order("label"),
-      supabase
-        .from("orders")
-        .select("id, external_ref, source, customer_name, status, scheduled_date, stops(*)")
-        .order("created_at", { ascending: false }),
-    ])
-    if (vehiclesRes.error) {
-      setError(vehiclesRes.error.message)
+    const { data, error: ordersError } = await supabase
+      .from("orders")
+      .select("id, external_ref, source, customer_name, status, scheduled_date, stops(*)")
+      .order("created_at", { ascending: false })
+    if (ordersError) {
+      setError(ordersError.message)
       setLoading(false)
       return
     }
-    if (ordersRes.error) {
-      setError(ordersRes.error.message)
-      setLoading(false)
-      return
-    }
-    setVehicles((vehiclesRes.data ?? []) as DispatchVehicle[])
     setOrders(
-      ((ordersRes.data ?? []) as unknown as DispatchOrder[]).map((o) => ({
+      ((data ?? []) as unknown as DispatchOrder[]).map((o) => ({
         ...o,
         stops: [...o.stops].sort((a, b) => a.seq - b.seq),
       }))

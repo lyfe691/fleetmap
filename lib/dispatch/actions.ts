@@ -9,13 +9,31 @@ async function readError(res: Response): Promise<string> {
     : `request failed (${res.status})`
 }
 
+/** Bearer-authed fetch against one of this app's own API routes. */
+async function authedFetch(
+  url: string,
+  accessToken: string,
+  init?: RequestInit
+): Promise<ActionResult> {
+  const res = await fetch(url, {
+    ...init,
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      ...(init?.body ? { "Content-Type": "application/json" } : null),
+      ...init?.headers,
+    },
+  })
+  if (!res.ok) return { ok: false, error: await readError(res) }
+  return { ok: true }
+}
+
 /**
  * Create a brand-new manual order (one pickup stop). Goes through the real
  * ingestion contract (POST /api/ingest/routes) — safe here because there's
  * nothing existing to clobber. external_ref is generated client-side since
  * this order has no external system of record.
  */
-export async function createOrder(opts: {
+export function createOrder(opts: {
   accessToken: string
   customerName: string | null
   scheduledDate: string | null
@@ -26,12 +44,8 @@ export async function createOrder(opts: {
   etaAt: string | null
   seq: number
 }): Promise<ActionResult> {
-  const res = await fetch("/api/ingest/routes", {
+  return authedFetch("/api/ingest/routes", opts.accessToken, {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${opts.accessToken}`,
-      "Content-Type": "application/json",
-    },
     body: JSON.stringify({
       routes: [
         {
@@ -54,8 +68,6 @@ export async function createOrder(opts: {
       ],
     }),
   })
-  if (!res.ok) return { ok: false, error: await readError(res) }
-  return { ok: true }
 }
 
 /**
@@ -90,33 +102,26 @@ export async function addReturnStop(opts: {
 }
 
 /** Cancel (hard-delete) a whole order — stops cascade, the TV evicts them. */
-export async function cancelOrder(opts: {
+export function cancelOrder(opts: {
   accessToken: string
   source: string
   externalRef: string
 }): Promise<ActionResult> {
-  const res = await fetch(
+  return authedFetch(
     `/api/ingest/routes/${encodeURIComponent(opts.externalRef)}?source=${encodeURIComponent(opts.source)}`,
-    { method: "DELETE", headers: { Authorization: `Bearer ${opts.accessToken}` } }
+    opts.accessToken,
+    { method: "DELETE" }
   )
-  if (!res.ok) return { ok: false, error: await readError(res) }
-  return { ok: true }
 }
 
 /** Status override or reassign (vehicle_id/seq) on one stop. */
-export async function patchStop(opts: {
+export function patchStop(opts: {
   accessToken: string
   stopId: string
   patch: Record<string, unknown>
 }): Promise<ActionResult> {
-  const res = await fetch(`/api/stops/${opts.stopId}`, {
+  return authedFetch(`/api/stops/${opts.stopId}`, opts.accessToken, {
     method: "PATCH",
-    headers: {
-      Authorization: `Bearer ${opts.accessToken}`,
-      "Content-Type": "application/json",
-    },
     body: JSON.stringify(opts.patch),
   })
-  if (!res.ok) return { ok: false, error: await readError(res) }
-  return { ok: true }
 }

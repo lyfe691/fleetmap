@@ -35,8 +35,9 @@ components/dispatch/order-form.tsx    new-order screen: customer/date/window/van
 components/dispatch/orders-list.tsx   orders screen: add return, cancel, reassign, status override
 components/dispatch/pin-map.tsx       small click-to-place map (order-intake location, not FleetMapView)
 lib/supabase/dispatcher.ts            dispatcher browser client (persistent session, human login)
-lib/dispatch/use-dispatch-data.ts     dispatcher's read model (vehicles + orders/stops, next-seq calc)
-lib/dispatch/actions.ts               dispatcher mutations (create/add-return/cancel/patch-stop)
+lib/dispatch/use-dispatch-data.ts     dispatcher's read model (vehicles fetched once, orders/stops refetched on mutation, next-seq calc)
+lib/dispatch/actions.ts               dispatcher mutations (create/add-return/cancel/patch-stop) via shared authedFetch
+lib/dispatch/use-async-action.ts      shared busy/error/on-success hook for dispatch mutation buttons
 scripts/seed-stops.ts                dev-only ingestion adapter #1
 docker-compose.yml          OSRM routing container (Switzerland extract) — dev
 Dockerfile                  standalone Next image (prod build)

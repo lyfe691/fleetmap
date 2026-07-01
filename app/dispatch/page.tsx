@@ -1,9 +1,12 @@
 import { DispatchGate } from "@/components/dispatch/dispatch-gate"
+import { SettingsProvider } from "@/lib/settings/settings-provider"
 
 export default function DispatchPage() {
   return (
-    <main className="h-screen w-screen overflow-y-auto">
-      <DispatchGate />
-    </main>
+    <SettingsProvider>
+      <main className="min-h-screen w-screen">
+        <DispatchGate />
+      </main>
+    </SettingsProvider>
   )
 }
