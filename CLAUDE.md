@@ -29,6 +29,14 @@ app/api/dispatcher-session/route.ts  mint dispatcher session (shared secret)
 app/api/ingest/routes/route.ts                    ingestion seam — routes (POST create/update)
 app/api/ingest/routes/[external_ref]/route.ts     delete a route — DELETE (cascade stops)
 app/api/stops/[id]/route.ts          PATCH stop — dispatcher mutation (status/reassign/reorder)
+app/dispatch/page.tsx                 dispatcher console — order intake + management (gate → DispatchConsole)
+components/dispatch/dispatch-gate.tsx dispatcher session check → login form or console
+components/dispatch/order-form.tsx    new-order screen: customer/date/window/van + map-click location
+components/dispatch/orders-list.tsx   orders screen: add return, cancel, reassign, status override
+components/dispatch/pin-map.tsx       small click-to-place map (order-intake location, not FleetMapView)
+lib/supabase/dispatcher.ts            dispatcher browser client (persistent session, human login)
+lib/dispatch/use-dispatch-data.ts     dispatcher's read model (vehicles + orders/stops, next-seq calc)
+lib/dispatch/actions.ts               dispatcher mutations (create/add-return/cancel/patch-stop)
 scripts/seed-stops.ts                dev-only ingestion adapter #1
 docker-compose.yml          OSRM routing container (Switzerland extract) — dev
 Dockerfile                  standalone Next image (prod build)
@@ -55,7 +63,7 @@ components/map/fleet-map-view.tsx MapLibre map: routes + circular status pins (r
 components/console/console-shell.tsx  3-region console (sidebar + fleet rail + main)
 components/console/{app-sidebar,fleet-rail,map-view,tracking-view,history-view}.tsx  console views
 components/console/settings/        settings dialog (appearance/accessibility/language) + sub-components
-app/page.tsx                root — redirects to /dashboard (landing page retired)
+app/page.tsx                landing page — links to /dashboard and /dispatch (no auth of its own)
 app/dashboard/page.tsx      TV monitoring console (gate → ConsoleShell)
 supabase/migrations/        SQL migrations
 scripts/cities.ts           dev-only multi-city config — areas + per-city demo orders
@@ -79,7 +87,7 @@ Then from the project root: `pnpm add @supabase/supabase-js`, `pnpm add -D tsx`,
 
 ## Data model
 
-- `vehicles` — one row per tracked unit, holds the latest position (`last_lat/lng/heading/speed`, `last_seen_at`, `status`) and a nullable dispatcher-set `dest_lat/lng`. One vehicle per driver (`assigned_user_id`, unique). Nullable `area_id` ties it to an operational area (0006).
+- `vehicles` — one row per tracked unit, holds the latest position (`last_lat/lng/heading/speed`, `last_seen_at`, `status`) and a nullable dispatcher-set `dest_lat/lng`. One vehicle per driver (`assigned_user_id`, unique). Nullable `area_id` ties it to an operational area (0006). Readable by drivers (own row), the dashboard role (all rows), and the dispatcher role (all rows, select-only, 0007 — populates the `/dispatch` van picker).
 - `vehicle_positions` — append-only history.
 - `operational_areas` — per-city service regions (`slug`, `name`, `center_lat/lng`, `radius_m`, `color`, optional `boundary` polygon). City reference data; `vehicles.area_id` and `stops.area_id` link into it (0006). (The console no longer renders area overlays — the table is the data model only.)
 
@@ -90,6 +98,7 @@ Then from the project root: `pnpm add @supabase/supabase-js`, `pnpm add -D tsx`,
 - **Auth + RLS is the security boundary.** App code accesses the DB as the authenticated user via `createUserClient(token)`, so RLS enforces ownership — the `.eq` filters are for clarity, not security. Every new table gets RLS enabled + explicit policies.
 - **Dashboard read path:** the TV reads via a dedicated `dashboard` Auth user carrying an `app_metadata.role='dashboard'` claim + a claim-scoped `select` policy on `vehicles`; its session is minted server-side (`POST /api/dashboard-session`) behind a display code — never anon read-all. The snapshot reads the column-scoped `vehicles_public` view (0003); the browser client auto-refreshes the session and re-arms Realtime auth on refresh (M5). Caveat: live updates still ride `postgres_changes` on `vehicles`, which requires the table `select` policy — so column-scoping bounds the snapshot, not the Realtime payload. The same is true of `stops`: the live channel ships the full row (incl. `address`/`order_id`, which the dashboard never renders) — a known exposure, bounded for now by the display-code gate + office network. The proper fix is moving customer PII off the realtime'd `stops` table (e.g. onto `orders`, already kept off Realtime) in a new migration.
 - **The dashboard is the monitoring console.** `app/dashboard` → display-code gate → `ConsoleShell` (`components/console/*`): a 3-region touchscreen layout (sidebar nav + fleet rail + tracking/map/history) on shadcn + next-themes light/dark. `components/map/fleet-map-view.tsx` is the reused, theme-aware map surface (`lib/map-theme.ts`) with circular status pins. Panels without a real source (load, fuel, cargo, history) use clearly-marked placeholders from `lib/console/assumed.ts` — replace at the seam when telematics/orders data lands.
+- **`/dispatch` is order intake, not route planning.** `app/dispatch` → `DispatchGate` (`components/dispatch/*`) → a real email/password login against the shared `dispatcher` Auth identity (`lib/supabase/dispatcher.ts`, persistent session — separate from the dashboard's deliberate display-token client). Two screens: a new-order form (customer + map-click location + van + date/window → `POST /api/ingest/routes`) and an orders list (add-return, cancel, reassign, status override). The dispatcher always picks the van — no auto-assignment, since real shop/locker/partner coverage rules aren't modeled. `seq` is always computed client-side as `max(existing seq for that vehicle) + 1` (`stops_vehicle_seq_unique` is scoped per vehicle, not per order). "Add return" is a **direct insert into `stops`**, not a second ingest POST — `ingest_stops` replace-sets (delete+reinsert) an order's whole stop list on every call and its insert never carries `status`, so re-POSTing an order with a completed pickup would silently reset it to `planned`.
 - **Operational areas are city reference data.** `operational_areas` (0006) + `area_id` on vehicles/stops model the multi-city fleet (read via the `dashboard` claim; `area_id` rides the `vehicles_public`/`stops_public` views). The dispatcher manages them and the seed scripts populate them. The console rebuild removed the map overlays + the `useOperationalAreas` hook — the table is data only now.
 - **The secret key (service-role-equivalent) is dev-only** (`scripts/`). Never use it in a request handler or ship it in a deployed image.
 - **i18n + settings:** All console chrome is translated via `useTranslations()` (`lib/i18n/`) with type-enforced de-CH key parity (`de-CH = Record<TranslationKey,string>`). Locale + a11y flags are per-device `localStorage` (`lib/settings/`); a11y flags ride `<html data-*>` attributes + CSS in `globals.css`.
@@ -145,7 +154,8 @@ It writes into the shared Supabase, so a fake van and a real driver in the same 
 - [x] **M9 — stop lifecycle:** server-side geofence auto-arrive in POST /api/location (two-radius hysteresis, next-stop-by-seq) + driver SELECT RLS (0005) + PATCH /api/stops/:id (dispatcher reassign/reorder/cancel/status); fake-gps drives only; adapter-2 stub.
 - [x] **M10 — multi-city + map UI:** `operational_areas` model + `area_id` on vehicles/stops + ingest seam carries `area_id` (0006); per-city overlays + legend + fit-to-fleet viewport + city-grouped side rail; cities config drives multi-van fake-gps + multi-city seed-stops. (The overlays + the old map dashboard were replaced in M11.)
 - [x] **M11 — touchscreen monitoring console:** rebuilt the dashboard from the Claude Design handoff as a 3-region console (`components/console/*`: sidebar + fleet rail + tracking/map/history) on shadcn + next-themes light/dark; theme-aware map (`lib/map-theme.ts`) with circular status pins; `ConsoleVehicle` data seam mapping real GPS/route/ETA with placeholder telematics/cargo/history (`lib/console/assumed.ts`). Removed the zone overlays + the old `FleetMap` shell.
-- Later: orders/deliveries model, auto-assigned dropoffs + status, route replay. ← next
+- [x] **M12 — dispatcher console + driver PWA cleanup + landing page:** the client (Bubble Box) has no order-export system, so the ingestion seam's manual path becomes permanent, not a stopgap — `app/dispatch` (`components/dispatch/*`): real login against the shared dispatcher identity, a new-order form (map-click location, van picker, date/window), and an orders list (add-return/cancel/reassign/status). New migration `0007` (dispatcher can read `vehicles`). Removed the dead web driver PWA (Roman's native Bubblebox app owns tracking now). Root (`app/page.tsx`) is a landing page again — two authenticated surfaces now exist. See `docs/specs/2026-07-01-dispatcher-console-design.md`.
+- Later: route replay from `vehicle_positions` (the History tab is still 100% placeholder), telematics integrate-or-drop decision. ← next
 
 ## Workflow
 
