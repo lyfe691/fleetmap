@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
 import { Spinner } from "@/components/ui/spinner"
 import { PinMap } from "@/components/dispatch/pin-map"
+import { useTranslations } from "@/lib/i18n"
 import { createOrder } from "@/lib/dispatch/actions"
 import type { DispatchVehicle } from "@/lib/dispatch/use-dispatch-data"
 
@@ -22,6 +23,7 @@ export function OrderForm({
   accessToken: string
   onCreated: () => void
 }) {
+  const t = useTranslations()
   const [customerName, setCustomerName] = useState("")
   const [vehicleId, setVehicleId] = useState(vehicles[0]?.id ?? "")
   const [date, setDate] = useState("")
@@ -75,30 +77,30 @@ export function OrderForm({
   }
 
   return (
-    <form onSubmit={onSubmit} className="grid h-full grid-cols-1 gap-6 lg:grid-cols-[22rem_1fr]">
-      <div className="flex flex-col gap-4 overflow-y-auto pr-1">
+    <form onSubmit={onSubmit} className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[22rem_1fr]">
+      <div className="flex flex-col gap-4">
         <Field>
-          <FieldLabel htmlFor="order-customer">Customer name</FieldLabel>
+          <FieldLabel htmlFor="order-customer">{t("dispatch.form.customerName")}</FieldLabel>
           <Input
             id="order-customer"
             value={customerName}
             onChange={(e) => setCustomerName(e.target.value)}
-            placeholder="e.g. Müller"
+            placeholder={t("dispatch.form.customerNamePlaceholder")}
           />
         </Field>
 
         <Field>
-          <FieldLabel htmlFor="order-address">Address label</FieldLabel>
+          <FieldLabel htmlFor="order-address">{t("dispatch.form.addressLabel")}</FieldLabel>
           <Input
             id="order-address"
             value={address}
             onChange={(e) => setAddress(e.target.value)}
-            placeholder="e.g. Bahnhofstrasse 1"
+            placeholder={t("dispatch.form.addressPlaceholder")}
           />
         </Field>
 
         <Field>
-          <FieldLabel htmlFor="order-van">Van</FieldLabel>
+          <FieldLabel htmlFor="order-van">{t("dispatch.form.van")}</FieldLabel>
           <NativeSelect
             id="order-van"
             value={vehicleId}
@@ -106,7 +108,7 @@ export function OrderForm({
             disabled={vehicles.length === 0}
           >
             {vehicles.length === 0 ? (
-              <NativeSelectOption value="">No vans available</NativeSelectOption>
+              <NativeSelectOption value="">{t("dispatch.form.noVans")}</NativeSelectOption>
             ) : null}
             {vehicles.map((v) => (
               <NativeSelectOption key={v.id} value={v.id}>
@@ -118,7 +120,7 @@ export function OrderForm({
 
         <div className="grid grid-cols-2 gap-3">
           <Field>
-            <FieldLabel htmlFor="order-date">Date</FieldLabel>
+            <FieldLabel htmlFor="order-date">{t("dispatch.form.date")}</FieldLabel>
             <Input
               id="order-date"
               type="date"
@@ -127,7 +129,7 @@ export function OrderForm({
             />
           </Field>
           <Field>
-            <FieldLabel htmlFor="order-time">Window start</FieldLabel>
+            <FieldLabel htmlFor="order-time">{t("dispatch.form.windowStart")}</FieldLabel>
             <Input
               id="order-time"
               type="time"
@@ -138,8 +140,10 @@ export function OrderForm({
         </div>
 
         <p className="text-sm text-muted-foreground">
-          Click the map to set the pickup location.{" "}
-          {pin ? `${pin.lat.toFixed(5)}, ${pin.lng.toFixed(5)}` : "No location set yet."}
+          {t("dispatch.form.mapHint")}{" "}
+          {pin
+            ? t("dispatch.form.locationSet", { lat: pin.lat.toFixed(5), lng: pin.lng.toFixed(5) })
+            : t("dispatch.form.noLocation")}
         </p>
 
         {error ? (
@@ -149,12 +153,12 @@ export function OrderForm({
         ) : null}
         {success ? (
           <Alert>
-            <AlertDescription>Order created.</AlertDescription>
+            <AlertDescription>{t("dispatch.form.success")}</AlertDescription>
           </Alert>
         ) : null}
 
         <Button type="submit" disabled={!canSubmit}>
-          {submitting ? <Spinner className="size-4" /> : "Create order"}
+          {submitting ? <Spinner className="size-4" /> : t("dispatch.form.submit")}
         </Button>
       </div>
 

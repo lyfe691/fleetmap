@@ -10,8 +10,12 @@ import { mapColors, mapStyleUrl, type MapTheme } from "@/lib/map-theme"
  * A small, focused click-to-place map for the dispatcher's order-intake form —
  * deliberately NOT FleetMapView, which is built around rendering a whole
  * fleet's live vehicles/routes and has no click affordance. This only needs
- * the shared tile style/theme (lib/map-theme.ts) and a single draggable-free
- * pin.
+ * the shared tile style/theme (lib/map-theme.ts) and a single pin.
+ *
+ * Height is a fixed, explicit class — never `h-full`. A percentage height
+ * only resolves if every ancestor up the tree has a definite height too; one
+ * broken link (e.g. a grid row below the `lg` breakpoint) silently collapses
+ * it. Fixed height always renders, on any layout.
  */
 export function PinMap({
   lat,
@@ -28,7 +32,7 @@ export function PinMap({
   const colors = useMemo(() => mapColors(theme), [theme])
 
   return (
-    <div className="h-full min-h-[20rem] w-full overflow-hidden rounded-2xl border border-border">
+    <div className="h-80 w-full overflow-hidden rounded-2xl border border-border lg:h-[28rem]">
       <MapGL
         initialViewState={{
           longitude: lng ?? 8.23,
