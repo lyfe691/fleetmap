@@ -1,10 +1,9 @@
 # What's Missing — from demo to a real, in-use fleet tool
 
-> Snapshot as of `6eff17b` (2026-07-01). Supersedes the `a6f303c` (2026-06-23)
-> snapshot, which predated the Dockerfile/prod deploy, the route-ingestion CRUD
-> rename, the driver PWA retirement, and the console redesign — several of its
-> "not built" items are done now. Re-verify against `git log` before trusting
-> this doc again; it goes stale fast.
+> Snapshot as of M12 (2026-07-01, commit range `8f3b661`..`HEAD`). Supersedes
+> the `6eff17b` (2026-07-01, pre-M12) snapshot — the dispatcher UI and the
+> driver PWA cleanup that snapshot listed as gaps are now done. Re-verify
+> against `git log` before trusting this doc again; it goes stale fast.
 >
 > Use it as a working checklist. Each item: **what**, **why** (with code/spec
 > evidence), a coarse **effort**, and a **first step**. Effort is rough — these
@@ -16,29 +15,27 @@
 
 | Status | Area |
 |---|---|
-| ✅ **Real & verified** | GPS ingest (`POST /api/location`), Supabase Realtime fan-out, live map + markers, routes + ETA (OSRM proxy), order/stop model with full ingestion CRUD (`POST`/`DELETE /api/ingest/routes`), dispatcher mutations + geofence auto-arrive (`PATCH /api/stops/[id]`), multi-city areas, the monitoring console (tracking / map / history / settings, i18n en-de-CH, accessibility), production deployment (Docker + Caddy TLS, live at `fleet.ysz.life`) |
+| ✅ **Real & verified** | GPS ingest (`POST /api/location`), Supabase Realtime fan-out, live map + markers, routes + ETA (OSRM proxy), order/stop model with full ingestion CRUD, dispatcher mutations + geofence auto-arrive, multi-city areas, the monitoring console (tracking / map / history / settings, i18n en-de-CH, accessibility), production deployment (Docker + Caddy TLS, live at `fleet.ysz.life`), **the dispatcher console** (`/dispatch` — real login, order intake with map-click location, orders list with add-return/cancel/reassign/status) verified end-to-end against the live Supabase project |
 | 🟡 **Placeholder data** | Telematics (fuel, odometer, cargo temp), cargo/manifest, **the entire History tab** — all from `lib/console/assumed.ts`, clearly marked in-UI |
-| 🔌 **Built, but no UI** | Dispatcher mutations (`PATCH /api/stops/[id]`, `POST /api/ingest/routes`) — reachable only via API + dev scripts, no screen; real driver onboarding — works via `scripts/provision-driver.ts` (secret key, must be run locally), no admin UI |
-| ❌ **Not built / blocked** | A real order source wired to the ingestion seam (**blocked on the client**, not on us — see "Decisions you need to make"); a dispatcher UI; route replay; telematics integration |
-| 🚚 **Moved out of scope** | Driver-facing screens — the driver client is now Roman's native Bubblebox app; the web `/driver` route + `components/driver/*` stay as reference-only |
+| 🔌 **Built, no dedicated UI** | Real driver onboarding — works via `scripts/provision-driver.ts` (secret key, must be run locally), no admin UI |
+| ❌ **Not built** | Route replay (real History); telematics integration |
+| 🚚 **Moved out of scope** | Driver-facing screens — the driver client is now Roman's native Bubblebox app; the web `/driver` route was removed (2026-07, see `docs/specs/2026-07-01-dispatcher-console-design.md`) |
 
-**The one-line read:** real-time, routing, the RLS security model, the order/stop
-data model, and deployment are all done. What's left is a **dispatcher-facing
-UI** and the pieces that depend on data we don't have yet (client's real order
-feed, telematics hardware).
+**The one-line read:** everything required to run and monitor real deliveries
+is done — real-time, routing, the RLS security model, the order/stop data
+model, deployment, and now order intake itself. What's left (items 7–8 below)
+is polish, not a blocker.
 
 ---
 
 ## Tier 1 — Go-live blockers
 
-- [x] **1. App container + HTTPS deployment** — **done.** `Dockerfile` (multi-stage
-  standalone Next build) + `docker-compose.prod.yml` (Caddy → app → OSRM) +
-  `caddy/Caddyfile`, documented end-to-end in `docs/deployment.md`. Live at
-  `https://fleet.ysz.life`.
+- [x] **1. App container + HTTPS deployment** — **done.** Live at
+  `https://fleet.ysz.life` (`Dockerfile` + `docker-compose.prod.yml` + Caddy,
+  `docs/deployment.md`).
 
-- [x] **2. Production OSRM** — **done.** Runs internal-only in
-  `docker-compose.prod.yml`; the Switzerland extract is built once per
-  `docs/deployment.md` §3 and persists across redeploys in `./osrm`.
+- [x] **2. Production OSRM** — **done.** Internal-only in
+  `docker-compose.prod.yml`, Switzerland extract persisted in `./osrm`.
 
 - [ ] **3. Real driver + vehicle onboarding**
   - **Why:** `scripts/provision-driver.ts` creates a real driver + vehicle
@@ -50,45 +47,33 @@ feed, telematics hardware).
   - **First step:** decide whether fleet size ever justifies a UI, or keep the
     script — it's not blocking anything today.
 
-- [ ] **4. Real order / stop ingestion**
-  - **Why:** the ingestion seam itself is **complete and tested** —
-    `POST /api/ingest/routes` (create/update, idempotent upsert by
-    `(source, external_ref)`), `DELETE /api/ingest/routes/:external_ref`, RLS,
-    Realtime, the TV's live consumption — all shipped, `tsc`/`vitest` clean, no
-    ingestion-touching commits since the CRUD rename (`41a721b`, 2026-06-29).
-    The only unbuilt piece is **adapter #2**
-    (`scripts/adapters/csv-to-stops.example.ts`), an explicit stub because the
-    client's real export format is still unknown.
-  - **Effort:** S–M (~1–3d), and only once the format is known — the API/DB
-    layer doesn't change.
-  - **First step:** get the answer from the client (see "Decisions you need to
-    make" #1 below); if the answer is "there is no real export," see #2.
+- [x] **4. Real order / stop ingestion** — **done.** The client (Bubble Box)
+  confirmed they have no order-export system to integrate against, so the
+  ingestion seam's manual path — always designed to be first-class
+  (`source: 'manual'`), never a stopgap — is now the permanent order source,
+  fronted by the dispatcher console (item 6, below). `scripts/adapters/csv-to-stops.example.ts`
+  stays as a reference stub in case an external feed ever does show up; the
+  contract doesn't change if it does.
 
 - [x] **5. Production secrets & config hygiene** — **mechanism done.**
-  `.env.example` documents every var (`DASHBOARD_*`, `DISPATCHER_*`,
-  `GEOFENCE_*`, `OSRM_URL`, etc.); `SUPABASE_SECRET_KEY` is structurally kept
-  out of the deployed image (never referenced in `Dockerfile`/`docker-compose.prod.yml`,
-  scripts-only by design). Rotating the *actual* live values for
-  `DISPATCHER_INGEST_SECRET`/`DASHBOARD_DISPLAY_CODE` from their dev-generated
-  originals is a one-time ops task on the VPS `.env`, not a code gap.
+  `.env.example` documents every var; `SUPABASE_SECRET_KEY` is structurally
+  kept out of the deployed image. Rotating the *actual* live
+  `DISPATCHER_INGEST_SECRET`/`DASHBOARD_DISPLAY_CODE` values is a one-time ops
+  task on the VPS `.env`, not a code gap.
 
 ---
 
-## Tier 2 — Close the operational loop (backend exists, UI doesn't)
+## Tier 2 — Close the operational loop
 
-- [ ] **6. Dispatcher UI** *(highest-value functional gap)*
-  - **Why:** `PATCH /api/stops/[id]` (reassign / reorder / cancel / set-status)
-    and `POST /api/ingest/routes` (create/update a route) both exist, are
-    dispatcher-authed, and are fully tested — but **nothing in
-    `components/console` calls either**. No one can dispatch or manually key in
-    a route from a screen; the console today is monitoring-only.
-  - **Effort:** M (~2–3d).
-  - **First step:** a dispatcher view (separate from the read-only TV console)
-    to create/assign/reorder stops per vehicle, backed by the existing
-    endpoints and dispatcher identity. **This is also the answer if the client
-    turns out to have no real order-export system** — `POST /api/ingest/routes`
-    already treats `source: 'manual'` as first-class, so this UI becomes the
-    permanent order-entry path, not a stopgap.
+- [x] **6. Dispatcher UI** — **done.** `app/dispatch` (`components/dispatch/*`):
+  real email/password login against the shared dispatcher identity
+  (`lib/supabase/dispatcher.ts`), a new-order form (customer, map-click
+  location, van, date/time-window → `POST /api/ingest/routes`), and an orders
+  list (add-return, cancel, reassign, status override). New migration `0007`
+  (dispatcher can read `vehicles`, needed for the van picker). Verified
+  end-to-end against the live project: sign-in → RLS-gated reads → a real
+  create/delete round trip through the actual endpoint. See
+  `docs/specs/2026-07-01-dispatcher-console-design.md`.
 
 > Dropped from the old doc: "driver stop-list UI" — moot now that the driver
 > PWA is retired; that screen belongs to Roman's Bubblebox app, not fleetmap.
@@ -111,11 +96,6 @@ feed, telematics hardware).
     panels so the UI never implies data it doesn't have.
   - **Effort:** decision first; integration is L and vendor-dependent.
 
-> Dropped from the old doc: "orders/deliveries model" as a separate item — M6–M9
-> already shipped it in full (`orders`/`stops` schema, status lifecycle,
-> geofence auto-arrive, dispatcher mutations). What's left of that ambition is
-> exactly items 6–8 above.
-
 ---
 
 ## Cross-cutting hardening (do alongside, not blocking)
@@ -128,38 +108,30 @@ feed, telematics hardware).
 - [ ] **Rate-limiting `POST /api/location`** — deliberately deferred (needs
   shared state / Redis, which V1 forbids). Revisit only if abuse is observed.
 - [ ] **Driver auth UX** — password reset / account recovery for real drivers.
+- [ ] **Dispatcher order editing** — beyond status/reassign/cancel (e.g. a
+  mistyped address). `DELETE` + re-create is the current escape hatch.
+- [ ] **Multiple dispatcher accounts** — still one shared identity; revisit if
+  concurrent dispatchers make mutation attribution matter.
 
 ---
 
 ## Recommended sequence
 
 ```
-Operate:     6           (dispatcher UI — unlocks manual entry regardless of
-                           whether the client has a real feed)
-Go real:     4            (real order source, once the client answers #1 below)
-             3            (only if driver count outgrows the script)
 Complete:    7 → 8        (real history, telematics call)
+Optional:    3             (only if driver count outgrows the script)
 ```
 
-**Minimum to be fully "real":** item 6 (dispatcher UI) is the actual remaining
-blocker — everything upstream of it (deploy, data model, ingestion seam,
-security) is already live.
+**Everything required to run and monitor real deliveries is live.** What's
+left is history/telematics polish and, if fleet size ever demands it, a driver
+onboarding UI.
 
 ---
 
 ## Decisions you need to make
 
-1. **Where orders come from** — the question to put to the client/boss: *"How
-   do you currently track and dispatch today's delivery routes — is there a
-   system (WMS, ERP, route-planning software) that can export or push that
-   data (CSV, webhook, API), or is it manual (spreadsheet, paper, phone)? And
-   how do you refer to your vans — plate, an internal code, something else —
-   so we can map their data onto ours?"* This drives item 4's adapter and
-   nothing else changes based on the answer.
-2. **If there's no real export system:** don't wait on item 4 — build the
-   dispatcher UI (item 6) as the permanent order-entry path. The ingestion
-   contract already defaults `source` to `'manual'`, so "a dispatcher types in
-   the day's routes" isn't a workaround, it's a first-class supported source.
-3. **Telematics** — integrate real hardware, or drop those panels (item 8).
-4. **Driver onboarding** — is `scripts/provision-driver.ts` fine long-term
+1. **Telematics** — integrate real hardware, or drop those panels (item 8).
+2. **Driver onboarding** — is `scripts/provision-driver.ts` fine long-term
    given the fleet stays small, or is an admin UI worth building (item 3)?
+3. **Route replay priority** — worth building now (item 7), or is the History
+   tab's placeholder acceptable for longer?
