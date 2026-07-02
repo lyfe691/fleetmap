@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, type ReactNode } from "react"
 import type { Session } from "@supabase/supabase-js"
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
@@ -10,7 +10,7 @@ import { OrderForm } from "@/components/dispatch/order-form"
 import { OrdersList } from "@/components/dispatch/orders-list"
 import { useTranslations } from "@/lib/i18n"
 import { getDispatcherClient } from "@/lib/supabase/dispatcher"
-import { useDispatchData } from "@/lib/dispatch/use-dispatch-data"
+import { isInProgress, isUnassigned, useDispatchData } from "@/lib/dispatch/use-dispatch-data"
 
 // Deliberately NOT h-screen/flex-1/min-h-0 — that chain depends on every
 // ancestor resolving a definite height, and silently collapses (map "cut in
@@ -23,7 +23,10 @@ export function DispatchConsole({ session }: { session: Session }) {
   const { vehicles, orders, loading, error, refresh, nextSeqFor } = useDispatchData(supabase)
   // Both panels stay mounted (toggled with `hidden`) so the in-progress order
   // form keeps its state and the map isn't re-initialised on every tab switch.
-  const [tab, setTab] = useState<"new" | "orders">("new")
+  const [tab, setTab] = useState<"new" | "orders">("orders")
+
+  const unassignedCount = orders.filter(isUnassigned).length
+  const inProgressCount = orders.filter(isInProgress).length
 
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-[68rem] flex-col px-6 pb-10">
@@ -49,18 +52,28 @@ export function DispatchConsole({ session }: { session: Session }) {
         </div>
       </header>
 
+      <div className="mt-6 grid grid-cols-3 gap-3 sm:max-w-xl">
+        <StatTile
+          value={loading ? "–" : unassignedCount}
+          label={t("dispatch.stats.unassigned")}
+          attention={!loading && unassignedCount > 0}
+        />
+        <StatTile value={loading ? "–" : inProgressCount} label={t("dispatch.stats.inProgress")} />
+        <StatTile value={vehicles.length} label={t("dispatch.stats.vans")} />
+      </div>
+
       <div className="mt-6">
         <PillTabs
           className="w-full max-w-sm"
           activeId={tab}
           onTabChange={(id) => setTab(id as "new" | "orders")}
           tabs={[
-            { id: "new", label: t("dispatch.tab.newOrder"), ariaLabel: t("dispatch.tab.newOrder") },
             {
               id: "orders",
               label: t("dispatch.tab.orders", { n: orders.length }),
               ariaLabel: t("dispatch.tab.orders", { n: orders.length }),
             },
+            { id: "new", label: t("dispatch.tab.newOrder"), ariaLabel: t("dispatch.tab.newOrder") },
           ]}
         />
       </div>
@@ -90,6 +103,32 @@ export function DispatchConsole({ session }: { session: Session }) {
           />
         )}
       </div>
+    </div>
+  )
+}
+
+function StatTile({
+  value,
+  label,
+  attention = false,
+}: {
+  value: ReactNode
+  label: string
+  attention?: boolean
+}) {
+  return (
+    <div
+      className={`rounded-2xl bg-card px-4 py-3.5 shadow-[var(--shadow-card)] ${
+        attention ? "ring-2 ring-brand/30" : ""
+      }`}
+    >
+      <div className="flex items-baseline gap-2">
+        <span className="font-mono text-[1.5rem] leading-none font-semibold tracking-tight">
+          {value}
+        </span>
+        {attention ? <span className="size-2 animate-pulse rounded-full bg-brand" /> : null}
+      </div>
+      <div className="mt-1.5 text-[0.75rem] text-muted-foreground">{label}</div>
     </div>
   )
 }

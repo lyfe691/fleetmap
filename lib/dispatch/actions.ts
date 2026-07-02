@@ -125,3 +125,26 @@ export function patchStop(opts: {
     body: JSON.stringify(opts.patch),
   })
 }
+
+/**
+ * Assign a van to every unassigned stop of an order. Sequential PATCHes with
+ * seq = baseSeq + index (baseSeq from the client-side max-seq calc), so the
+ * stops land in their intra-order visit order on the van's route. Fails fast:
+ * a partial assignment leaves the rest in the unassigned pool for a retry.
+ */
+export async function assignOrder(opts: {
+  accessToken: string
+  stopIds: string[]
+  vehicleId: string
+  baseSeq: number
+}): Promise<ActionResult> {
+  for (const [i, stopId] of opts.stopIds.entries()) {
+    const result = await patchStop({
+      accessToken: opts.accessToken,
+      stopId,
+      patch: { vehicle_id: opts.vehicleId, seq: opts.baseSeq + i },
+    })
+    if (!result.ok) return result
+  }
+  return { ok: true }
+}

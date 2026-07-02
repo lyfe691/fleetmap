@@ -18,6 +18,18 @@ export type DispatchOrder = {
 
 export type DispatchVehicle = { id: string; label: string | null }
 
+/** An order that still needs a van on at least one stop. */
+export function isUnassigned(order: DispatchOrder): boolean {
+  return order.stops.some((s) => s.vehicle_id == null)
+}
+
+export function isInProgress(order: DispatchOrder): boolean {
+  return (
+    !isUnassigned(order) &&
+    order.stops.some((s) => s.status === "planned" || s.status === "arrived")
+  )
+}
+
 /**
  * The dispatcher's working set: every vehicle it can assign to, and every
  * order + its stops (dispatcher RLS is full-read on both, no status filter —
