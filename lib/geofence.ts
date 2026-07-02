@@ -66,9 +66,12 @@ export async function applyGeofence(
     next === "completed"
       ? { status: next, completed_at: new Date().toISOString() }
       : { status: next }
+  // Guarded on the status we read: if a dispatcher override landed in between,
+  // the update matches zero rows instead of clobbering it.
   const { error: updateError } = await supabase
     .from("stops")
     .update(patch)
     .eq("id", stop.id)
+    .eq("status", stop.status)
   if (updateError) throw updateError
 }

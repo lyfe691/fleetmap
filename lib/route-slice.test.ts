@@ -29,23 +29,51 @@ describe("splitRoute", () => {
     expect(result.location).toBeGreaterThan(0)
   })
 
-  it("forward-clamp rejects backward: position behind prev.location → returns prev unchanged", () => {
+  it("forward-clamp rejects backward: position behind prev.location → boundary held", () => {
     // First advance to ~1.5 degrees along the line
     const mid = splitRoute(LINE, [0, 1.5], null)
     expect(mid.location).toBeGreaterThan(0)
 
     // Now project a position BEHIND the current boundary
     const result = splitRoute(LINE, [0, 0.5], mid)
-    expect(result).toBe(mid) // identical reference
+    expect(result.location).toBe(mid.location)
+    expect(result.traveled).toBe(mid.traveled)
+    expect(result.remaining).toBe(mid.remaining)
+    expect(result.held).toBe(1)
   })
 
-  it("forward-clamp rejects teleport: position > MAX_FORWARD_KM (2 km) ahead → returns prev unchanged", () => {
+  it("forward-clamp rejects teleport: position > MAX_FORWARD_KM (2 km) ahead → boundary held", () => {
     // Start at beginning of line (location ~0)
     const start = splitRoute(LINE, [0, 0.001], null)
 
     // Jump 5 degrees north ≈ 555 km — well beyond the 2 km max
     const result = splitRoute(LINE, [0, 5], start)
-    expect(result).toBe(start) // held, not advanced
+    expect(result.location).toBe(start.location) // held, not advanced
+    expect(result.held).toBe(1)
+  })
+
+  it("hold escape: after MAX_HELD consecutive rejections the boundary re-anchors", () => {
+    // Real-world shape: a GPS gap — the van resumes reporting from far ahead
+    // and stays there, so the same out-of-window position repeats every tick.
+    let split = splitRoute(LINE, [0, 0.001], null)
+    const frozen = split.location
+    for (let i = 0; i < 3; i++) {
+      split = splitRoute(LINE, [0, 2], split)
+      expect(split.location).toBe(frozen) // still held
+    }
+    // Fourth consecutive out-of-window snap: accepted, boundary jumps forward.
+    split = splitRoute(LINE, [0, 2], split)
+    expect(split.location).toBeGreaterThan(frozen)
+    expect(split.held).toBe(0)
+  })
+
+  it("hold counter resets on an accepted step (jitter spikes don't accumulate)", () => {
+    const start = splitRoute(LINE, [0, 0.5], null)
+    const spiked = splitRoute(LINE, [0, 5], start) // jitter spike → held
+    expect(spiked.held).toBe(1)
+    const stepped = splitRoute(LINE, [0, 0.505], spiked) // normal step accepted
+    expect(stepped.held).toBe(0)
+    expect(stepped.location).toBeGreaterThan(start.location)
   })
 
   it("forward move accepted: small step ahead (< 2 km) → location advances", () => {

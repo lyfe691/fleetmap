@@ -24,11 +24,11 @@ import { MapView } from "@/components/console/map-view"
 import { TrackingView } from "@/components/console/tracking-view"
 import { HistoryView } from "@/components/console/history-view"
 import { SettingsDialog } from "@/components/console/settings/settings-dialog"
-import { useTranslations } from "@/lib/i18n"
+import { translate, useLocale, useTranslations } from "@/lib/i18n"
 
 export function ConsoleShell({ onChangeCode }: { onChangeCode: () => void }) {
   const { vehicles, error, ready, loaded } = useLiveVehicles()
-  const { stopsByVehicle } = useLiveStops(ready)
+  const { stopsByVehicle, error: stopsError } = useLiveStops(ready)
   const now = useNow(LIVE_TICK_MS)
 
   const jobs: RouteJob[] = useMemo(() => {
@@ -49,7 +49,11 @@ export function ConsoleShell({ onChangeCode }: { onChangeCode: () => void }) {
     () => ({ vehicles, stopsByVehicle, routes, now }),
     [vehicles, stopsByVehicle, routes, now]
   )
-  const consoleVehicles = useMemo(() => buildConsoleVehicles(live), [live])
+  const locale = useLocale()
+  const consoleVehicles = useMemo(
+    () => buildConsoleVehicles(live, (key, params) => translate(locale, key, params)),
+    [live, locale]
+  )
 
   const [view, setView] = useState<ConsoleView>("tracking")
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -124,9 +128,9 @@ export function ConsoleShell({ onChangeCode }: { onChangeCode: () => void }) {
       />
 
       <main className="relative min-w-0 flex-1">
-        {error ? (
+        {(error ?? stopsError) ? (
           <div className="absolute top-4 left-1/2 z-20 flex -translate-x-1/2 items-center gap-3 rounded-2xl border border-destructive/40 bg-card px-5 py-3 text-[0.9375rem] shadow-md">
-            <span className="text-destructive">{error}</span>
+            <span className="text-destructive">{error ?? stopsError}</span>
             <Button variant="outline" size="sm" onClick={onChangeCode}>
               {t("shell.changeCode")}
             </Button>

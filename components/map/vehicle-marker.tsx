@@ -83,6 +83,24 @@ export function InterpolatedMarker({
   )
 }
 
+// CSS transitions interpolate rotate() numerically, so 358° → 2° would spin
+// -356° the long way round. Accumulate an unwrapped angle instead, feeding the
+// shortest signed delta each update; a null heading holds the last orientation.
+function useUnwrappedHeading(heading: number | null): number {
+  const ref = useRef<{ raw: number; acc: number } | null>(null)
+  if (heading != null) {
+    if (ref.current == null) {
+      ref.current = { raw: heading, acc: heading }
+    } else if (heading !== ref.current.raw) {
+      let delta = (heading - ref.current.raw) % 360
+      if (delta > 180) delta -= 360
+      else if (delta < -180) delta += 360
+      ref.current = { raw: heading, acc: ref.current.acc + delta }
+    }
+  }
+  return ref.current?.acc ?? 0
+}
+
 export const VehicleMarker = memo(function VehicleMarker({
   label,
   stale,
@@ -97,6 +115,7 @@ export const VehicleMarker = memo(function VehicleMarker({
   heading: number | null
 }) {
   const t = useTranslations()
+  const angle = useUnwrappedHeading(heading)
   const w = selected ? 56 : 46
   return (
     <div
@@ -121,7 +140,7 @@ export const VehicleMarker = memo(function VehicleMarker({
         draggable={false}
         className="relative select-none"
         style={{
-          transform: `rotate(${heading ?? 0}deg)`,
+          transform: `rotate(${angle}deg)`,
           transition: "transform 0.5s ease-out",
           filter: "drop-shadow(0 2px 4px rgb(0 0 0 / 0.3))",
         }}
