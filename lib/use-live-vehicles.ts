@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import type { RealtimeChannel } from "@supabase/supabase-js"
 import { getBrowserClient } from "@/lib/supabase/browser"
 
@@ -36,6 +36,12 @@ export function useLiveVehicles() {
   const [error, setError] = useState<string | null>(null)
   const [ready, setReady] = useState(false)
   const [loaded, setLoaded] = useState(false)
+  // TV-vs-server clock skew: when a live event arrives, its last_seen_at was
+  // written by the API server moments ago, so (local now − last_seen_at) ≈
+  // skew + delivery latency. EMA smooths the jitter. Staleness math subtracts
+  // this so a mis-set kiosk clock can't flag the whole fleet stale (or hide
+  // real staleness).
+  const skewRef = useRef<number | null>(null)
 
   useEffect(() => {
     const supabase = getBrowserClient()
@@ -61,6 +67,12 @@ export function useLiveVehicles() {
     }
 
     const apply = (v: Vehicle, fromSnapshot = false) => {
+      // Only live events sample the skew — snapshot rows are arbitrarily old.
+      if (!fromSnapshot && v.last_seen_at != null) {
+        const sample = Date.now() - Date.parse(v.last_seen_at)
+        skewRef.current =
+          skewRef.current == null ? sample : skewRef.current * 0.8 + sample * 0.2
+      }
       // Last-write-wins: the snapshot must not clobber a newer live event.
       if (fromSnapshot && byId.has(v.id)) return
       if (v.last_lat == null || v.last_lng == null) byId.delete(v.id)
@@ -136,5 +148,5 @@ export function useLiveVehicles() {
     }
   }, [])
 
-  return { vehicles, error, ready, loaded }
+  return { vehicles, error, ready, loaded, serverOffsetMs: skewRef.current ?? 0 }
 }

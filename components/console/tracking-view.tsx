@@ -315,6 +315,7 @@ function OverviewBody({
           routes={miniLive.routes}
           now={miniLive.now}
           showChrome={false}
+          follow
         />
       </div>
     </div>
