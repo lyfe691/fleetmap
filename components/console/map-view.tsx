@@ -32,6 +32,7 @@ export function MapView({
         now={live.now}
         selectedId={selectedId}
         onSelectVehicle={onSelectVehicle}
+        follow={selectedId != null}
       />
       {selected ? (
         <SummaryCard
