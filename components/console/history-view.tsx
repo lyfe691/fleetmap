@@ -2,11 +2,10 @@
 
 import "maplibre-gl/dist/maplibre-gl.css"
 import { useEffect, useMemo, useRef, useState } from "react"
-import { Pause, Play } from "lucide-react"
+import { AnimatePresence, motion, useReducedMotion } from "motion/react"
 import { useTheme } from "next-themes"
 import { Map as MapGL, Marker, Source, Layer, type MapRef } from "react-map-gl/maplibre"
 import type { FeatureCollection } from "geojson"
-import { Button } from "@/components/ui/button"
 import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
@@ -283,17 +282,14 @@ export function HistoryView({ vehicles }: { vehicles: { id: string; reg: string 
 
           {hasTrack && startMs != null && endMs != null ? (
             <CardFooter className="gap-4 py-4">
-              <Button
-                size="icon-lg"
-                className="size-12 shrink-0 rounded-full"
-                aria-label={playing ? t("history.pause") : t("history.play")}
+              <PlayButton
+                playing={playing}
+                label={playing ? t("history.pause") : t("history.play")}
                 onClick={() => {
                   if (!playing && tMs != null && tMs >= endMs) setTMs(startMs)
                   setPlaying((p) => !p)
                 }}
-              >
-                {playing ? <Pause className="size-5" /> : <Play className="size-5 pl-0.5" />}
-              </Button>
+              />
               <span className="w-14 shrink-0 font-mono text-[0.9375rem] font-semibold tabular-nums">
                 {clock != null ? formatClock(clock, locale) : "–"}
               </span>
@@ -349,6 +345,61 @@ function fmtDuration(ms: number): string {
   const h = Math.floor(mins / 60)
   const m = mins % 60
   return m ? `${h} h ${m} min` : `${h} h`
+}
+
+/**
+ * Media-transport button: solid rounded glyphs (lucide's stroked icons read
+ * hollow at this size) with a tap squish and a quick scale crossfade between
+ * play and pause. Motion mirrors the pill-tabs conventions, incl. the
+ * reduced-motion opt-out.
+ */
+function PlayButton({
+  playing,
+  label,
+  onClick,
+}: {
+  playing: boolean
+  label: string
+  onClick: () => void
+}) {
+  const reduceMotion = useReducedMotion()
+  return (
+    <motion.button
+      type="button"
+      aria-label={label}
+      onClick={onClick}
+      whileTap={reduceMotion ? undefined : { scale: 0.9 }}
+      className="flex size-12 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card"
+    >
+      <AnimatePresence mode="popLayout" initial={false}>
+        <motion.span
+          key={playing ? "pause" : "play"}
+          initial={reduceMotion ? false : { scale: 0.5, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          exit={reduceMotion ? undefined : { scale: 0.5, opacity: 0 }}
+          transition={{ duration: 0.15, ease: "easeOut" }}
+          className="flex items-center justify-center"
+        >
+          {playing ? (
+            <svg viewBox="0 0 24 24" className="size-5" fill="currentColor" aria-hidden>
+              <rect x="6" y="5" width="4.5" height="14" rx="2" />
+              <rect x="13.5" y="5" width="4.5" height="14" rx="2" />
+            </svg>
+          ) : (
+            <svg viewBox="0 0 24 24" className="ml-0.5 size-5" aria-hidden>
+              <path
+                d="M8.5 6.2v11.6L18 12z"
+                fill="currentColor"
+                stroke="currentColor"
+                strokeWidth="3"
+                strokeLinejoin="round"
+              />
+            </svg>
+          )}
+        </motion.span>
+      </AnimatePresence>
+    </motion.button>
+  )
 }
 
 function StatCard({ value, label }: { value: string; label: string }) {
