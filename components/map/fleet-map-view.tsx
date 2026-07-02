@@ -1,7 +1,7 @@
 "use client"
 
 import "maplibre-gl/dist/maplibre-gl.css"
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { MaximizeIcon, MinimizeIcon, MinusIcon, PlusIcon } from "lucide-react"
 import { useTheme } from "next-themes"
 import {
@@ -68,13 +68,34 @@ export function FleetMapView({
 
   const mapRef = useRef<MapRef>(null)
   const [mapLoaded, setMapLoaded] = useState(false)
+  // Ref CALLBACK, not a mount effect: react-map-gl attaches the map instance in
+  // its own (parent) effect, after this component's effects have already run.
+  // And with `reuseMaps` a view switch hands back an ALREADY loaded instance
+  // whose `load` event never re-fires — so onLoad alone would leave mapLoaded
+  // false and every camera effect dead. The callback fires exactly at attach:
+  // an already-styled (reused) map arms immediately; a fresh one goes through
+  // onLoad, with `idle` as the fallback for a reused map mid-style-load.
+  const attachMap = useCallback((instance: MapRef | null) => {
+    mapRef.current = instance
+    if (!instance) return
+    const map = instance.getMap()
+    if (map.isStyleLoaded()) setMapLoaded(true)
+    else map.once("idle", () => setMapLoaded(true))
+  }, [])
   // One camera policy: ease to the selected vehicle, or fit the whole shown set
   // when nothing is selected — that single rule covers the Live Map's
   // focus-on-select, its "view all" (cleared selection), and the framing for
   // the single-vehicle mini-map. Keyed so position updates don't re-frame.
   const cameraKeyRef = useRef<string | null>(null)
   useEffect(() => {
-    if (!mapLoaded || follow) return
+    if (!mapLoaded) return
+    if (follow) {
+      // Follow owns the camera. Poison the key (unless the map was never
+      // framed at all) so this policy re-frames when follow disengages —
+      // e.g. "view all" after following a van.
+      if (cameraKeyRef.current !== null) cameraKeyRef.current = "follow"
+      return
+    }
     const map = mapRef.current
     if (!map) return
 
@@ -109,11 +130,12 @@ export function FleetMapView({
     map.fitBounds(bounds, { padding: 80, maxZoom: 14, duration: first ? 0 : 600 })
   }, [mapLoaded, follow, selectedId, vehicles])
 
-  // Follow mode (the tracking view's live-location mini-map) owns the camera
-  // instead of the policy above: a vehicle switch re-frames like focus-on-select
-  // (quick ease + zoom), then position updates of the SAME vehicle glide the
-  // center in a slow linear ease that roughly matches the marker interpolation.
-  // A manual pan hands control to the user until the followed vehicle changes.
+  // Follow mode (mini-map always; Live Map while a vehicle is selected) owns
+  // the camera instead of the policy above: engaging or switching vehicles
+  // re-frames like focus-on-select (quick ease + zoom), then position updates
+  // of the SAME vehicle glide the center in a slow linear ease that roughly
+  // matches the marker interpolation. A manual pan hands control to the user
+  // until the followed vehicle changes or follow is re-engaged.
   const followTarget = follow
     ? (vehicles.find((v) => v.id === (selectedId ?? vehicles[0]?.id)) ?? null)
     : null
@@ -121,14 +143,21 @@ export function FleetMapView({
   const followedIdRef = useRef<string | null>(null)
   const reframeUntilRef = useRef(0)
   useEffect(() => {
-    if (!mapLoaded || !followTarget) return
-    if (followTarget.last_lng == null || followTarget.last_lat == null) return
+    if (!mapLoaded) return
+    if (!followTarget || followTarget.last_lng == null || followTarget.last_lat == null) {
+      // Not following (or the van has no fix): forget the target so the next
+      // engagement re-frames — even if it's the same vehicle again.
+      followedIdRef.current = null
+      return
+    }
     const map = mapRef.current
     if (!map) return
 
     const center: [number, number] = [followTarget.last_lng, followTarget.last_lat]
     if (followedIdRef.current !== followTarget.id) {
-      const first = followedIdRef.current === null
+      // Instant only when the map has never been framed (mini-map mount);
+      // engaging follow on an already-framed map animates like a focus.
+      const first = followedIdRef.current === null && cameraKeyRef.current === null
       followedIdRef.current = followTarget.id
       userPannedRef.current = false
       reframeUntilRef.current = performance.now() + (first ? 0 : 750)
@@ -187,7 +216,7 @@ export function FleetMapView({
       ) : null}
 
       <MapGL
-        ref={mapRef}
+        ref={attachMap}
         reuseMaps
         onLoad={() => setMapLoaded(true)}
         onDragStart={() => {
