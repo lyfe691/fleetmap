@@ -35,8 +35,11 @@ async function fetchRoute(
  * Returns a Map<vehicleId, Route> feeding the shared route sources + side rail
  * (legs[0].duration = ETA to the next stop). Drops vehicles absent from `jobs`.
  */
+const TRANSIENT_RETRY_MS = 20_000
+
 export function useFleetRoutes(jobs: RouteJob[]): Map<string, Route> {
   const [routes, setRoutes] = useState<Map<string, Route>>(new Map())
+  const [retryTick, setRetryTick] = useState(0)
   const cacheRef = useRef(new Map<string, { stopsKey: string; route: Route }>())
 
   // Stable primitive dep: re-run only when the set of (vehicle, stopSet) changes.
@@ -52,6 +55,7 @@ export function useFleetRoutes(jobs: RouteJob[]): Map<string, Route> {
 
   useEffect(() => {
     let cancelled = false
+    let retryTimer: ReturnType<typeof setTimeout> | null = null
     const current = jobsRef.current
 
     const run = async () => {
@@ -65,6 +69,7 @@ export function useFleetRoutes(jobs: RouteJob[]): Map<string, Route> {
         if (!present.has(id)) cache.delete(id)
       }
 
+      let transient = false
       await Promise.all(
         current.map(async (j) => {
           const cached = cache.get(j.vehicleId)
@@ -74,22 +79,29 @@ export function useFleetRoutes(jobs: RouteJob[]): Map<string, Route> {
             cache.set(j.vehicleId, { stopsKey: j.stopsKey, route: outcome.route })
           } else if (outcome.kind === "gone") {
             cache.delete(j.vehicleId)
+          } else {
+            // "transient": leave the cache entry untouched — the (slightly
+            // stale) line stays visible — and retry on a timer below, so an
+            // OSRM/network blip at load doesn't leave the map route-less
+            // until some stop set happens to change.
+            transient = true
           }
-          // "transient": leave the cache entry untouched. The (slightly stale) line
-          // stays visible, and because its stopsKey still differs from j.stopsKey,
-          // the next jobsKey change retries the fetch naturally.
         })
       )
 
       if (cancelled) return
       setRoutes(new Map([...cache].map(([id, v]) => [id, v.route])))
+      if (transient) {
+        retryTimer = setTimeout(() => setRetryTick((n) => n + 1), TRANSIENT_RETRY_MS)
+      }
     }
 
     void run()
     return () => {
       cancelled = true
+      if (retryTimer) clearTimeout(retryTimer)
     }
-  }, [jobsKey])
+  }, [jobsKey, retryTick])
 
   return routes
 }

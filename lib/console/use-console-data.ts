@@ -2,8 +2,14 @@ import { isActive } from "@/components/map/fleet-format"
 import type { Vehicle } from "@/lib/use-live-vehicles"
 import type { Stop } from "@/lib/use-live-stops"
 import type { Route } from "@/lib/route-types"
+import type { TranslationKey } from "@/lib/i18n/en"
 import { isStale } from "@/components/map/vehicle-marker"
 import { ASSUMED_ORIGIN, assumedVehicleDetails } from "@/lib/console/assumed"
+
+export type Translator = (
+  key: TranslationKey,
+  params?: Record<string, string | number>
+) => string
 
 export type StatusTone = "onRoute" | "waiting"
 
@@ -51,12 +57,15 @@ function hms(seconds: number): string {
   return `${h}:${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`
 }
 
-export function buildConsoleVehicles(input: {
-  vehicles: Vehicle[]
-  stopsByVehicle: Map<string, Stop[]>
-  routes: Map<string, Route>
-  now: number
-}): ConsoleVehicle[] {
+export function buildConsoleVehicles(
+  input: {
+    vehicles: Vehicle[]
+    stopsByVehicle: Map<string, Stop[]>
+    routes: Map<string, Route>
+    now: number
+  },
+  t: Translator
+): ConsoleVehicle[] {
   const { vehicles, stopsByVehicle, routes, now } = input
 
   const built = vehicles.map((v) => {
@@ -82,17 +91,19 @@ export function buildConsoleVehicles(input: {
       id: v.id,
       reg: v.label ?? v.id.slice(0, 8),
       tone: hasActive ? "onRoute" : "waiting",
-      statusLabel: hasActive ? "On Route" : "Waiting",
+      statusLabel: hasActive ? t("filter.onRoute") : t("filter.waiting"),
       stale,
       origin: ASSUMED_ORIGIN,
-      dest: next ? (next.stop_type === "pickup" ? "Pickup" : "Dropoff") : "—",
-      etaText: hasActive ? (etaSec != null ? formatEta(etaSec) : "—") : "Idle",
+      dest: next
+        ? t(next.stop_type === "pickup" ? "dispatch.stop.pickup" : "dispatch.stop.dropoff")
+        : "—",
+      etaText: hasActive ? (etaSec != null ? formatEta(etaSec) : "—") : t("rail.idle"),
       routeTimer: route ? hms(route.totalDuration) : "—",
       routeLeftText: hasActive
         ? etaSec != null
-          ? `${formatEta(etaSec)} to next stop`
-          : "En route"
-        : "Awaiting dispatch",
+          ? t("console.toNextStop", { eta: formatEta(etaSec) })
+          : t("console.enRoute")
+        : t("rail.awaitingDispatch"),
       stopsLeft: active.length,
       routeProgressPct: totalStops > 0 ? Math.round((doneStops / totalStops) * 100) : 0,
       // last_speed is m/s (W3C Geolocation / fake-gps); display as km/h.

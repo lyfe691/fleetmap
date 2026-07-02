@@ -1,8 +1,17 @@
 import { describe, it, expect } from "vitest"
-import { buildConsoleVehicles } from "@/lib/console/use-console-data"
+import { buildConsoleVehicles, type Translator } from "@/lib/console/use-console-data"
 import type { Vehicle } from "@/lib/use-live-vehicles"
 import type { Stop } from "@/lib/use-live-stops"
 import type { Route } from "@/lib/route-types"
+import { en } from "@/lib/i18n/en"
+
+const t: Translator = (key, params) => {
+  let s: string = en[key]
+  if (params) {
+    for (const [k, v] of Object.entries(params)) s = s.replaceAll(`{${k}}`, String(v))
+  }
+  return s
+}
 
 // Minimal Vehicle fixture — only fields buildConsoleVehicles reads.
 function makeVehicle(id: string): Vehicle {
@@ -56,7 +65,7 @@ describe("buildConsoleVehicles — ETA freshness guard", () => {
     const stopsByVehicle = new Map([[VEHICLE_ID, [stop]]])
     const routes = new Map([[VEHICLE_ID, makeRoute(STOP_ID, 600)]])
 
-    const [cv] = buildConsoleVehicles({ vehicles, stopsByVehicle, routes, now })
+    const [cv] = buildConsoleVehicles({ vehicles, stopsByVehicle, routes, now }, t)
 
     expect(cv.etaText).toBe("10 min")
   })
@@ -68,7 +77,7 @@ describe("buildConsoleVehicles — ETA freshness guard", () => {
     // Route's first leg still targets the OLD stop "s0"
     const routes = new Map([[VEHICLE_ID, makeRoute("s0", 600)]])
 
-    const [cv] = buildConsoleVehicles({ vehicles, stopsByVehicle, routes, now })
+    const [cv] = buildConsoleVehicles({ vehicles, stopsByVehicle, routes, now }, t)
 
     expect(cv.etaText).toBe("—")
     expect(cv.tone).toBe("onRoute")
@@ -81,7 +90,7 @@ describe("buildConsoleVehicles — ETA freshness guard", () => {
     const stopsByVehicle = new Map([[VEHICLE_ID, [stop]]])
     const routes = new Map<string, Route>() // no route
 
-    const [cv] = buildConsoleVehicles({ vehicles, stopsByVehicle, routes, now })
+    const [cv] = buildConsoleVehicles({ vehicles, stopsByVehicle, routes, now }, t)
 
     expect(cv.etaText).toBe("—")
     expect(cv.routeTimer).toBe("—")

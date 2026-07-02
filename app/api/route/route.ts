@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { createUserClient } from "@/lib/supabase/server"
 import { bearerToken, isAuthError } from "@/lib/api-auth"
+import { UUID_RE } from "@/lib/ingest-validate"
 
 // supabase-js needs the Node runtime (not Edge-safe).
 export const runtime = "nodejs"
@@ -38,6 +39,9 @@ export async function GET(request: NextRequest) {
   const vehicleId = request.nextUrl.searchParams.get("vehicleId")
   if (!vehicleId) {
     return NextResponse.json({ error: "vehicleId is required" }, { status: 400 })
+  }
+  if (!UUID_RE.test(vehicleId)) {
+    return NextResponse.json({ error: "vehicleId must be a uuid" }, { status: 400 })
   }
 
   // Runs as the caller — the dashboard role's claim-scoped select policies let
