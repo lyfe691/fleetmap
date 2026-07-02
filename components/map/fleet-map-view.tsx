@@ -74,7 +74,7 @@ export function FleetMapView({
   // the single-vehicle mini-map. Keyed so position updates don't re-frame.
   const cameraKeyRef = useRef<string | null>(null)
   useEffect(() => {
-    if (!mapLoaded) return
+    if (!mapLoaded || follow) return
     const map = mapRef.current
     if (!map) return
 
@@ -107,28 +107,38 @@ export function FleetMapView({
       return
     }
     map.fitBounds(bounds, { padding: 80, maxZoom: 14, duration: first ? 0 : 600 })
-  }, [mapLoaded, selectedId, vehicles])
+  }, [mapLoaded, follow, selectedId, vehicles])
 
-  // Follow mode (the tracking view's live-location mini-map): glide the camera
-  // with the vehicle instead of framing it once. The slow linear ease roughly
-  // matches the marker's own position interpolation, and a manual pan hands
-  // control to the user until the followed vehicle changes.
+  // Follow mode (the tracking view's live-location mini-map) owns the camera
+  // instead of the policy above: a vehicle switch re-frames like focus-on-select
+  // (quick ease + zoom), then position updates of the SAME vehicle glide the
+  // center in a slow linear ease that roughly matches the marker interpolation.
+  // A manual pan hands control to the user until the followed vehicle changes.
   const followTarget = follow
     ? (vehicles.find((v) => v.id === (selectedId ?? vehicles[0]?.id)) ?? null)
     : null
   const userPannedRef = useRef(false)
-  const followId = followTarget?.id ?? null
+  const followedIdRef = useRef<string | null>(null)
+  const reframeUntilRef = useRef(0)
   useEffect(() => {
-    userPannedRef.current = false
-  }, [followId])
-  useEffect(() => {
-    if (!mapLoaded || userPannedRef.current) return
-    if (!followTarget || followTarget.last_lng == null || followTarget.last_lat == null) return
-    mapRef.current?.easeTo({
-      center: [followTarget.last_lng, followTarget.last_lat],
-      duration: 4000,
-      easing: (x) => x,
-    })
+    if (!mapLoaded || !followTarget) return
+    if (followTarget.last_lng == null || followTarget.last_lat == null) return
+    const map = mapRef.current
+    if (!map) return
+
+    const center: [number, number] = [followTarget.last_lng, followTarget.last_lat]
+    if (followedIdRef.current !== followTarget.id) {
+      const first = followedIdRef.current === null
+      followedIdRef.current = followTarget.id
+      userPannedRef.current = false
+      reframeUntilRef.current = performance.now() + (first ? 0 : 750)
+      map.easeTo({ center, zoom: Math.max(map.getZoom(), 14), duration: first ? 0 : 700 })
+      return
+    }
+    // Let the switch re-frame land before gliding — a glide arriving mid-ease
+    // would cancel it and drop its zoom target.
+    if (userPannedRef.current || performance.now() < reframeUntilRef.current) return
+    map.easeTo({ center, duration: 4000, easing: (x) => x })
   }, [mapLoaded, followTarget?.id, followTarget?.last_lng, followTarget?.last_lat])
 
   const { nextStopIds, onRouteIds } = useMemo(() => {
