@@ -1,9 +1,11 @@
 "use client"
 
+import { useState } from "react"
 import type { Session } from "@supabase/supabase-js"
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { PillTabs } from "@/components/ui/pill-tabs"
+import { BubbleboxLogo } from "@/components/console/bubblebox-logo"
 import { OrderForm } from "@/components/dispatch/order-form"
 import { OrdersList } from "@/components/dispatch/orders-list"
 import { useTranslations } from "@/lib/i18n"
@@ -19,55 +21,75 @@ export function DispatchConsole({ session }: { session: Session }) {
   const t = useTranslations()
   const supabase = getDispatcherClient()
   const { vehicles, orders, loading, error, refresh, nextSeqFor } = useDispatchData(supabase)
+  // Both panels stay mounted (toggled with `hidden`) so the in-progress order
+  // form keeps its state and the map isn't re-initialised on every tab switch.
+  const [tab, setTab] = useState<"new" | "orders">("new")
 
   return (
-    <div className="mx-auto flex min-h-screen w-full max-w-[64rem] flex-col px-6 py-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="font-heading text-xl font-semibold tracking-tight">
-            {t("dispatch.title")}
-          </h1>
-          <p className="text-sm text-muted-foreground">{session.user.email}</p>
+    <div className="mx-auto flex min-h-screen w-full max-w-[68rem] flex-col px-6 pb-10">
+      <header className="flex flex-wrap items-center justify-between gap-4 border-b border-border py-5">
+        <div className="flex items-center gap-3">
+          <span className="flex size-11 items-center justify-center rounded-2xl bg-brand/12">
+            <BubbleboxLogo className="size-6 text-foreground" />
+          </span>
+          <div className="leading-none">
+            <h1 className="font-heading text-[1.25rem] font-semibold tracking-tight">
+              {t("dispatch.title")}
+            </h1>
+            <p className="mt-1.5 text-[0.8125rem] text-muted-foreground">{t("dispatch.subtitle")}</p>
+          </div>
         </div>
-        <Button variant="outline" size="sm" onClick={() => void supabase.auth.signOut()}>
-          {t("dispatch.signOut")}
-        </Button>
+        <div className="flex items-center gap-3">
+          <span className="hidden font-mono text-[0.8125rem] text-muted-foreground sm:inline">
+            {session.user.email}
+          </span>
+          <Button variant="outline" size="sm" onClick={() => void supabase.auth.signOut()}>
+            {t("dispatch.signOut")}
+          </Button>
+        </div>
+      </header>
+
+      <div className="mt-6">
+        <PillTabs
+          className="w-full max-w-sm"
+          activeId={tab}
+          onTabChange={(id) => setTab(id as "new" | "orders")}
+          tabs={[
+            { id: "new", label: t("dispatch.tab.newOrder"), ariaLabel: t("dispatch.tab.newOrder") },
+            {
+              id: "orders",
+              label: t("dispatch.tab.orders", { n: orders.length }),
+              ariaLabel: t("dispatch.tab.orders", { n: orders.length }),
+            },
+          ]}
+        />
       </div>
 
       {error ? <p className="mt-4 text-sm text-destructive">{error}</p> : null}
 
-      <Tabs defaultValue="new" className="mt-6">
-        <TabsList>
-          <TabsTrigger value="new">{t("dispatch.tab.newOrder")}</TabsTrigger>
-          <TabsTrigger value="orders">
-            {t("dispatch.tab.orders", { n: orders.length })}
-          </TabsTrigger>
-        </TabsList>
+      <div className={tab === "new" ? "mt-6" : "hidden"}>
+        <OrderForm
+          vehicles={vehicles}
+          nextSeqFor={nextSeqFor}
+          accessToken={session.access_token}
+          onCreated={refresh}
+        />
+      </div>
 
-        <TabsContent value="new" className="mt-4">
-          <OrderForm
+      <div className={tab === "orders" ? "mt-6" : "hidden"}>
+        {loading ? (
+          <Spinner className="size-6" />
+        ) : (
+          <OrdersList
+            orders={orders}
             vehicles={vehicles}
             nextSeqFor={nextSeqFor}
             accessToken={session.access_token}
-            onCreated={refresh}
+            supabase={supabase}
+            onChanged={refresh}
           />
-        </TabsContent>
-
-        <TabsContent value="orders" className="mt-4 pb-6">
-          {loading ? (
-            <Spinner className="size-6" />
-          ) : (
-            <OrdersList
-              orders={orders}
-              vehicles={vehicles}
-              nextSeqFor={nextSeqFor}
-              accessToken={session.access_token}
-              supabase={supabase}
-              onChanged={refresh}
-            />
-          )}
-        </TabsContent>
-      </Tabs>
+        )}
+      </div>
     </div>
   )
 }
