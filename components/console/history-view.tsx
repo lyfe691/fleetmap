@@ -6,8 +6,11 @@ import { Pause, Play } from "lucide-react"
 import { useTheme } from "next-themes"
 import { Map as MapGL, Marker, Source, Layer, type MapRef } from "react-map-gl/maplibre"
 import type { FeatureCollection } from "geojson"
+import { Button } from "@/components/ui/button"
+import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
+import { Progress } from "@/components/ui/progress"
 import { Spinner } from "@/components/ui/spinner"
 import { mapColors, mapStyleUrl, type MapTheme } from "@/lib/map-theme"
 import { getBrowserClient } from "@/lib/supabase/browser"
@@ -207,8 +210,9 @@ export function HistoryView({ vehicles }: { vehicles: { id: string; reg: string 
 
         {error ? <p className="mt-4 text-sm text-destructive">{error}</p> : null}
 
-        <div className="relative mt-5 h-[26rem] overflow-hidden rounded-2xl border border-border shadow-[var(--shadow-card)]">
-          <MapGL
+        <Card className="mt-5 gap-0 py-0">
+          <div className="relative h-[26rem] border-b border-border">
+            <MapGL
             ref={mapRef}
             initialViewState={{ longitude: 8.23, latitude: 46.8, zoom: 6.6 }}
             mapStyle={styleUrl}
@@ -268,65 +272,61 @@ export function HistoryView({ vehicles }: { vehicles: { id: string; reg: string 
             ) : null}
           </MapGL>
 
-          {!loading && !hasTrack ? (
-            <div className="absolute inset-0 flex items-center justify-center bg-background/55 backdrop-blur-[2px]">
-              <p className="max-w-xs text-center text-sm text-muted-foreground">
-                {t("history.empty")}
-              </p>
-            </div>
-          ) : null}
-        </div>
-
-        {hasTrack && startMs != null && endMs != null ? (
-          <div className="mt-4 flex items-center gap-3 rounded-2xl bg-card px-4 py-3 shadow-[var(--shadow-card)]">
-            <button
-              type="button"
-              aria-label={playing ? t("history.pause") : t("history.play")}
-              onClick={() => {
-                if (!playing && tMs != null && tMs >= endMs) setTMs(startMs)
-                setPlaying((p) => !p)
-              }}
-              className="flex size-11 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition-transform active:scale-95"
-            >
-              {playing ? <Pause className="size-5" /> : <Play className="size-5 pl-0.5" />}
-            </button>
-            <span className="w-14 shrink-0 font-mono text-[0.9375rem] font-semibold tabular-nums">
-              {clock != null ? formatClock(clock, locale) : "–"}
-            </span>
-            <input
-              type="range"
-              aria-label={t("history.scrubber")}
-              className="min-w-0 flex-1"
-              style={{ accentColor: colors.route }}
-              min={startMs}
-              max={endMs}
-              step={1000}
-              value={clock ?? startMs}
-              onChange={(e) => setTMs(Number(e.target.value))}
-            />
-            <NativeSelect
-              size="sm"
-              aria-label={t("history.speed")}
-              value={String(speed)}
-              onChange={(e) => setSpeed(Number(e.target.value))}
-            >
-              {SPEEDS.map((s) => (
-                <NativeSelectOption key={s} value={String(s)}>
-                  {s}×
-                </NativeSelectOption>
-              ))}
-            </NativeSelect>
+            {!loading && !hasTrack ? (
+              <div className="absolute inset-0 flex items-center justify-center bg-background/55 backdrop-blur-[2px]">
+                <p className="max-w-xs text-center text-sm text-muted-foreground">
+                  {t("history.empty")}
+                </p>
+              </div>
+            ) : null}
           </div>
-        ) : null}
+
+          {hasTrack && startMs != null && endMs != null ? (
+            <CardFooter className="gap-4 py-4">
+              <Button
+                size="icon-lg"
+                className="size-12 shrink-0 rounded-full"
+                aria-label={playing ? t("history.pause") : t("history.play")}
+                onClick={() => {
+                  if (!playing && tMs != null && tMs >= endMs) setTMs(startMs)
+                  setPlaying((p) => !p)
+                }}
+              >
+                {playing ? <Pause className="size-5" /> : <Play className="size-5 pl-0.5" />}
+              </Button>
+              <span className="w-14 shrink-0 font-mono text-[0.9375rem] font-semibold tabular-nums">
+                {clock != null ? formatClock(clock, locale) : "–"}
+              </span>
+              <ReplayScrubber
+                min={startMs}
+                max={endMs}
+                value={clock ?? startMs}
+                onSeek={setTMs}
+                label={t("history.scrubber")}
+              />
+              <NativeSelect
+                aria-label={t("history.speed")}
+                value={String(speed)}
+                onChange={(e) => setSpeed(Number(e.target.value))}
+              >
+                {SPEEDS.map((s) => (
+                  <NativeSelectOption key={s} value={String(s)}>
+                    {s}×
+                  </NativeSelectOption>
+                ))}
+              </NativeSelect>
+            </CardFooter>
+          ) : null}
+        </Card>
 
         {hasTrack ? (
           <div className="mt-4 grid grid-cols-3 gap-3">
-            <StatTile
+            <StatCard
               value={`${(stats.distanceM / 1000).toFixed(1)} km`}
               label={t("history.stat.distance")}
             />
-            <StatTile value={fmtDuration(stats.durationMs)} label={t("history.stat.duration")} />
-            <StatTile
+            <StatCard value={fmtDuration(stats.durationMs)} label={t("history.stat.duration")} />
+            <StatCard
               value={rawCount.toLocaleString()}
               label={t("history.stat.points")}
             />
@@ -351,13 +351,85 @@ function fmtDuration(ms: number): string {
   return m ? `${h} h ${m} min` : `${h} h`
 }
 
-function StatTile({ value, label }: { value: string; label: string }) {
+function StatCard({ value, label }: { value: string; label: string }) {
   return (
-    <div className="rounded-2xl bg-card px-4 py-3.5 shadow-[var(--shadow-card)]">
-      <div className="font-mono text-[1.25rem] leading-none font-semibold tracking-tight">
-        {value}
-      </div>
-      <div className="mt-1.5 text-[0.75rem] text-muted-foreground">{label}</div>
+    <Card size="sm">
+      <CardHeader>
+        <CardDescription>{label}</CardDescription>
+        <CardTitle className="font-mono text-[1.375rem] font-semibold tracking-tight">
+          {value}
+        </CardTitle>
+      </CardHeader>
+    </Card>
+  )
+}
+
+/**
+ * The replay timeline: the ui Progress bar with pointer/keyboard seeking
+ * layered on top (Progress itself is display-only). The wrapper's vertical
+ * padding fattens the touch target beyond the visible track.
+ */
+function ReplayScrubber({
+  min,
+  max,
+  value,
+  onSeek,
+  label,
+}: {
+  min: number
+  max: number
+  value: number
+  onSeek: (tMs: number) => void
+  label: string
+}) {
+  const trackRef = useRef<HTMLDivElement>(null)
+  const draggingRef = useRef(false)
+  const pct = max > min ? ((value - min) / (max - min)) * 100 : 0
+
+  const seekTo = (clientX: number) => {
+    const el = trackRef.current
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    const f = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width))
+    onSeek(Math.round(min + f * (max - min)))
+  }
+
+  return (
+    <div
+      ref={trackRef}
+      role="slider"
+      aria-label={label}
+      aria-valuemin={min}
+      aria-valuemax={max}
+      aria-valuenow={value}
+      tabIndex={0}
+      className="min-w-0 flex-1 cursor-pointer touch-none rounded-full py-3 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      onPointerDown={(e) => {
+        draggingRef.current = true
+        e.currentTarget.setPointerCapture(e.pointerId)
+        seekTo(e.clientX)
+      }}
+      onPointerMove={(e) => {
+        if (draggingRef.current) seekTo(e.clientX)
+      }}
+      onPointerUp={() => {
+        draggingRef.current = false
+      }}
+      onKeyDown={(e) => {
+        const step = Math.max(1000, (max - min) / 100)
+        if (e.key === "ArrowRight" || e.key === "ArrowUp") {
+          e.preventDefault()
+          onSeek(Math.min(max, value + step))
+        } else if (e.key === "ArrowLeft" || e.key === "ArrowDown") {
+          e.preventDefault()
+          onSeek(Math.max(min, value - step))
+        }
+      }}
+    >
+      <Progress
+        value={pct}
+        className="pointer-events-none [&_[data-slot=progress-indicator]]:transition-none [&_[data-slot=progress-track]]:h-4"
+      />
     </div>
   )
 }
