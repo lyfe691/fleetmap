@@ -86,7 +86,7 @@ export function InterpolatedMarker({
 // CSS transitions interpolate rotate() numerically, so 358° → 2° would spin
 // -356° the long way round. Accumulate an unwrapped angle instead, feeding the
 // shortest signed delta each update; a null heading holds the last orientation.
-function useUnwrappedHeading(heading: number | null): number {
+export function useUnwrappedHeading(heading: number | null): number {
   const ref = useRef<{ raw: number; acc: number } | null>(null)
   if (heading != null) {
     if (ref.current == null) {
