@@ -27,9 +27,11 @@ import { SettingsDialog } from "@/components/console/settings/settings-dialog"
 import { translate, useLocale, useTranslations } from "@/lib/i18n"
 
 export function ConsoleShell({ onChangeCode }: { onChangeCode: () => void }) {
-  const { vehicles, error, ready, loaded } = useLiveVehicles()
+  const { vehicles, error, ready, loaded, serverOffsetMs } = useLiveVehicles()
   const { stopsByVehicle, error: stopsError } = useLiveStops(ready)
-  const now = useNow(LIVE_TICK_MS)
+  // Server-aligned clock: `now` only feeds staleness math, so subtract the
+  // estimated TV-vs-server skew. The sidebar wall clock stays on local time.
+  const now = useNow(LIVE_TICK_MS) - serverOffsetMs
 
   const jobs: RouteJob[] = useMemo(() => {
     const out: RouteJob[] = []

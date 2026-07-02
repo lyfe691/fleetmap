@@ -50,6 +50,7 @@ export function FleetMapView({
   selectedId,
   onSelectVehicle,
   showChrome = true,
+  follow = false,
 }: {
   vehicles: Vehicle[]
   stopsByVehicle: Map<string, Stop[]>
@@ -58,6 +59,7 @@ export function FleetMapView({
   selectedId?: string | null
   onSelectVehicle?: (id: string) => void
   showChrome?: boolean
+  follow?: boolean
 }) {
   const { resolvedTheme } = useTheme()
   const theme: MapTheme = resolvedTheme === "dark" ? "dark" : "light"
@@ -106,6 +108,28 @@ export function FleetMapView({
     }
     map.fitBounds(bounds, { padding: 80, maxZoom: 14, duration: first ? 0 : 600 })
   }, [mapLoaded, selectedId, vehicles])
+
+  // Follow mode (the tracking view's live-location mini-map): glide the camera
+  // with the vehicle instead of framing it once. The slow linear ease roughly
+  // matches the marker's own position interpolation, and a manual pan hands
+  // control to the user until the followed vehicle changes.
+  const followTarget = follow
+    ? (vehicles.find((v) => v.id === (selectedId ?? vehicles[0]?.id)) ?? null)
+    : null
+  const userPannedRef = useRef(false)
+  const followId = followTarget?.id ?? null
+  useEffect(() => {
+    userPannedRef.current = false
+  }, [followId])
+  useEffect(() => {
+    if (!mapLoaded || userPannedRef.current) return
+    if (!followTarget || followTarget.last_lng == null || followTarget.last_lat == null) return
+    mapRef.current?.easeTo({
+      center: [followTarget.last_lng, followTarget.last_lat],
+      duration: 4000,
+      easing: (x) => x,
+    })
+  }, [mapLoaded, followTarget?.id, followTarget?.last_lng, followTarget?.last_lat])
 
   const { nextStopIds, onRouteIds } = useMemo(() => {
     const next = new Set<string>()
@@ -156,6 +180,9 @@ export function FleetMapView({
         ref={mapRef}
         reuseMaps
         onLoad={() => setMapLoaded(true)}
+        onDragStart={() => {
+          userPannedRef.current = true
+        }}
         initialViewState={{ longitude: 8.23, latitude: 46.8, zoom: 7.2 }}
         mapStyle={styleUrl}
         style={{ width: "100%", height: "100%" }}
