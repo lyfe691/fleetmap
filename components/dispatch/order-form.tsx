@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState, type FormEvent } from "react"
+import { useMemo, useState, type FormEvent, type ReactNode } from "react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Field, FieldLabel } from "@/components/ui/field"
@@ -9,6 +9,7 @@ import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
 import { Spinner } from "@/components/ui/spinner"
 import { PinMap } from "@/components/dispatch/pin-map"
 import { useTranslations } from "@/lib/i18n"
+import type { TranslationKey } from "@/lib/i18n/en"
 import { createOrder } from "@/lib/dispatch/actions"
 import type { DispatchVehicle } from "@/lib/dispatch/use-dispatch-data"
 
@@ -77,89 +78,88 @@ export function OrderForm({
   }
 
   return (
-    <form onSubmit={onSubmit} className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[22rem_1fr]">
-      <div className="flex flex-col gap-4">
-        <Field>
-          <FieldLabel htmlFor="order-customer">{t("dispatch.form.customerName")}</FieldLabel>
-          <Input
-            id="order-customer"
-            value={customerName}
-            onChange={(e) => setCustomerName(e.target.value)}
-            placeholder={t("dispatch.form.customerNamePlaceholder")}
-          />
-        </Field>
-
-        <Field>
-          <FieldLabel htmlFor="order-address">{t("dispatch.form.addressLabel")}</FieldLabel>
-          <Input
-            id="order-address"
-            value={address}
-            onChange={(e) => setAddress(e.target.value)}
-            placeholder={t("dispatch.form.addressPlaceholder")}
-          />
-        </Field>
-
-        <Field>
-          <FieldLabel htmlFor="order-van">{t("dispatch.form.van")}</FieldLabel>
-          <NativeSelect
-            id="order-van"
-            value={vehicleId}
-            onChange={(e) => setVehicleId(e.target.value)}
-            disabled={vehicles.length === 0}
-          >
-            {vehicles.length === 0 ? (
-              <NativeSelectOption value="">{t("dispatch.form.noVans")}</NativeSelectOption>
-            ) : null}
-            {vehicles.map((v) => (
-              <NativeSelectOption key={v.id} value={v.id}>
-                {v.label ?? v.id.slice(0, 8)}
-              </NativeSelectOption>
-            ))}
-          </NativeSelect>
-        </Field>
-
-        <div className="grid grid-cols-2 gap-3">
+    <form onSubmit={onSubmit} className="grid grid-cols-1 items-start gap-7 lg:grid-cols-[23rem_1fr]">
+      <div className="flex flex-col gap-7">
+        <Section titleKey="dispatch.form.section.customer">
           <Field>
-            <FieldLabel htmlFor="order-date">{t("dispatch.form.date")}</FieldLabel>
+            <FieldLabel htmlFor="order-customer">{t("dispatch.form.customerName")}</FieldLabel>
             <Input
-              id="order-date"
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
+              id="order-customer"
+              value={customerName}
+              onChange={(e) => setCustomerName(e.target.value)}
+              placeholder={t("dispatch.form.customerNamePlaceholder")}
             />
           </Field>
           <Field>
-            <FieldLabel htmlFor="order-time">{t("dispatch.form.windowStart")}</FieldLabel>
+            <FieldLabel htmlFor="order-address">{t("dispatch.form.addressLabel")}</FieldLabel>
             <Input
-              id="order-time"
-              type="time"
-              value={time}
-              onChange={(e) => setTime(e.target.value)}
+              id="order-address"
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              placeholder={t("dispatch.form.addressPlaceholder")}
             />
           </Field>
+        </Section>
+
+        <Section titleKey="dispatch.form.section.schedule">
+          <Field>
+            <FieldLabel htmlFor="order-van">{t("dispatch.form.van")}</FieldLabel>
+            <NativeSelect
+              id="order-van"
+              className="w-full"
+              value={vehicleId}
+              onChange={(e) => setVehicleId(e.target.value)}
+              disabled={vehicles.length === 0}
+            >
+              {vehicles.length === 0 ? (
+                <NativeSelectOption value="">{t("dispatch.form.noVans")}</NativeSelectOption>
+              ) : null}
+              {vehicles.map((v) => (
+                <NativeSelectOption key={v.id} value={v.id}>
+                  {v.label ?? v.id.slice(0, 8)}
+                </NativeSelectOption>
+              ))}
+            </NativeSelect>
+          </Field>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Field>
+              <FieldLabel htmlFor="order-date">{t("dispatch.form.date")}</FieldLabel>
+              <Input
+                id="order-date"
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+              />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="order-time">{t("dispatch.form.windowStart")}</FieldLabel>
+              <Input
+                id="order-time"
+                type="time"
+                value={time}
+                onChange={(e) => setTime(e.target.value)}
+              />
+            </Field>
+          </div>
+        </Section>
+
+        <div className="flex flex-col gap-3">
+          <p className="text-[0.8125rem] text-muted-foreground">{t("dispatch.form.mapHint")}</p>
+          {error ? (
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          ) : null}
+          {success ? (
+            <Alert>
+              <AlertDescription>{t("dispatch.form.success")}</AlertDescription>
+            </Alert>
+          ) : null}
+          <Button type="submit" size="lg" disabled={!canSubmit}>
+            {submitting ? <Spinner className="size-4" /> : t("dispatch.form.submit")}
+          </Button>
         </div>
-
-        <p className="text-sm text-muted-foreground">
-          {t("dispatch.form.mapHint")}{" "}
-          {pin
-            ? t("dispatch.form.locationSet", { lat: pin.lat.toFixed(5), lng: pin.lng.toFixed(5) })
-            : t("dispatch.form.noLocation")}
-        </p>
-
-        {error ? (
-          <Alert variant="destructive">
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        ) : null}
-        {success ? (
-          <Alert>
-            <AlertDescription>{t("dispatch.form.success")}</AlertDescription>
-          </Alert>
-        ) : null}
-
-        <Button type="submit" disabled={!canSubmit}>
-          {submitting ? <Spinner className="size-4" /> : t("dispatch.form.submit")}
-        </Button>
       </div>
 
       <PinMap
@@ -168,5 +168,17 @@ export function OrderForm({
         onPick={(lat, lng) => setPin({ lat, lng })}
       />
     </form>
+  )
+}
+
+function Section({ titleKey, children }: { titleKey: TranslationKey; children: ReactNode }) {
+  const t = useTranslations()
+  return (
+    <section className="flex flex-col gap-4">
+      <h2 className="text-[0.75rem] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+        {t(titleKey)}
+      </h2>
+      {children}
+    </section>
   )
 }

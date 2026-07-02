@@ -1,5 +1,6 @@
 "use client"
 
+import { Home, Package, type LucideIcon } from "lucide-react"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { Button } from "@/components/ui/button"
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
@@ -17,12 +18,19 @@ const STOP_TYPE_KEY: Record<DispatchStop["stop_type"], TranslationKey> = {
   dropoff: "dispatch.stop.dropoff",
 }
 
-const STATUS_KEY: Record<string, TranslationKey> = {
-  planned: "dispatch.status.planned",
-  arrived: "dispatch.status.arrived",
-  completed: "dispatch.status.completed",
-  failed: "dispatch.status.failed",
-  skipped: "dispatch.status.skipped",
+const STOP_TYPE_ICON: Record<DispatchStop["stop_type"], LucideIcon> = {
+  pickup: Package,
+  dropoff: Home,
+}
+
+// Status → translation key + the pill tint/dot, mapped onto the app's existing
+// status color system (success/warning/destructive/muted).
+const STATUS_STYLE: Record<string, { key: TranslationKey; tint: string; dot: string }> = {
+  planned: { key: "dispatch.status.planned", tint: "bg-muted text-muted-foreground", dot: "bg-muted-foreground/60" },
+  arrived: { key: "dispatch.status.arrived", tint: "bg-warning/15 text-warning-strong", dot: "bg-warning" },
+  completed: { key: "dispatch.status.completed", tint: "bg-success/15 text-success", dot: "bg-success" },
+  failed: { key: "dispatch.status.failed", tint: "bg-destructive/12 text-destructive", dot: "bg-destructive" },
+  skipped: { key: "dispatch.status.skipped", tint: "bg-muted text-muted-foreground", dot: "bg-muted-foreground/60" },
 }
 
 export function OrdersList({
@@ -43,11 +51,17 @@ export function OrdersList({
   const t = useTranslations()
 
   if (orders.length === 0) {
-    return <p className="text-sm text-muted-foreground">{t("dispatch.orders.empty")}</p>
+    return (
+      <div className="flex flex-col items-center gap-4 py-20 text-center">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/bubblebox-van-tight.png" alt="" draggable={false} className="h-16 w-auto opacity-70" />
+        <p className="max-w-xs text-sm text-muted-foreground">{t("dispatch.orders.empty")}</p>
+      </div>
+    )
   }
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-4">
       {orders.map((order) => (
         <OrderCard
           key={order.id}
@@ -107,13 +121,15 @@ function OrderCard({
   return (
     <div className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)]">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <div className="font-medium">
+        <div className="min-w-0">
+          <div className="text-[1.0625rem] font-semibold">
             {order.customer_name ?? t("dispatch.orders.unnamedCustomer")}
           </div>
-          <div className="mt-0.5 font-mono text-xs text-muted-foreground">
-            {order.external_ref}
-            {order.scheduled_date ? ` · ${order.scheduled_date}` : ""}
+          <div className="mt-1 flex flex-wrap items-center gap-2 font-mono text-[0.75rem] text-muted-foreground">
+            <span className="truncate">{order.external_ref}</span>
+            {order.scheduled_date ? (
+              <span className="rounded-full bg-muted px-2 py-0.5">{order.scheduled_date}</span>
+            ) : null}
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -130,7 +146,7 @@ function OrderCard({
 
       {error ? <p className="mt-2 text-sm text-destructive">{error}</p> : null}
 
-      <div className="mt-4 flex flex-col gap-2">
+      <div className="mt-4 flex flex-col gap-2.5">
         {order.stops.map((stop) => (
           <StopRow
             key={stop.id}
@@ -143,6 +159,19 @@ function OrderCard({
         ))}
       </div>
     </div>
+  )
+}
+
+function StatusPill({ status }: { status: string }) {
+  const t = useTranslations()
+  const style = STATUS_STYLE[status] ?? STATUS_STYLE.planned
+  return (
+    <span
+      className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[0.75rem] font-semibold ${style.tint}`}
+    >
+      <span className={`size-1.5 rounded-full ${style.dot}`} />
+      {t(style.key)}
+    </span>
   )
 }
 
@@ -161,6 +190,7 @@ function StopRow({
 }) {
   const t = useTranslations()
   const { busy, error, run } = useAsyncAction(onChanged)
+  const Icon = STOP_TYPE_ICON[stop.stop_type]
 
   const onStatusChange = (status: string) => {
     void run(() => patchStop({ accessToken, stopId: stop.id, patch: { status } }))
@@ -177,43 +207,50 @@ function StopRow({
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border/60 bg-muted/30 px-3 py-2 text-sm">
-      <span className="min-w-16 font-medium">{t(STOP_TYPE_KEY[stop.stop_type])}</span>
-      <span className="min-w-0 flex-1 truncate text-muted-foreground">
-        {stop.address ?? `${stop.lat.toFixed(5)}, ${stop.lng.toFixed(5)}`}
-      </span>
-      <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium">
-        {t(STATUS_KEY[stop.status] ?? "dispatch.status.planned")}
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2.5 rounded-xl border border-border/70 bg-background px-3 py-2.5">
+      <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-brand/12 text-brand-strong">
+        <Icon className="size-[18px]" />
       </span>
 
-      <NativeSelect
-        size="sm"
-        value={stop.vehicle_id ?? ""}
-        disabled={busy}
-        onChange={(e) => e.target.value && onReassign(e.target.value)}
-      >
-        {vehicles.map((v) => (
-          <NativeSelectOption key={v.id} value={v.id}>
-            {v.label ?? v.id.slice(0, 8)}
-          </NativeSelectOption>
-        ))}
-      </NativeSelect>
+      <div className="min-w-0 flex-1">
+        <div className="text-[0.875rem] font-semibold">{t(STOP_TYPE_KEY[stop.stop_type])}</div>
+        <div className="mt-0.5 truncate text-[0.8125rem] text-muted-foreground">
+          {stop.address ?? `${stop.lat.toFixed(5)}, ${stop.lng.toFixed(5)}`}
+        </div>
+      </div>
 
-      <NativeSelect
-        size="sm"
-        value=""
-        disabled={busy}
-        onChange={(e) => e.target.value && onStatusChange(e.target.value)}
-      >
-        <NativeSelectOption value="">{t("dispatch.orders.setStatus")}</NativeSelectOption>
-        {STATUS_OPTIONS.map((s) => (
-          <NativeSelectOption key={s} value={s}>
-            {t(STATUS_KEY[s])}
-          </NativeSelectOption>
-        ))}
-      </NativeSelect>
+      <StatusPill status={stop.status} />
 
-      {error ? <span className="text-xs text-destructive">{error}</span> : null}
+      <div className="flex items-center gap-2">
+        <NativeSelect
+          size="sm"
+          value={stop.vehicle_id ?? ""}
+          disabled={busy}
+          onChange={(e) => e.target.value && onReassign(e.target.value)}
+        >
+          {vehicles.map((v) => (
+            <NativeSelectOption key={v.id} value={v.id}>
+              {v.label ?? v.id.slice(0, 8)}
+            </NativeSelectOption>
+          ))}
+        </NativeSelect>
+
+        <NativeSelect
+          size="sm"
+          value=""
+          disabled={busy}
+          onChange={(e) => e.target.value && onStatusChange(e.target.value)}
+        >
+          <NativeSelectOption value="">{t("dispatch.orders.setStatus")}</NativeSelectOption>
+          {STATUS_OPTIONS.map((s) => (
+            <NativeSelectOption key={s} value={s}>
+              {t(STATUS_STYLE[s].key)}
+            </NativeSelectOption>
+          ))}
+        </NativeSelect>
+      </div>
+
+      {error ? <span className="w-full text-xs text-destructive">{error}</span> : null}
     </div>
   )
 }
