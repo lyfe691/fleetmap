@@ -50,3 +50,4 @@ next-env.d.ts
 /tmp-image/
 # local-only handoff doc (contains client keys; shared privately, never committed)
 docs/driver-app-handoff.md
+/tmp
