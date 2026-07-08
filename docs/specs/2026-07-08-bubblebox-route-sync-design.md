@@ -16,8 +16,11 @@ invalidate that picture entirely:
 - Route points carry **live status** (`processing` / `done`): fulfillment is
   already tracked on their side, through the rider app.
 - Changes (reassignment, time moves, cancellation) just reshape the routes;
-  pulling returns the current truth. **They will not push** — we pull the same
-  API their rider app uses (`GET /api/v2/rider-routes`, Hydra/API Platform).
+  pulling returns the current truth. **They will not push** — we pull.
+  Dmytro is building a **dedicated Fleetmap API** (plus a token endpoint with
+  app-scoped rights) rather than exposing the rider-app API directly; his
+  rider-app example (`GET /api/v2/rider-routes`, Hydra/API Platform) defines
+  the semantics, and our proposed response shape is below.
 
 So Fleetmap's order model becomes a **read-only mirror of Bubble Box's rider
 routes**, refreshed by a small sync worker. Assignment, ordering, status, and
@@ -28,8 +31,8 @@ lose their reason to exist.
 
 ```
 Bubble Box API                    Fleetmap
-GET /api/v2/rider-routes  ──►  sync worker (workers/bubblebox-sync.ts)
-  (per rider, today)              │  translate (lib/bubblebox/translate.ts)
+GET <fleetmap routes API> ──►  sync worker (workers/bubblebox-sync.ts)
+  (all riders, today)             │  translate (lib/bubblebox/translate.ts)
                                   ▼
                            PUT /api/ingest/vehicle-routes   (dispatcher token)
                                   │  rpc sync_vehicle_routes — diff-apply
@@ -46,21 +49,67 @@ stays off the VPS). Dev mode: run it locally against the dev server, like
 
 Loop, every `BB_SYNC_INTERVAL_MS` (default 60 000):
 
-1. Ensure a dispatcher session (mint via `POST /api/dispatcher-session`;
-   re-mint on 401 — tokens live ~1 h).
-2. Read vehicles with a `rider_ref` (as dispatcher; select policy 0007).
-3. Per vehicle: `GET` the rider's routes for today (Europe/Zurich day),
-   morning + evening together (`dueDate[after]=<today>&dueDate[before]=<today>`).
+1. Ensure both tokens: a Bubble Box token (their token endpoint, app-scoped)
+   and a dispatcher session (`POST /api/dispatcher-session`); re-mint either
+   on 401.
+2. Read vehicles with a `rider_ref` (as dispatcher; select policy 0007) to
+   build the rider→vehicle map.
+3. `GET` today's routes (Europe/Zurich day) from the Fleetmap API — one call
+   for all riders, morning + evening; each route carries its rider identifier.
+   Routes whose rider matches no vehicle (and vice versa) are logged, skipped.
 4. Translate to the ingest payload (pure function, unit-tested).
-5. `PUT /api/ingest/vehicle-routes` with the vehicle's full desired state.
+5. `PUT /api/ingest/vehicle-routes` per vehicle with its full desired state.
 
 Failures (BB down, one rider 404s) log and skip that tick — the TV keeps the
 last good picture rather than going blank. The worker never crashes the loop.
 
+## Proposed upstream contract (sent to Dmytro 2026-07-08)
+
+Since the API is being built for us, we ask for the minimum and nothing else —
+in particular **no customer PII, no products, no prices** (we neither store
+nor display them, and it keeps his payload small):
+
+```
+POST <token endpoint>                      → { token }   (app-scoped)
+
+GET  <routes endpoint>?date=2026-07-08     → all riders' routes for that day
+[
+  {
+    "riderRef": "<stable rider identifier — uuid or account>",
+    "date": "2026-07-08",
+    "type": "morning",
+    "routePoints": [
+      {
+        "type": "pickup | delivery | collective | startPoint | endPoint",
+        "status": "processing | done | …(full enum)",
+        "arrivalTime": "2026-07-08T08:00:00+02:00",
+        "fulfilledAt": "2026-07-08T08:03:12+02:00 | null",
+        "latitude": 47.3245229,
+        "longitude": 8.5065959,
+        "orders": [
+          { "orderCode": "3AB-7RG", "type": "pickup | delivery" }
+        ]
+      }
+    ]
+  }
+]
+```
+
+Deltas vs the rider-app example, and why: coordinates directly on the route
+point (saves nesting whole orders just for the address); a `riderRef` per
+route (the rider-app response has none — it's implicitly scoped); order
+entries reduced to `orderCode` + that order's pickup/delivery role at this
+point (`deliveryTypeOnRiderRouteDate` in the example); `fulfilledAt` exposed
+(their admin UI has it; the example payload doesn't); one call returning all
+riders for a date (no per-rider enumeration on our side). If any of this is
+inconvenient for him, the example's shape works too — the worker just does
+more joining.
+
 ## Translation — rider route → orders + stops
 
-Source facts from Dmytro's example response (`rider-route 1.json`, checked in
-as a test fixture):
+Semantics established by Dmytro's rider-app example response
+(`rider-route 1.json`, checked in as a test fixture); the dedicated API keeps
+these, whatever the final field names:
 
 - Route points are **not sorted** in the JSON (the example lists `endPoint`
   first) → sort by `arrivalTime` before assigning `seq`.
@@ -160,26 +209,24 @@ future migration.
 
 ```
 BB_API_URL             # Bubble Box API base
-BB_API_TOKEN           # auth — exact shape pending Dmytro (open item)
+BB_API_CREDENTIALS     # for their token endpoint — exact shape pending Dmytro
 BB_SYNC_INTERVAL_MS    # default 60000
 FLEETMAP_API_URL       # ingest target (http://app:3000 in the stack; dev: localhost)
 DISPATCHER_INGEST_SECRET  # already exists
 ```
 
-## Open items — blocked on Dmytro
+## Open item — blocked on Dmytro
 
-1. **Auth + rider scoping for `/api/v2/rider-routes`.** The response contains
-   no rider identifier, so the endpoint is presumably scoped by the
-   authenticated caller. We need: how to authenticate, and how to fetch *a
-   given rider's* routes (rider filter param? per-rider credentials? an admin
-   token + rider param?). This determines what `rider_ref` holds.
-2. **Status vocabulary + fulfillment time.** We've seen `processing`/`done`
-   on route points; need the full enum, and where the "actual fulfillment
-   time" (visible in their admin table) lives in the payload — it would give
-   `stops.completed_at` a real value instead of null.
+**The dedicated API's final shape + token endpoint.** Dmytro is building a
+Fleetmap-specific API with an app-scoped token endpoint; our proposed response
+shape is above (it folds in everything the example left open: a stable
+`riderRef` per route, the full status enum, `fulfilledAt`, coordinates on the
+point). What `vehicles.rider_ref` holds follows from whatever `riderRef` he
+picks.
 
-Neither blocks building the worker, translator, RPC, or endpoint — only the
-final wiring of the fetch call and one status-map entry.
+This blocks nothing structural: worker, translator, RPC, endpoint, and
+migration are all buildable against the proposed shape with the fixture as
+test data — only the fetch wiring and final field names land with his API.
 
 ## Testing
 
