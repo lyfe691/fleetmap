@@ -2,19 +2,23 @@
 
 import "maplibre-gl/dist/maplibre-gl.css"
 import { useEffect, useMemo, useRef, useState } from "react"
-import { AnimatePresence, motion, useReducedMotion } from "motion/react"
 import { useTheme } from "next-themes"
 import { Map as MapGL, Marker, Source, Layer, type MapRef } from "react-map-gl/maplibre"
 import type { FeatureCollection } from "geojson"
+import { CalendarIcon, Pause, Play } from "lucide-react"
+import { de, enGB } from "date-fns/locale"
+import { Button } from "@/components/ui/button"
+import { Calendar } from "@/components/ui/calendar"
 import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Progress } from "@/components/ui/progress"
 import { Spinner } from "@/components/ui/spinner"
 import { mapColors, mapStyleUrl, type MapTheme } from "@/lib/map-theme"
 import { getBrowserClient } from "@/lib/supabase/browser"
 import { useLocale, useTranslations } from "@/lib/i18n"
-import { formatClock } from "@/lib/i18n/format"
+import { formatClock, formatDay } from "@/lib/i18n/format"
+import type { Locale } from "@/lib/settings/types"
 import { positionAt, thinPoints, traceStats, type ReplayPoint } from "@/lib/replay"
 import { useUnwrappedHeading } from "@/components/map/vehicle-marker"
 
@@ -23,8 +27,7 @@ const MAX_PAGES = 25 // 25k fixes ≈ a full day at 3–4 s cadence
 const MAX_RENDER_POINTS = 2500
 const SPEEDS = [10, 30, 60, 120] as const
 
-function todayLocal(): string {
-  const d = new Date()
+function toYMD(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
     d.getDate()
   ).padStart(2, "0")}`
@@ -39,7 +42,7 @@ export function HistoryView({ vehicles }: { vehicles: { id: string; reg: string 
   const styleUrl = useMemo(() => mapStyleUrl(theme), [theme])
 
   const [vehicleId, setVehicleId] = useState(vehicles[0]?.id ?? "")
-  const [date, setDate] = useState(todayLocal)
+  const [date, setDate] = useState(() => toYMD(new Date()))
   const [points, setPoints] = useState<ReplayPoint[]>([])
   const [rawCount, setRawCount] = useState(0)
   const [truncated, setTruncated] = useState(false)
@@ -196,13 +199,11 @@ export function HistoryView({ vehicles }: { vehicles: { id: string; reg: string 
               </NativeSelectOption>
             ))}
           </NativeSelect>
-          <Input
-            aria-label={t("history.date")}
-            type="date"
-            className="w-auto"
+          <HistoryDatePicker
             value={date}
-            max={todayLocal()}
-            onChange={(e) => setDate(e.target.value)}
+            onChange={setDate}
+            locale={locale}
+            label={t("history.date")}
           />
           {loading ? <Spinner className="size-5" /> : null}
         </div>
@@ -339,6 +340,50 @@ export function HistoryView({ vehicles }: { vehicles: { id: string; reg: string 
   )
 }
 
+// date-fns ships no de-CH; plain de matches Swiss German month/weekday names.
+const CALENDAR_LOCALE = { en: enGB, "de-CH": de } as const
+
+function HistoryDatePicker({
+  value,
+  onChange,
+  locale,
+  label,
+}: {
+  value: string
+  onChange: (ymd: string) => void
+  locale: Locale
+  label: string
+}) {
+  const [open, setOpen] = useState(false)
+  const selected = new Date(`${value}T00:00:00`)
+  const today = new Date()
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger render={<Button variant="outline" aria-label={label} />}>
+        <CalendarIcon className="size-4 text-muted-foreground" />
+        {formatDay(selected, locale)}
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-auto p-0">
+        <Calendar
+          mode="single"
+          selected={selected}
+          defaultMonth={selected}
+          onSelect={(d) => {
+            if (!d) return
+            onChange(toYMD(d))
+            setOpen(false)
+          }}
+          disabled={{ after: today }}
+          endMonth={today}
+          locale={CALENDAR_LOCALE[locale]}
+          className="[--cell-size:--spacing(10)]"
+        />
+      </PopoverContent>
+    </Popover>
+  )
+}
+
 function fmtDuration(ms: number): string {
   const mins = Math.round(ms / 60_000)
   if (mins < 60) return `${mins} min`
@@ -347,12 +392,6 @@ function fmtDuration(ms: number): string {
   return m ? `${h} h ${m} min` : `${h} h`
 }
 
-/**
- * Media-transport button: solid rounded glyphs (lucide's stroked icons read
- * hollow at this size) with a tap squish and a quick scale crossfade between
- * play and pause. Motion mirrors the pill-tabs conventions, incl. the
- * reduced-motion opt-out.
- */
 function PlayButton({
   playing,
   label,
@@ -362,43 +401,18 @@ function PlayButton({
   label: string
   onClick: () => void
 }) {
-  const reduceMotion = useReducedMotion()
   return (
-    <motion.button
-      type="button"
+    <Button
       aria-label={label}
       onClick={onClick}
-      whileTap={reduceMotion ? undefined : { scale: 0.9 }}
-      className="flex size-12 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card"
+      className="size-12 shrink-0 rounded-full transition active:scale-95"
     >
-      <AnimatePresence mode="popLayout" initial={false}>
-        <motion.span
-          key={playing ? "pause" : "play"}
-          initial={reduceMotion ? false : { scale: 0.5, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          exit={reduceMotion ? undefined : { scale: 0.5, opacity: 0 }}
-          transition={{ duration: 0.15, ease: "easeOut" }}
-          className="flex items-center justify-center"
-        >
-          {playing ? (
-            <svg viewBox="0 0 24 24" className="size-5" fill="currentColor" aria-hidden>
-              <rect x="6" y="5" width="4.5" height="14" rx="2" />
-              <rect x="13.5" y="5" width="4.5" height="14" rx="2" />
-            </svg>
-          ) : (
-            <svg viewBox="0 0 24 24" className="ml-0.5 size-5" aria-hidden>
-              <path
-                d="M8.5 6.2v11.6L18 12z"
-                fill="currentColor"
-                stroke="currentColor"
-                strokeWidth="3"
-                strokeLinejoin="round"
-              />
-            </svg>
-          )}
-        </motion.span>
-      </AnimatePresence>
-    </motion.button>
+      {playing ? (
+        <Pause className="size-5 fill-current" />
+      ) : (
+        <Play className="ml-0.5 size-5 fill-current" />
+      )}
+    </Button>
   )
 }
 

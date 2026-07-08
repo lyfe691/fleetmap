@@ -13,3 +13,12 @@ export function formatClock(ms: number, locale: Locale): string {
 export function formatCount(n: number, locale: Locale): string {
   return new Intl.NumberFormat(INTL_LOCALE[locale]).format(n)
 }
+
+export function formatDay(d: Date, locale: Locale): string {
+  return new Intl.DateTimeFormat(INTL_LOCALE[locale], {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }).format(d)
+}
