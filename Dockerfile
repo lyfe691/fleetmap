@@ -31,6 +31,15 @@ ENV NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL \
     NEXT_TELEMETRY_DISABLED=1
 RUN pnpm build
 
+# --- sync: Bubble Box route sync worker (tsx; internal only, no port) ---
+FROM base AS sync
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY package.json tsconfig.json ./
+COPY workers ./workers
+COPY lib/bubblebox ./lib/bubblebox
+CMD ["pnpm", "exec", "tsx", "workers/bubblebox-sync.ts"]
+
 # --- runner: copy only what the standalone server needs ---
 FROM base AS runner
 WORKDIR /app

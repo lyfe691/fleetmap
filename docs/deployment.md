@@ -14,6 +14,12 @@ phone / browser ──HTTPS──> Caddy (:443) ──> Next app (:3000) ──>
 - **Caddy** — reverse proxy, gets a free Let's Encrypt cert automatically for the hostname.
 - **Next app** — the dashboard + API routes, built into a standalone Docker image.
 - **OSRM** — routing engine, Switzerland extract, internal-only.
+- **sync** — Bubble Box route sync worker, internal-only (no port). Polls their
+  API and mirrors rider routes into orders/stops via
+  `PUT /api/ingest/vehicle-routes`. Needs `BB_API_URL` + `BB_API_CREDENTIALS`
+  in `/opt/fleetmap/.env` (empty = the service exits on boot; that's fine until
+  Bubble Box ships their API). Map each van once:
+  `update vehicles set rider_ref = '<their rider id>' where id = …`.
 
 Three files drive it, all in the repo: `Dockerfile`, `docker-compose.prod.yml`, `caddy/Caddyfile`.
 
