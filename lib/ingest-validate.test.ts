@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest"
-import { validate, validateDeleteParams } from "@/lib/ingest-validate"
+import {
+  validate,
+  validateDeleteParams,
+  validateVehicleRoutes,
+} from "@/lib/ingest-validate"
 
 const VALID_STOP = {
   stop_type: "dropoff",
@@ -186,5 +190,70 @@ describe("validateDeleteParams", () => {
     const result = validateDeleteParams({ external_ref: "RT-001", source: 5 })
     expect("error" in result).toBe(true)
     if ("error" in result) expect(result.error).toMatch(/source/)
+  })
+})
+
+describe("validateVehicleRoutes", () => {
+  const VEH = "3f0e8f9a-1c2b-4d5e-8f9a-1c2b4d5e8f9a"
+  const stop = (over: Record<string, unknown> = {}) => ({
+    stop_type: "pickup",
+    seq: 1,
+    lat: 47.37,
+    lng: 8.54,
+    status: "planned",
+    eta_at: "2026-07-08T08:00:00+02:00",
+    ...over,
+  })
+  const body = (over: Record<string, unknown> = {}) => ({
+    vehicle_id: VEH,
+    orders: [
+      { external_ref: "3AB-7RG", scheduled_date: "2026-07-08", stops: [stop()] },
+    ],
+    ...over,
+  })
+
+  it("accepts a valid payload", () => {
+    expect(validateVehicleRoutes(body())).toEqual({
+      vehicle_id: VEH,
+      orders: body().orders,
+    })
+  })
+
+  it("accepts an empty orders array (clears the vehicle)", () => {
+    expect(validateVehicleRoutes({ vehicle_id: VEH, orders: [] })).toEqual({
+      vehicle_id: VEH,
+      orders: [],
+    })
+  })
+
+  it("rejects a non-uuid vehicle_id", () => {
+    expect(validateVehicleRoutes(body({ vehicle_id: "nope" }))).toEqual({
+      error: "vehicle_id must be a uuid",
+    })
+  })
+
+  it("rejects a stop with an unknown status", () => {
+    const b = body()
+    ;(b.orders[0].stops[0] as Record<string, unknown>).status = "delivering"
+    expect(validateVehicleRoutes(b)).toEqual({
+      error: "stop.status must be one of planned|arrived|completed|failed|skipped",
+    })
+  })
+
+  it("rejects a stop with a malformed completed_at", () => {
+    const b = body()
+    ;(b.orders[0].stops[0] as Record<string, unknown>).completed_at = "yesterday"
+    expect(validateVehicleRoutes(b)).toEqual({
+      error: "stop.completed_at must be an ISO 8601 timestamp",
+    })
+  })
+
+  it("rejects an order without stops", () => {
+    expect(
+      validateVehicleRoutes({
+        vehicle_id: VEH,
+        orders: [{ external_ref: "X", stops: [] }],
+      })
+    ).toEqual({ error: "order.stops must be a non-empty array" })
   })
 })
