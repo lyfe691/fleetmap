@@ -1,5 +1,9 @@
 # Fleetmap — Order Ingestion API
 
+> **Superseded for Bubble Box (2026-07-09):** orders now arrive by pull — see
+> `docs/specs/2026-07-08-bubblebox-route-sync-design.md`. This document remains
+> the contract for the manual/dev ingestion seam (`POST /api/ingest/routes`).
+
 **Draft for the Bubble Box integration.** This describes how your booking system
 pushes delivery orders into Fleetmap so they appear on the office monitoring
 screen. It is an internal integration between our two systems — not a public API.

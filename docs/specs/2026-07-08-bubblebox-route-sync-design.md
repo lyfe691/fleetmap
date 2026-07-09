@@ -1,6 +1,6 @@
 # Bubble Box route sync — orders arrive by pull
 
-**Date:** 2026-07-08 · **Status:** designed (two open items pending Dmytro)
+**Date:** 2026-07-08 · **Status:** implemented in fixture mode — real endpoint wiring pending Bubble Box
 
 ## Why
 
