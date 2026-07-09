@@ -1,0 +1,39 @@
+[
+  {
+    "riderRef": "rider-dev@bb.ch",
+    "date": "2026-07-09",
+    "type": "morning",
+    "routePoints": [
+      {
+        "type": "startPoint",
+        "status": "done",
+        "arrivalTime": "2026-07-09T05:49:28+02:00",
+        "fulfilledAt": null,
+        "latitude": 47.39,
+        "longitude": 8.51,
+        "orders": []
+      },
+      {
+        "type": "pickup",
+        "status": "processing",
+        "arrivalTime": "2026-07-09T08:00:00+02:00",
+        "fulfilledAt": null,
+        "latitude": 47.3769,
+        "longitude": 8.5417,
+        "orders": [{ "orderCode": "DEV-001", "type": "pickup" }]
+      },
+      {
+        "type": "collective",
+        "status": "processing",
+        "arrivalTime": "2026-07-09T09:00:00+02:00",
+        "fulfilledAt": null,
+        "latitude": 47.3245229,
+        "longitude": 8.5065959,
+        "orders": [
+          { "orderCode": "DEV-002", "type": "delivery" },
+          { "orderCode": "DEV-003", "type": "delivery" }
+        ]
+      }
+    ]
+  }
+]
