@@ -1,0 +1,382 @@
+{
+    "@context": "\/api\/v2\/contexts\/RiderRoute",
+    "@id": "\/api\/v2\/rider-routes",
+    "@type": "hydra:Collection",
+    "hydra:totalItems": 2,
+    "hydra:member": [
+        {
+            "@id": "\/api\/v2\/rider-routes\/d0db73a0-d3cf-4397-a890-b9caf89744bb",
+            "@type": "RiderRoute",
+            "routePoints": [
+                {
+                    "@id": "\/api\/v2\/rider-route-points\/8861093e-f695-4a1f-bdfc-8a6a83010a41",
+                    "@type": "RiderRoutePoint",
+                    "type": "endPoint",
+                    "orders": [],
+                    "travelDurationInMinutes": "29.3",
+                    "waitDurationInMinutes": "0.0",
+                    "arrivalTime": "2026-07-08T08:34:16+02:00",
+                    "durationInMinutes": 0,
+                    "status": "processing",
+                    "uuid": "8861093e-f695-4a1f-bdfc-8a6a83010a41"
+                },
+                {
+                    "@id": "\/api\/v2\/rider-route-points\/9b913354-5051-45f5-b01f-abe3c20f40a7",
+                    "@type": "RiderRoutePoint",
+                    "type": "collective",
+                    "orders": [
+                        {
+                            "@id": "\/api\/v2\/orders\/59e1cf48-68e1-4c81-9fcd-3e1c12992f29",
+                            "@type": "Order",
+                            "active": true,
+                            "orderCode": "3AB-7RG",
+                            "status": "processing",
+                            "pickupFromTime": "2026-07-06T08:00:00+02:00",
+                            "pickupUntilTime": "2026-07-06T12:00:00+02:00",
+                            "deliveryFromTime": "2026-07-08T08:00:00+02:00",
+                            "deliveryUntilTime": "2026-07-08T12:00:00+02:00",
+                            "customer": {
+                                "@id": "\/api\/v2\/customers\/9170b5dc-c93f-4d0f-b40e-2af06845280f",
+                                "@type": "Customer",
+                                "firstName": "Test",
+                                "lastName": "Test",
+                                "mobilePhoneNumber": "+380730412564",
+                                "lockerCode": "4169",
+                                "uuid": "9170b5dc-c93f-4d0f-b40e-2af06845280f"
+                            },
+                            "availabilityArea": {
+                                "@id": "\/api\/v2\/availability-areas\/IQTa8ffEcy",
+                                "@type": "AvailabilityArea",
+                                "name": "Friesenberg\/Wiedikon",
+                                "type": "HOME_DELIVERY",
+                                "accessCode": "",
+                                "uuid": "IQTa8ffEcy"
+                            },
+                            "deliveryAddress": {
+                                "@id": "\/api\/v2\/customer-addresses\/c3ddc1de-f691-44f6-b43a-bb7dcc29cfbd",
+                                "@type": "CustomerAddress",
+                                "companyName": "",
+                                "street": "Risweg",
+                                "houseNumber": "92",
+                                "zipCode": "8045",
+                                "city": "Zürich",
+                                "addressType": "home",
+                                "comment": "",
+                                "floor": "",
+                                "pickUpMethod": "PERSONAL_HANDOVER",
+                                "deliveryMethod": "PERSONAL_HANDOVER",
+                                "uuid": "c3ddc1de-f691-44f6-b43a-bb7dcc29cfbd",
+                                "latitude": "47.32452290",
+                                "longitude": "8.50659590"
+                            },
+                            "laundry": {
+                                "@id": "\/api\/v2\/shop\/laundries\/9",
+                                "@type": "Laundry",
+                                "name": "Shop Wallisellen"
+                            },
+                            "orderProducts": [
+                                {
+                                    "@id": "\/api\/v2\/order-products\/1359334",
+                                    "@type": "OrderProduct",
+                                    "product": {
+                                        "@id": "\/api\/v2\/products\/83cc6296-3139-11ee-b23e-0242ac140004",
+                                        "@type": "Product",
+                                        "name": "Fee per time slot (4 hours)",
+                                        "unit": "PIECE",
+                                        "categories": [
+                                            {
+                                                "@id": "\/api\/v2\/product-categories\/cf121ad9-8ba1-4955-9ca4-a88bb8ebcf0a",
+                                                "@type": "ProductCategory",
+                                                "name": "BB Internal - Logistics",
+                                                "uuid": "cf121ad9-8ba1-4955-9ca4-a88bb8ebcf0a"
+                                            }
+                                        ],
+                                        "shortInformation": "240 min",
+                                        "uuid": "83cc6296-3139-11ee-b23e-0242ac140004",
+                                        "addons": [],
+                                        "vatPerUnit": "0"
+                                    },
+                                    "name": "Fee per time slot (4 hours)",
+                                    "netPricePerUnit": "0.00",
+                                    "vatPerUnit": "0.00",
+                                    "grossPricePerUnit": "0.00",
+                                    "unit": "PIECE",
+                                    "quantity": "1.00"
+                                },
+                                {
+                                    "@id": "\/api\/v2\/order-products\/1359335",
+                                    "@type": "OrderProduct",
+                                    "product": {
+                                        "@id": "\/api\/v2\/products\/83cc6296-3139-11ee-b23e-0242ac140004",
+                                        "@type": "Product",
+                                        "name": "Fee per time slot (4 hours)",
+                                        "unit": "PIECE",
+                                        "categories": [
+                                            {
+                                                "@id": "\/api\/v2\/product-categories\/cf121ad9-8ba1-4955-9ca4-a88bb8ebcf0a",
+                                                "@type": "ProductCategory",
+                                                "name": "BB Internal - Logistics",
+                                                "uuid": "cf121ad9-8ba1-4955-9ca4-a88bb8ebcf0a"
+                                            }
+                                        ],
+                                        "shortInformation": "240 min",
+                                        "uuid": "83cc6296-3139-11ee-b23e-0242ac140004",
+                                        "addons": [],
+                                        "vatPerUnit": "0"
+                                    },
+                                    "name": "Fee per time slot (4 hours)",
+                                    "netPricePerUnit": "0.00",
+                                    "vatPerUnit": "0.00",
+                                    "grossPricePerUnit": "0.00",
+                                    "unit": "PIECE",
+                                    "quantity": "1.00"
+                                },
+                                {
+                                    "@id": "\/api\/v2\/order-products\/1359336",
+                                    "@type": "OrderProduct",
+                                    "product": {
+                                        "@id": "\/api\/v2\/products\/YVvj1ZeGLI",
+                                        "@type": "Product",
+                                        "name": "Minimum order value",
+                                        "unit": "PIECE",
+                                        "categories": [
+                                            {
+                                                "@id": "\/api\/v2\/product-categories\/cf121ad9-8ba1-4955-9ca4-a88bb8ebcf0a",
+                                                "@type": "ProductCategory",
+                                                "name": "BB Internal - Logistics",
+                                                "uuid": "cf121ad9-8ba1-4955-9ca4-a88bb8ebcf0a"
+                                            }
+                                        ],
+                                        "uuid": "YVvj1ZeGLI",
+                                        "addons": [],
+                                        "vatPerUnit": "0"
+                                    },
+                                    "name": "Minimum order value",
+                                    "netPricePerUnit": "45.33",
+                                    "vatPerUnit": "3.67",
+                                    "grossPricePerUnit": "49.00",
+                                    "unit": "PIECE",
+                                    "quantity": "1.00"
+                                }
+                            ],
+                            "pickUpMethod": "PERSONAL_HANDOVER",
+                            "deliveryMethod": "PERSONAL_HANDOVER",
+                            "riderPhotos": [],
+                            "uuid": "59e1cf48-68e1-4c81-9fcd-3e1c12992f29",
+                            "deliveryTypeOnRiderRouteDate": "delivery",
+                            "isFirstOrderForCustomer": false
+                        },
+                        {
+                            "@id": "\/api\/v2\/orders\/0ee29b45-255f-44f9-844b-e1eb050f1ae6",
+                            "@type": "Order",
+                            "active": true,
+                            "orderCode": "BG9-QCH",
+                            "status": "processing",
+                            "pickupFromTime": "2026-07-06T08:00:00+02:00",
+                            "pickupUntilTime": "2026-07-06T12:00:00+02:00",
+                            "deliveryFromTime": "2026-07-08T08:00:00+02:00",
+                            "deliveryUntilTime": "2026-07-08T12:00:00+02:00",
+                            "customer": {
+                                "@id": "\/api\/v2\/customers\/9170b5dc-c93f-4d0f-b40e-2af06845280f",
+                                "@type": "Customer",
+                                "firstName": "Test",
+                                "lastName": "Test",
+                                "mobilePhoneNumber": "+380730412564",
+                                "lockerCode": "4169",
+                                "uuid": "9170b5dc-c93f-4d0f-b40e-2af06845280f"
+                            },
+                            "availabilityArea": {
+                                "@id": "\/api\/v2\/availability-areas\/IQTa8ffEcy",
+                                "@type": "AvailabilityArea",
+                                "name": "Friesenberg\/Wiedikon",
+                                "type": "HOME_DELIVERY",
+                                "accessCode": "",
+                                "uuid": "IQTa8ffEcy"
+                            },
+                            "deliveryAddress": {
+                                "@id": "\/api\/v2\/customer-addresses\/c3ddc1de-f691-44f6-b43a-bb7dcc29cfbd",
+                                "@type": "CustomerAddress",
+                                "companyName": "",
+                                "street": "Risweg",
+                                "houseNumber": "92",
+                                "zipCode": "8045",
+                                "city": "Zürich",
+                                "addressType": "home",
+                                "comment": "",
+                                "floor": "",
+                                "pickUpMethod": "PERSONAL_HANDOVER",
+                                "deliveryMethod": "PERSONAL_HANDOVER",
+                                "uuid": "c3ddc1de-f691-44f6-b43a-bb7dcc29cfbd",
+                                "latitude": "47.32452290",
+                                "longitude": "8.50659590"
+                            },
+                            "laundry": {
+                                "@id": "\/api\/v2\/shop\/laundries\/9",
+                                "@type": "Laundry",
+                                "name": "Shop Wallisellen"
+                            },
+                            "orderProducts": [
+                                {
+                                    "@id": "\/api\/v2\/order-products\/1359345",
+                                    "@type": "OrderProduct",
+                                    "product": {
+                                        "@id": "\/api\/v2\/products\/83cc6296-3139-11ee-b23e-0242ac140004",
+                                        "@type": "Product",
+                                        "name": "Fee per time slot (4 hours)",
+                                        "unit": "PIECE",
+                                        "categories": [
+                                            {
+                                                "@id": "\/api\/v2\/product-categories\/cf121ad9-8ba1-4955-9ca4-a88bb8ebcf0a",
+                                                "@type": "ProductCategory",
+                                                "name": "BB Internal - Logistics",
+                                                "uuid": "cf121ad9-8ba1-4955-9ca4-a88bb8ebcf0a"
+                                            }
+                                        ],
+                                        "shortInformation": "240 min",
+                                        "uuid": "83cc6296-3139-11ee-b23e-0242ac140004",
+                                        "addons": [],
+                                        "vatPerUnit": "0"
+                                    },
+                                    "name": "Fee per time slot (4 hours)",
+                                    "netPricePerUnit": "0.00",
+                                    "vatPerUnit": "0.00",
+                                    "grossPricePerUnit": "0.00",
+                                    "unit": "PIECE",
+                                    "quantity": "1.00"
+                                },
+                                {
+                                    "@id": "\/api\/v2\/order-products\/1359346",
+                                    "@type": "OrderProduct",
+                                    "product": {
+                                        "@id": "\/api\/v2\/products\/83cc6296-3139-11ee-b23e-0242ac140004",
+                                        "@type": "Product",
+                                        "name": "Fee per time slot (4 hours)",
+                                        "unit": "PIECE",
+                                        "categories": [
+                                            {
+                                                "@id": "\/api\/v2\/product-categories\/cf121ad9-8ba1-4955-9ca4-a88bb8ebcf0a",
+                                                "@type": "ProductCategory",
+                                                "name": "BB Internal - Logistics",
+                                                "uuid": "cf121ad9-8ba1-4955-9ca4-a88bb8ebcf0a"
+                                            }
+                                        ],
+                                        "shortInformation": "240 min",
+                                        "uuid": "83cc6296-3139-11ee-b23e-0242ac140004",
+                                        "addons": [],
+                                        "vatPerUnit": "0"
+                                    },
+                                    "name": "Fee per time slot (4 hours)",
+                                    "netPricePerUnit": "0.00",
+                                    "vatPerUnit": "0.00",
+                                    "grossPricePerUnit": "0.00",
+                                    "unit": "PIECE",
+                                    "quantity": "1.00"
+                                },
+                                {
+                                    "@id": "\/api\/v2\/order-products\/1359347",
+                                    "@type": "OrderProduct",
+                                    "product": {
+                                        "@id": "\/api\/v2\/products\/YVvj1ZeGLI",
+                                        "@type": "Product",
+                                        "name": "Minimum order value",
+                                        "unit": "PIECE",
+                                        "categories": [
+                                            {
+                                                "@id": "\/api\/v2\/product-categories\/cf121ad9-8ba1-4955-9ca4-a88bb8ebcf0a",
+                                                "@type": "ProductCategory",
+                                                "name": "BB Internal - Logistics",
+                                                "uuid": "cf121ad9-8ba1-4955-9ca4-a88bb8ebcf0a"
+                                            }
+                                        ],
+                                        "uuid": "YVvj1ZeGLI",
+                                        "addons": [],
+                                        "vatPerUnit": "0"
+                                    },
+                                    "name": "Minimum order value",
+                                    "netPricePerUnit": "45.33",
+                                    "vatPerUnit": "3.67",
+                                    "grossPricePerUnit": "49.00",
+                                    "unit": "PIECE",
+                                    "quantity": "1.00"
+                                }
+                            ],
+                            "pickUpMethod": "PERSONAL_HANDOVER",
+                            "deliveryMethod": "PERSONAL_HANDOVER",
+                            "riderPhotos": [],
+                            "uuid": "0ee29b45-255f-44f9-844b-e1eb050f1ae6",
+                            "deliveryTypeOnRiderRouteDate": "delivery",
+                            "isFirstOrderForCustomer": false
+                        }
+                    ],
+                    "travelDurationInMinutes": "30.3",
+                    "waitDurationInMinutes": "0.0",
+                    "arrivalTime": "2026-07-08T08:00:00+02:00",
+                    "durationInMinutes": 5,
+                    "departureTime": "2026-07-08T08:05:00+02:00",
+                    "status": "processing",
+                    "uuid": "9b913354-5051-45f5-b01f-abe3c20f40a7"
+                }
+            ],
+            "dueDate": "2026-07-08T00:00:00+02:00",
+            "status": "processing",
+            "type": "morning",
+            "uuid": "d0db73a0-d3cf-4397-a890-b9caf89744bb"
+        },
+        {
+            "@id": "\/api\/v2\/rider-routes\/27fc5eb4-9188-45f9-b8a3-ed3fb673784f",
+            "@type": "RiderRoute",
+            "routePoints": [],
+            "dueDate": "2026-07-08T00:00:00+02:00",
+            "status": "processing",
+            "type": "evening",
+            "uuid": "27fc5eb4-9188-45f9-b8a3-ed3fb673784f"
+        }
+    ],
+    "hydra:view": {
+        "@id": "\/api\/v2\/rider-routes?dueDate%5Bafter%5D=2026-07-08\u0026dueDate%5Bbefore%5D=2026-07-08\u0026arrivalTime%5Bafter%5D=06%3A00\u0026arrivalTime%5Bbefore%5D=17%3A00",
+        "@type": "hydra:PartialCollectionView"
+    },
+    "hydra:search": {
+        "@type": "hydra:IriTemplate",
+        "hydra:template": "\/api\/v2\/rider-routes{?dueDate[before],dueDate[strictly_before],dueDate[after],dueDate[strictly_after],status,status[]}",
+        "hydra:variableRepresentation": "BasicRepresentation",
+        "hydra:mapping": [
+            {
+                "@type": "IriTemplateMapping",
+                "variable": "dueDate[before]",
+                "property": "dueDate",
+                "required": false
+            },
+            {
+                "@type": "IriTemplateMapping",
+                "variable": "dueDate[strictly_before]",
+                "property": "dueDate",
+                "required": false
+            },
+            {
+                "@type": "IriTemplateMapping",
+                "variable": "dueDate[after]",
+                "property": "dueDate",
+                "required": false
+            },
+            {
+                "@type": "IriTemplateMapping",
+                "variable": "dueDate[strictly_after]",
+                "property": "dueDate",
+                "required": false
+            },
+            {
+                "@type": "IriTemplateMapping",
+                "variable": "status",
+                "property": "status",
+                "required": false
+            },
+            {
+                "@type": "IriTemplateMapping",
+                "variable": "status[]",
+                "property": "status",
+                "required": false
+            }
+        ]
+    }
+}
