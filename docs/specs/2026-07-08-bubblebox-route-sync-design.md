@@ -47,32 +47,54 @@ dispatcher session exactly like `seed-stops` does; the Supabase secret key
 stays off the VPS). Dev mode: run it locally against the dev server, like
 `fake-gps`.
 
-Loop, every `BB_SYNC_INTERVAL_MS` (default 60 000):
+The fetch is two-tier (agreed with Dmytro 2026-07-09, prompted by his
+response-size concern): their backend **forbids changing a started route** —
+additions only land in the not-yet-started route (morning locks when it
+starts; new orders go to evening) — so route *structure* is fetched rarely,
+while point *status* (the thing that changes all day and drives the TV's
+stop fade / next-stop / ETA) is polled every minute from a slim dedicated
+endpoint.
+
+Loop:
 
 1. Ensure both tokens: a Bubble Box token (their token endpoint, app-scoped)
    and a dispatcher session (`POST /api/dispatcher-session`); re-mint either
    on 401.
 2. Read vehicles with a `rider_ref` (as dispatcher; select policy 0007) to
    build the rider→vehicle map.
-3. `GET` today's routes (Europe/Zurich day) from the Fleetmap API — one call
-   for all riders, morning + evening; each route carries its rider identifier.
-   Routes whose rider matches no vehicle (and vice versa) are logged, skipped.
-4. Translate to the ingest payload (pure function, unit-tested).
-5. `PUT /api/ingest/vehicle-routes` per vehicle with its full desired state.
+3. Every `BB_STRUCTURE_INTERVAL_MS` (default 15 min, and at startup): `GET`
+   today's full routes (Europe/Zurich day) — all riders, morning + evening,
+   started or not; each route carries its rider identifier. Held in worker
+   memory as the current structure. Routes whose rider matches no vehicle
+   (and vice versa) are logged, skipped.
+4. Every `BB_SYNC_INTERVAL_MS` (default 60 000): `GET` the slim status
+   endpoint, merge statuses into the in-memory structure.
+5. Translate to the ingest payload (pure function, unit-tested) and
+   `PUT /api/ingest/vehicle-routes` per vehicle with its full desired state —
+   every tick. The RPC's diff-apply makes status-only ticks nearly free on
+   the Realtime side; our ingest surface needs no second endpoint.
 
 Failures (BB down, one rider 404s) log and skip that tick — the TV keeps the
 last good picture rather than going blank. The worker never crashes the loop.
 
-## Proposed upstream contract (sent to Dmytro 2026-07-08)
+## Upstream contract (proposed 2026-07-08; two-tier split agreed 2026-07-09)
 
 Since the API is being built for us, we ask for the minimum and nothing else —
 in particular **no customer PII, no products, no prices** (we neither store
-nor display them, and it keeps his payload small):
+nor display them, and it keeps his payload small). Three endpoints: token,
+full routes (fetched rarely), statuses (polled per minute):
 
 ```
 POST <token endpoint>                      → { token }   (app-scoped)
 
+GET  <status endpoint>?date=2026-07-08     → today's point statuses, flat
+[
+  { "orderCode": "3AB-7RG", "type": "pickup | delivery",
+    "status": "done", "fulfilledAt": "2026-07-08T08:03:12+02:00 | null" }
+]
+
 GET  <routes endpoint>?date=2026-07-08     → all riders' routes for that day
+                                             (started or not)
 [
   {
     "riderRef": "<stable rider identifier — uuid or account>",
@@ -208,21 +230,21 @@ future migration.
 ## Config
 
 ```
-BB_API_URL             # Bubble Box API base
-BB_API_CREDENTIALS     # for their token endpoint — exact shape pending Dmytro
-BB_SYNC_INTERVAL_MS    # default 60000
-FLEETMAP_API_URL       # ingest target (http://app:3000 in the stack; dev: localhost)
+BB_API_URL                # Bubble Box API base
+BB_API_CREDENTIALS        # for their token endpoint — exact shape pending Dmytro
+BB_SYNC_INTERVAL_MS       # status poll, default 60000
+BB_STRUCTURE_INTERVAL_MS  # full-routes fetch, default 900000
+FLEETMAP_API_URL          # ingest target (http://app:3000 in the stack; dev: localhost)
 DISPATCHER_INGEST_SECRET  # already exists
 ```
 
 ## Open item — blocked on Dmytro
 
-**The dedicated API's final shape + token endpoint.** Dmytro is building a
-Fleetmap-specific API with an app-scoped token endpoint; our proposed response
-shape is above (it folds in everything the example left open: a stable
-`riderRef` per route, the full status enum, `fulfilledAt`, coordinates on the
-point). What `vehicles.rider_ref` holds follows from whatever `riderRef` he
-picks.
+**The dedicated API's concrete details.** The shape is agreed in principle
+(three endpoints, two-tier fetch — above); what lands with Dmytro's
+implementation: final URLs and field names, token endpoint mechanics, the
+full status enum, and which `riderRef` he picks (that choice defines what
+`vehicles.rider_ref` holds).
 
 This blocks nothing structural: worker, translator, RPC, endpoint, and
 migration are all buildable against the proposed shape with the fixture as
