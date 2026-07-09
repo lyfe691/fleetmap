@@ -8,7 +8,9 @@ import { StatusBadge } from "@/components/console/status-badge"
 import { useTranslations, useLocale } from "@/lib/i18n"
 import { formatCount } from "@/lib/i18n/format"
 import type { TranslationKey } from "@/lib/i18n/en"
+import { Card, CardContent } from "@/components/ui/card"
 import { PillTabs } from "@/components/ui/pill-tabs"
+import { cn } from "@/lib/utils"
 
 const SEGMENTS: { filter: StatusFilter; key: keyof ConsoleCounts; tKey: TranslationKey }[] = [
   { filter: "All", key: "all", tKey: "filter.all" },
@@ -143,56 +145,67 @@ function VehicleCard({
   const t = useTranslations()
   const onRoute = vehicle.tone === "onRoute"
   return (
-    <button
-      type="button"
-      onClick={onSelect}
+    <Card
+      size="sm"
+      role="button"
+      tabIndex={0}
       aria-pressed={selected}
-      className={`rounded-2xl bg-card p-[18px] text-left transition-[scale,box-shadow] duration-200 ease-out active:scale-[0.97] ${
-        selected
-          ? "shadow-[0_10px_30px_-10px_rgb(0_0_0/0.25)] ring-2 ring-primary/30 dark:shadow-[0_10px_30px_-8px_rgb(0_0_0/0.6)]"
-          : "shadow-[0_1px_2px_rgb(0_0_0/0.05),0_5px_14px_-6px_rgb(0_0_0/0.08)] hover:shadow-[0_4px_18px_-6px_rgb(0_0_0/0.14)] dark:shadow-[0_2px_8px_-2px_rgb(0_0_0/0.5)]"
-      }`}
+      onClick={onSelect}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault()
+          onSelect()
+        }
+      }}
+      className={cn(
+        "w-full cursor-pointer gap-0 text-left transition-[scale,box-shadow] duration-200 ease-out active:scale-[0.97]",
+        // Selection rides brand (not primary — primary is near-black in light
+        // and washed-out in dark, which made the old ring-2 look muddy).
+        selected && "ring-2 ring-brand/35 dark:ring-brand/40"
+      )}
     >
-      <div className="flex items-center justify-between gap-2">
-        <span className="min-w-0 flex-1 truncate text-[0.9375rem] font-semibold">
-          {vehicle.reg}
-        </span>
-        <StatusBadge tone={vehicle.tone} />
-      </div>
+      <CardContent>
+        <div className="flex items-center justify-between gap-2">
+          <span className="min-w-0 flex-1 truncate text-[0.9375rem] font-semibold">
+            {vehicle.reg}
+          </span>
+          <StatusBadge tone={vehicle.tone} />
+        </div>
 
-      <div className="mt-3.5 flex items-center gap-3">
-        <div className="min-w-0 flex-1">
-          <div className="font-mono text-[1.625rem] leading-none font-semibold tracking-tight">
-            {onRoute ? vehicle.etaText : t("rail.idle")}
+        <div className="mt-3.5 flex items-center gap-3">
+          <div className="min-w-0 flex-1">
+            <div className="font-mono text-[1.625rem] leading-none font-semibold tracking-tight">
+              {onRoute ? vehicle.etaText : t("rail.idle")}
+            </div>
+            <div className="mt-1.5 text-[0.875rem] text-muted-foreground">
+              {onRoute
+                ? vehicle.stopsLeft === 1
+                  ? t("rail.stopsLeft.one", { n: vehicle.stopsLeft })
+                  : t("rail.stopsLeft.other", { n: vehicle.stopsLeft })
+                : t("rail.awaitingDispatch")}
+              {vehicle.stale ? ` · ${t("rail.stale")}` : ""}
+            </div>
+            <div className="mt-3.5 flex items-center gap-2 text-[0.875rem]">
+              <span className="max-w-[5.75rem] truncate text-muted-foreground">
+                {vehicle.origin}
+              </span>
+              <ArrowRight className="size-[18px] shrink-0 text-muted-foreground" />
+              <span className="max-w-[5.75rem] truncate font-semibold">
+                {vehicle.dest}
+              </span>
+            </div>
           </div>
-          <div className="mt-1.5 text-[0.875rem] text-muted-foreground">
-            {onRoute
-              ? vehicle.stopsLeft === 1
-                ? t("rail.stopsLeft.one", { n: vehicle.stopsLeft })
-                : t("rail.stopsLeft.other", { n: vehicle.stopsLeft })
-              : t("rail.awaitingDispatch")}
-            {vehicle.stale ? ` · ${t("rail.stale")}` : ""}
-          </div>
-          <div className="mt-3.5 flex items-center gap-2 text-[0.875rem]">
-            <span className="max-w-[5.75rem] truncate text-muted-foreground">
-              {vehicle.origin}
-            </span>
-            <ArrowRight className="size-[18px] shrink-0 text-muted-foreground" />
-            <span className="max-w-[5.75rem] truncate font-semibold">
-              {vehicle.dest}
-            </span>
+          <div className="flex h-[4.75rem] w-[7rem] shrink-0 items-center justify-center overflow-hidden rounded-xl bg-muted">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/bubblebox-van.png"
+              alt=""
+              draggable={false}
+              className="h-full w-full object-contain p-1.5"
+            />
           </div>
         </div>
-        <div className="flex h-[4.75rem] w-[7rem] shrink-0 items-center justify-center overflow-hidden rounded-xl bg-muted">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/bubblebox-van.png"
-            alt=""
-            draggable={false}
-            className="h-full w-full object-contain p-1.5"
-          />
-        </div>
-      </div>
-    </button>
+      </CardContent>
+    </Card>
   )
 }
