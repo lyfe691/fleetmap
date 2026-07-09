@@ -15,6 +15,7 @@
     "provision-dispatcher": "tsx --env-file=.env scripts/provision-dispatcher.ts",
     "provision-driver": "tsx --env-file=.env scripts/provision-driver.ts",
     "seed-stops": "tsx --env-file=.env scripts/seed-stops.ts",
+    "bb-sync": "tsx --env-file=.env workers/bubblebox-sync.ts",
     "test": "vitest run",
     "test:watch": "vitest"
   },
