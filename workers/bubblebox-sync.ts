@@ -128,7 +128,9 @@ let structureAt = 0
 
 async function tick(): Promise<void> {
   const today = zurichToday()
-  if (Date.now() - structureAt >= STRUCTURE_MS || structure.length === 0) {
+  // Fixture mode re-reads every tick — the file is both structure and status
+  // source, and edits should show up on the next tick, not in 15 minutes.
+  if (FIXTURE || Date.now() - structureAt >= STRUCTURE_MS || structure.length === 0) {
     structure = await fetchStructure(today)
     structureAt = Date.now()
   }
