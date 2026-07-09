@@ -25,6 +25,9 @@ import {
   isStale,
 } from "@/components/map/vehicle-marker"
 
+// Avoid stacking styleimagemissing handlers when reuseMaps re-attaches.
+const mapsWithImageStub = new WeakSet<object>()
+
 function computeFleetBounds(
   vehicles: Vehicle[]
 ): [[number, number], [number, number]] | null {
@@ -79,6 +82,21 @@ export function FleetMapView({
     mapRef.current = instance
     if (!instance) return
     const map = instance.getMap()
+    // MapTiler basemap styles sometimes reference a blank icon id (" ").
+    // MapLibre then spam-logs "Image \" \" could not be loaded" — unrelated to
+    // our markers (those are DOM). Stub a transparent pixel for empty ids only.
+    if (!mapsWithImageStub.has(map)) {
+      mapsWithImageStub.add(map)
+      map.on("styleimagemissing", (e) => {
+        if (e.id.trim() !== "") return
+        if (map.hasImage(e.id)) return
+        map.addImage(e.id, {
+          width: 1,
+          height: 1,
+          data: new Uint8Array([0, 0, 0, 0]),
+        })
+      })
+    }
     if (map.isStyleLoaded()) setMapLoaded(true)
     else map.once("idle", () => setMapLoaded(true))
   }, [])

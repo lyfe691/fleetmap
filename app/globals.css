@@ -53,6 +53,20 @@
     --radius-2xl: calc(var(--radius) * 1.8);
     --radius-3xl: calc(var(--radius) * 2.2);
     --radius-4xl: calc(var(--radius) * 2.6);
+    --animate-brand-border: brand-border-spin 4s linear infinite;
+
+    @keyframes brand-border-spin {
+        to {
+            --border-angle: 360deg;
+        }
+    }
+}
+
+/* Animatable angle for the selected-card conic border (Cruip-style sweep). */
+@property --border-angle {
+    syntax: "<angle>";
+    initial-value: 0deg;
+    inherits: false;
 }
 
 :root {
@@ -221,4 +235,73 @@ html[data-high-contrast].dark {
   --muted-foreground: oklch(0.92 0 0);
   --foreground: oklch(1 0 0);
   --ring: oklch(0.85 0 0);
+}
+
+/*
+ * Selected fleet-rail card — rotating brand conic border.
+ *
+ * Uses a masked ::before ring instead of the dual-background trick: Card's
+ * `bg-card` utility was winning/fighting the background shorthand, so the
+ * earlier version rendered as a plain card with no visible edge effect.
+ * The pseudo sits inset:0 (works with Card's overflow-hidden) and punches a
+ * hole through itself so only a ~2px rim shows. Pure CSS — no images.
+ */
+.fleet-card-selected {
+  --border-angle: 0deg;
+  position: relative;
+  /* Kill Card's default hairline ring; soft brand bloom for presence. */
+  --tw-ring-shadow: 0 0 #0000;
+  box-shadow:
+    var(--shadow-card),
+    0 0 0 1px color-mix(in srgb, var(--brand) 28%, transparent),
+    0 10px 32px -12px color-mix(in srgb, var(--brand) 55%, transparent) !important;
+}
+
+.fleet-card-selected::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+  padding: 2px;
+  pointer-events: none;
+  background: conic-gradient(
+    from var(--border-angle),
+    color-mix(in srgb, var(--brand) 18%, transparent) 0deg,
+    color-mix(in srgb, var(--brand) 18%, transparent) 220deg,
+    color-mix(in srgb, var(--brand) 70%, transparent) 280deg,
+    var(--brand) 310deg,
+    #9ff4fb 335deg,
+    var(--brand) 350deg,
+    color-mix(in srgb, var(--brand) 18%, transparent) 360deg
+  );
+  /* Ring mask: paint only the padding rim, punch out the content box. */
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  animation: brand-border-spin 3.5s linear infinite;
+}
+
+/* Content above the rim so text/images stay crisp. */
+.fleet-card-selected > * {
+  position: relative;
+  z-index: 2;
+}
+
+/* Static solid brand rim when motion is reduced. */
+@media (prefers-reduced-motion: reduce) {
+  .fleet-card-selected::before {
+    animation: none;
+    background: color-mix(in srgb, var(--brand) 80%, transparent);
+  }
+}
+
+html[data-reduce-motion] .fleet-card-selected::before {
+  animation: none !important;
+  background: color-mix(in srgb, var(--brand) 80%, transparent);
 }
