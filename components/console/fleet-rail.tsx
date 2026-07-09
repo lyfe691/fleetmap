@@ -158,10 +158,11 @@ function VehicleCard({
         }
       }}
       className={cn(
-        "w-full cursor-pointer gap-0 text-left transition-[scale,box-shadow] duration-200 ease-out active:scale-[0.97]",
-        // Selection rides brand (not primary — primary is near-black in light
-        // and washed-out in dark, which made the old ring-2 look muddy).
-        selected && "ring-2 ring-brand/35 dark:ring-brand/40"
+        "w-full cursor-pointer gap-0 text-left transition-[scale] duration-200 ease-out active:scale-[0.97]",
+        // Selected: rotating brand conic border (see .fleet-card-selected in
+        // globals.css). ring-0 kills Card's default hairline so the dual-bg
+        // border technique owns the edge.
+        selected && "fleet-card-selected ring-0"
       )}
     >
       <CardContent>
