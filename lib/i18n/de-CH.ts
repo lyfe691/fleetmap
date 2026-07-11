@@ -90,7 +90,6 @@ export const deCH: Record<TranslationKey, string> = {
   "tracking.manifest": "Frachtliste",
   "history.title": "Routen-Wiedergabe",
   "history.subtitle": "Gefahrene Route eines Fahrzeugs aus dem aufgezeichneten GPS-Track abspielen.",
-  "history.vehicle": "Fahrzeug",
   "history.date": "Datum",
   "history.play": "Abspielen",
   "history.pause": "Pause",

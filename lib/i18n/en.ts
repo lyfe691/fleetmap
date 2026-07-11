@@ -88,7 +88,6 @@ export const en = {
   "tracking.manifest": "Manifest",
   "history.title": "Route Replay",
   "history.subtitle": "Replay a vehicle's driven route from its recorded GPS track.",
-  "history.vehicle": "Vehicle",
   "history.date": "Date",
   "history.play": "Play",
   "history.pause": "Pause",
