@@ -26,6 +26,14 @@ const PAGE_SIZE = 1000
 const MAX_PAGES = 25 // 25k fixes ≈ a full day at 3–4 s cadence
 const MAX_RENDER_POINTS = 2500
 const SPEEDS = [10, 30, 60, 120] as const
+const EMPTY_POINTS: ReplayPoint[] = []
+
+type LoadedTrack = {
+  key: string
+  points: ReplayPoint[]
+  rawCount: number
+  truncated: boolean
+}
 
 function toYMD(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
@@ -33,7 +41,7 @@ function toYMD(d: Date): string {
   ).padStart(2, "0")}`
 }
 
-export function HistoryView({ vehicles }: { vehicles: { id: string; reg: string }[] }) {
+export function HistoryView({ vehicleId }: { vehicleId: string | null }) {
   const t = useTranslations()
   const locale = useLocale()
   const { resolvedTheme } = useTheme()
@@ -41,29 +49,32 @@ export function HistoryView({ vehicles }: { vehicles: { id: string; reg: string 
   const colors = useMemo(() => mapColors(theme), [theme])
   const styleUrl = useMemo(() => mapStyleUrl(theme), [theme])
 
-  const [vehicleId, setVehicleId] = useState(vehicles[0]?.id ?? "")
   const [date, setDate] = useState(() => toYMD(new Date()))
-  const [points, setPoints] = useState<ReplayPoint[]>([])
-  const [rawCount, setRawCount] = useState(0)
-  const [truncated, setTruncated] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const trackKey = vehicleId && date ? `${vehicleId}:${date}` : null
+  const [loadedTrack, setLoadedTrack] = useState<LoadedTrack | null>(null)
+  const [loadingFor, setLoadingFor] = useState<string | null>(null)
+  const [loadError, setLoadError] = useState<{
+    key: string
+    message: string
+  } | null>(null)
+  const currentTrack = loadedTrack?.key === trackKey ? loadedTrack : null
+  const points = currentTrack?.points ?? EMPTY_POINTS
+  const rawCount = currentTrack?.rawCount ?? 0
+  const truncated = currentTrack?.truncated ?? false
+  const loading = trackKey != null && loadingFor === trackKey
+  const error = loadError?.key === trackKey ? loadError.message : null
 
-  // The vehicle list arrives async; adopt the first one once it exists.
   useEffect(() => {
-    if (!vehicleId && vehicles.length > 0) setVehicleId(vehicles[0].id)
-  }, [vehicles, vehicleId])
-
-  useEffect(() => {
-    if (!vehicleId || !date) return
+    if (!vehicleId || !date || !trackKey) return
     const supabase = getBrowserClient()
     const start = new Date(`${date}T00:00:00`)
     const end = new Date(start.getTime() + 24 * 3600 * 1000)
+    const requestKey = trackKey
     let cancelled = false
 
     const load = async () => {
-      setLoading(true)
-      setError(null)
+      setLoadingFor(requestKey)
+      setLoadError(null)
       const all: ReplayPoint[] = []
       let hitCap = true
       for (let page = 0; page < MAX_PAGES; page++) {
@@ -77,8 +88,8 @@ export function HistoryView({ vehicles }: { vehicles: { id: string; reg: string 
           .range(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE - 1)
         if (cancelled) return
         if (selErr) {
-          setError(selErr.message)
-          setLoading(false)
+          setLoadError({ key: requestKey, message: selErr.message })
+          setLoadingFor(null)
           return
         }
         const rows = (data ?? []) as { lat: number; lng: number; recorded_at: string }[]
@@ -90,16 +101,19 @@ export function HistoryView({ vehicles }: { vehicles: { id: string; reg: string 
           break
         }
       }
-      setRawCount(all.length)
-      setTruncated(hitCap)
-      setPoints(thinPoints(all, MAX_RENDER_POINTS))
-      setLoading(false)
+      setLoadedTrack({
+        key: requestKey,
+        points: thinPoints(all, MAX_RENDER_POINTS),
+        rawCount: all.length,
+        truncated: hitCap,
+      })
+      setLoadingFor(null)
     }
     void load()
     return () => {
       cancelled = true
     }
-  }, [vehicleId, date])
+  }, [vehicleId, date, trackKey])
 
   const stats = useMemo(() => traceStats(points), [points])
   const line = useMemo<FeatureCollection>(
@@ -187,18 +201,6 @@ export function HistoryView({ vehicles }: { vehicles: { id: string; reg: string 
         <p className="mt-1.5 text-[0.9375rem] text-muted-foreground">{t("history.subtitle")}</p>
 
         <div className="mt-5 flex flex-wrap items-center gap-3">
-          <NativeSelect
-            aria-label={t("history.vehicle")}
-            className="min-w-[11rem]"
-            value={vehicleId}
-            onChange={(e) => setVehicleId(e.target.value)}
-          >
-            {vehicles.map((v) => (
-              <NativeSelectOption key={v.id} value={v.id}>
-                {v.reg}
-              </NativeSelectOption>
-            ))}
-          </NativeSelect>
           <HistoryDatePicker
             value={date}
             onChange={setDate}

@@ -162,7 +162,9 @@ export function ConsoleShell({ onChangeCode }: { onChangeCode: () => void }) {
           />
         ) : null}
 
-        {view === "history" ? <HistoryView vehicles={consoleVehicles} /> : null}
+        {view === "history" ? (
+          <HistoryView vehicleId={selected?.id ?? null} />
+        ) : null}
       </main>
 
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
