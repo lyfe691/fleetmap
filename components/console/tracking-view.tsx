@@ -98,10 +98,10 @@ export function TrackingView({
               <div className="min-w-0 flex-1">
                 <div className="flex items-baseline gap-2">
                   <span className="font-heading text-[3.25rem] leading-none font-bold tracking-tight tabular-nums">
-                    {vehicle.parcelsOnboard}
+                    {vehicle.ordersOnboard}
                   </span>
                   <span className="text-[0.9375rem] text-muted-foreground">
-                    {t("tracking.parcels")}
+                    {t("tracking.orders")}
                   </span>
                 </div>
                 <div className="mt-4 flex gap-6">

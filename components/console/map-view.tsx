@@ -87,7 +87,7 @@ function SummaryCard({
       <div className={`mt-6 flex gap-6 ${vehicle.stale ? "opacity-60" : ""}`}>
         <Stat label={t("card.speed")} value={vehicle.speedText} />
         <Stat label={t("card.eta")} value={vehicle.etaText} />
-        <Stat label={t("card.load")} value={String(vehicle.parcelsOnboard)} />
+        <Stat label={t("card.load")} value={String(vehicle.ordersOnboard)} />
       </div>
 
       <div className="mt-6 flex items-center gap-2.5 text-[0.9375rem]">

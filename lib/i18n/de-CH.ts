@@ -73,7 +73,7 @@ export const deCH: Record<TranslationKey, string> = {
   "tracking.itinerary": "Halte",
   "tracking.stopNext": "Nächster",
   "tracking.noStops": "Diesem Fahrzeug sind keine Halte zugewiesen.",
-  "tracking.parcels": "Pakete",
+  "tracking.orders": "Aufträge",
   "tracking.collected": "Abgeholt",
   "tracking.delivered": "Zugestellt",
   "tracking.currentSpeed": "Aktuelle Geschwindigkeit",
