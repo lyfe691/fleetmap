@@ -77,6 +77,7 @@ export const deCH: Record<TranslationKey, string> = {
   "tracking.delivered": "Zugestellt",
   "tracking.currentSpeed": "Aktuelle Geschwindigkeit",
   "tracking.stopsLeft": "Verbleibende Stopps",
+  "tracking.distanceToday": "Distanz heute",
   "history.title": "Routen-Wiedergabe",
   "history.subtitle": "Gefahrene Route eines Fahrzeugs aus dem aufgezeichneten GPS-Track abspielen.",
   "history.date": "Datum",

@@ -75,6 +75,7 @@ export const en = {
   "tracking.delivered": "Delivered",
   "tracking.currentSpeed": "Current speed",
   "tracking.stopsLeft": "Stops left",
+  "tracking.distanceToday": "Distance today",
   "history.title": "Route Replay",
   "history.subtitle": "Replay a vehicle's driven route from its recorded GPS track.",
   "history.date": "Date",
