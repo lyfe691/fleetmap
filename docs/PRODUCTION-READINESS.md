@@ -103,9 +103,10 @@ real endpoints — the one thing gating live order flow.
 
 - [ ] **Observability** — structured logs, error tracking, and an uptime/health
   check on the API + OSRM (none today).
-- [ ] **Dashboard session self-heal** — a dead TV session surfaces as a banner;
-  the deferred follow-up is auto re-minting from the stored display code so an
-  unattended TV recovers without a human reload.
+- [x] **Dashboard session self-heal** — **done (2026-07-13).** A dead TV session
+  (`SIGNED_OUT`) re-mints from the stored display code and remounts the console
+  (re-arming Realtime + reloading the snapshot); transient failures back off and
+  retry, only a rotated code prompts a human (`components/map/dashboard-gate.tsx`).
 - [ ] **Rate-limiting `POST /api/location`** — deliberately deferred (needs
   shared state / Redis, which V1 forbids). Revisit only if abuse is observed.
 - [ ] **Driver auth UX** — password reset / account recovery for real drivers.
