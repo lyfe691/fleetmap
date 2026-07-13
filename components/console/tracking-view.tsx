@@ -15,7 +15,9 @@ import type { ConsoleVehicle } from "@/lib/console/use-console-data"
 import type { Stop } from "@/lib/use-live-stops"
 import type { TranslationKey } from "@/lib/i18n/en"
 import type { Locale } from "@/lib/settings/types"
+import { Skeleton } from "@/components/ui/skeleton"
 import { StatusBadge } from "@/components/console/status-badge"
+import { useDistanceToday } from "@/lib/console/use-distance-today"
 import { useLocale, useTranslations } from "@/lib/i18n"
 import { formatClock } from "@/lib/i18n/format"
 import { cn } from "@/lib/utils"
@@ -52,6 +54,7 @@ export function TrackingView({
   )
   const statusAccent =
     vehicle.tone === "onRoute" ? "var(--success)" : "var(--warning)"
+  const { km: distanceKm, loading: distanceLoading } = useDistanceToday(vehicle.id)
 
   const miniLive: LiveData = useMemo(() => {
     const raw = live.vehicles.find((v) => v.id === vehicle.id)
@@ -150,7 +153,12 @@ export function TrackingView({
           </Card>
         </div>
 
-        <div className="mt-5 grid grid-cols-3 gap-3">
+        <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <StatCard
+            label={t("tracking.distanceToday")}
+            value={distanceKm != null ? `${distanceKm.toFixed(1)} km` : "—"}
+            loading={distanceLoading}
+          />
           <StatCard label={t("tracking.currentSpeed")} value={vehicle.speedText} />
           <StatCard label={t("card.eta")} value={vehicle.etaText} />
           <StatCard label={t("tracking.stopsLeft")} value={String(vehicle.stopsLeft)} />
@@ -214,14 +222,26 @@ function MiniFigure({ label, value }: { label: string; value: number }) {
   )
 }
 
-function StatCard({ label, value }: { label: string; value: string }) {
+function StatCard({
+  label,
+  value,
+  loading,
+}: {
+  label: string
+  value: string
+  loading?: boolean
+}) {
   return (
     <Card size="sm">
       <CardHeader>
         <CardDescription>{label}</CardDescription>
-        <CardTitle className="font-mono text-[1.375rem] font-semibold tracking-tight">
-          {value}
-        </CardTitle>
+        {loading ? (
+          <Skeleton className="my-[0.2rem] h-6 w-20 rounded-md" />
+        ) : (
+          <CardTitle className="font-mono text-[1.375rem] font-semibold tracking-tight">
+            {value}
+          </CardTitle>
+        )}
       </CardHeader>
     </Card>
   )
