@@ -92,10 +92,10 @@ real endpoints — the one thing gating live order flow.
     cargo photos, manifest) were removed from the console rather than faked, and
     van **load is now derived from real stop data**. No fabricated telematics
     remains on the TV; the tracking view was also moved onto the shared `ui/card`.
+  - **Done (2026-07-13):** "Distance today" now ships as a server-side aggregate
+    (`vehicle_distance_m` RPC, migration `0010`) in the tracking stat row.
   - **Still open:** real weight / temperature / fuel would need in-vehicle
-    hardware the fleet doesn't have (and likely won't). "Distance today" is
-    deferred until it can be a server-side aggregate over `vehicle_positions`
-    rather than a large per-select client fetch.
+    hardware the fleet doesn't have (and likely won't).
 
 ---
 
