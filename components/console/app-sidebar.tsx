@@ -12,6 +12,7 @@ import { useNow } from "@/lib/use-now"
 import { CLOCK_TICK_MS } from "@/lib/console/intervals"
 import type { ConsoleView } from "@/lib/console/types"
 import { BubbleboxLogo } from "@/components/console/bubblebox-logo"
+import { CollapsiblePanel } from "@/components/console/collapsible-panel"
 import { SettingsButton } from "@/components/console/settings/settings-button"
 import { useTranslations, useLocale } from "@/lib/i18n"
 import { formatClock, formatCount } from "@/lib/i18n/format"
@@ -22,6 +23,11 @@ type NavEntry = {
   icon: LucideIcon
   badge?: number
 }
+
+const SIDEBAR_WIDTH = {
+  collapsed: "4.75rem",
+  expanded: "16.375rem",
+} as const
 
 export function AppSidebar({
   view,
@@ -44,98 +50,110 @@ export function AppSidebar({
 }) {
   const t = useTranslations()
   const monitor: NavEntry[] = [
-    { id: "tracking", label: t("nav.tracking"), icon: Navigation, badge: onRouteCount },
+    {
+      id: "tracking",
+      label: t("nav.tracking"),
+      icon: Navigation,
+      badge: onRouteCount,
+    },
     { id: "map", label: t("nav.map"), icon: MapIcon },
   ]
-  const records: NavEntry[] = [{ id: "history", label: t("nav.history"), icon: HistoryIcon }]
-
-  if (collapsed) {
-    return (
-      <aside className="flex h-full w-[4.75rem] shrink-0 flex-col items-center border-r border-sidebar-border bg-sidebar py-4 text-sidebar-foreground">
-        <div className="flex size-12 items-center justify-center rounded-xl bg-muted">
-          <BubbleboxLogo className="size-7 text-foreground" />
-        </div>
-
-        <nav className="mt-5 flex flex-1 flex-col items-center gap-1.5">
-          {[...monitor, ...records].map((e) => (
-            <IconNavItem
-              key={e.id}
-              entry={e}
-              active={view === e.id}
-              onClick={() => onNavigate(e.id)}
-            />
-          ))}
-        </nav>
-
-        <div className="flex flex-col items-center gap-2">
-          <SettingsButton collapsed onClick={onOpenSettings} />
-          <button
-            type="button"
-            onClick={onToggleCollapse}
-            aria-label={t("sidebar.expand")}
-            className="flex size-11 items-center justify-center rounded-xl border border-sidebar-border text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground"
-          >
-            <ChevronsRight className="size-5" />
-          </button>
-        </div>
-      </aside>
-    )
-  }
+  const records: NavEntry[] = [
+    { id: "history", label: t("nav.history"), icon: HistoryIcon },
+  ]
 
   return (
-    <aside className="flex h-full w-[16.375rem] shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
-      <div className="flex items-center gap-3 px-4 py-5">
-        <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-muted">
-          <BubbleboxLogo className="size-7 text-foreground" />
-        </div>
-        <div className="min-w-0 leading-none">
-          <div className="font-heading text-[1.25rem] font-semibold tracking-tight">
-            Fleetmap
+    <CollapsiblePanel
+      collapsed={collapsed}
+      collapsedWidth={SIDEBAR_WIDTH.collapsed}
+      expandedWidth={SIDEBAR_WIDTH.expanded}
+      className="border-r border-sidebar-border bg-sidebar text-sidebar-foreground"
+      collapsedContent={
+        <div className="flex h-full w-full flex-col items-center py-4">
+          <div className="flex size-12 items-center justify-center rounded-xl bg-muted">
+            <BubbleboxLogo className="size-7 text-foreground" />
           </div>
-          <div className="mt-1.5 text-[0.8125rem] text-muted-foreground">
-            {t("sidebar.subtitle")}
+
+          <nav className="mt-5 flex flex-1 flex-col items-center gap-1.5">
+            {[...monitor, ...records].map((e) => (
+              <IconNavItem
+                key={e.id}
+                entry={e}
+                active={view === e.id}
+                onClick={() => onNavigate(e.id)}
+              />
+            ))}
+          </nav>
+
+          <div className="flex flex-col items-center gap-2">
+            <SettingsButton collapsed onClick={onOpenSettings} />
+            <button
+              type="button"
+              onClick={onToggleCollapse}
+              aria-label={t("sidebar.expand")}
+              className="flex size-11 items-center justify-center rounded-xl border border-sidebar-border text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground"
+            >
+              <ChevronsRight className="size-5" />
+            </button>
           </div>
         </div>
-      </div>
+      }
+      expandedContent={
+        <div className="flex h-full flex-col">
+          <div className="flex items-center gap-3 px-4 py-5">
+            <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-muted">
+              <BubbleboxLogo className="size-7 text-foreground" />
+            </div>
+            <div className="min-w-0 leading-none">
+              <div className="font-heading text-[1.25rem] font-semibold tracking-tight">
+                Fleetmap
+              </div>
+              <div className="mt-1.5 text-[0.8125rem] text-muted-foreground">
+                {t("sidebar.subtitle")}
+              </div>
+            </div>
+          </div>
 
-      <div className="flex-1 overflow-y-auto px-3 py-2">
-        <NavGroup label={t("nav.group.monitor")}>
-          {monitor.map((e) => (
-            <NavItem
-              key={e.id}
-              entry={e}
-              active={view === e.id}
-              onClick={() => onNavigate(e.id)}
-            />
-          ))}
-        </NavGroup>
-        <NavGroup label={t("nav.group.records")} className="mt-2">
-          {records.map((e) => (
-            <NavItem
-              key={e.id}
-              entry={e}
-              active={view === e.id}
-              onClick={() => onNavigate(e.id)}
-            />
-          ))}
-        </NavGroup>
-      </div>
+          <div className="flex-1 overflow-y-auto px-3 py-2">
+            <NavGroup label={t("nav.group.monitor")}>
+              {monitor.map((e) => (
+                <NavItem
+                  key={e.id}
+                  entry={e}
+                  active={view === e.id}
+                  onClick={() => onNavigate(e.id)}
+                />
+              ))}
+            </NavGroup>
+            <NavGroup label={t("nav.group.records")} className="mt-2">
+              {records.map((e) => (
+                <NavItem
+                  key={e.id}
+                  entry={e}
+                  active={view === e.id}
+                  onClick={() => onNavigate(e.id)}
+                />
+              ))}
+            </NavGroup>
+          </div>
 
-      <div className="flex flex-col gap-2.5 border-t border-sidebar-border p-3">
-        <OnlinePill online={onlineCount} total={totalCount} />
-        <div className="flex gap-2.5">
-          <SettingsButton onClick={onOpenSettings} />
-          <button
-            type="button"
-            onClick={onToggleCollapse}
-            aria-label={t("sidebar.collapse")}
-            className="flex size-12 shrink-0 items-center justify-center rounded-2xl border border-sidebar-border text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground"
-          >
-            <ChevronsLeft className="size-5" />
-          </button>
+          <div className="flex flex-col gap-2.5 border-t border-sidebar-border p-3">
+            <OnlinePill online={onlineCount} total={totalCount} />
+            <div className="flex gap-2.5">
+              <SettingsButton onClick={onOpenSettings} />
+              <button
+                type="button"
+                onClick={onToggleCollapse}
+                aria-label={t("sidebar.collapse")}
+                className="flex size-12 shrink-0 items-center justify-center rounded-2xl border border-sidebar-border text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground"
+              >
+                <ChevronsLeft className="size-5" />
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
-    </aside>
+      }
+    />
   )
 }
 
@@ -234,7 +252,10 @@ function OnlinePill({ online, total }: { online: number; total: number }) {
         <span className="relative inline-flex size-3 rounded-full bg-success" />
       </span>
       <span className="flex-1 text-[0.9375rem] font-semibold">
-        {t("sidebar.online", { online: formatCount(online, locale), total: formatCount(total, locale) })}
+        {t("sidebar.online", {
+          online: formatCount(online, locale),
+          total: formatCount(total, locale),
+        })}
       </span>
       <span className="shrink-0 font-mono text-[0.8125rem] text-muted-foreground">
         {formatClock(now, locale)}

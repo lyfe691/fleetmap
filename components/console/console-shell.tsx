@@ -10,11 +10,7 @@ import { useNow } from "@/lib/use-now"
 import { LIVE_TICK_MS } from "@/lib/console/intervals"
 import { usePersistedBoolean } from "@/lib/use-persisted-boolean"
 import { buildConsoleVehicles } from "@/lib/console/use-console-data"
-import type {
-  ConsoleView,
-  LiveData,
-  StatusFilter,
-} from "@/lib/console/types"
+import type { ConsoleView, LiveData, StatusFilter } from "@/lib/console/types"
 import { matchesStatusFilter } from "@/lib/console/types"
 import { ConsoleLoading } from "@/components/console/console-loading"
 import { BubbleboxLogo } from "@/components/console/bubblebox-logo"
@@ -53,7 +49,10 @@ export function ConsoleShell({ onChangeCode }: { onChangeCode: () => void }) {
   )
   const locale = useLocale()
   const consoleVehicles = useMemo(
-    () => buildConsoleVehicles(live, (key, params) => translate(locale, key, params)),
+    () =>
+      buildConsoleVehicles(live, (key, params) =>
+        translate(locale, key, params)
+      ),
     [live, locale]
   )
 
@@ -81,7 +80,6 @@ export function ConsoleShell({ onChangeCode }: { onChangeCode: () => void }) {
     "fleetmap.fleet-collapsed",
     false
   )
-
   // explicit = the user's actual pick (null until they choose / after "view
   // all"); selected = that, falling back to the first van for views that always
   // need one (tracking detail + rail highlight). The map uses `explicit` so a
