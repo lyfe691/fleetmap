@@ -71,7 +71,6 @@ export const deCH: Record<TranslationKey, string> = {
   "tracking.routeProgress": "Routenfortschritt",
   "tracking.liveLocation": "Live-Standort",
   "tracking.itinerary": "Halte",
-  "tracking.stopNext": "Nächster",
   "tracking.noStops": "Diesem Fahrzeug sind keine Halte zugewiesen.",
   "tracking.orders": "Aufträge",
   "tracking.collected": "Abgeholt",

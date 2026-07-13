@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useRef } from "react"
+import { type CSSProperties, useEffect, useMemo, useRef } from "react"
 import { Check, MapPin } from "lucide-react"
 import { FleetMapView } from "@/components/map/fleet-map-view"
 import {
@@ -50,6 +50,8 @@ export function TrackingView({
     () => stops.find((s) => s.status !== "completed")?.id ?? null,
     [stops]
   )
+  const statusAccent =
+    vehicle.tone === "onRoute" ? "var(--success)" : "var(--warning)"
 
   const miniLive: LiveData = useMemo(() => {
     const raw = live.vehicles.find((v) => v.id === vehicle.id)
@@ -109,13 +111,15 @@ export function TrackingView({
                   <MiniFigure label={t("tracking.delivered")} value={vehicle.delivered} />
                 </div>
               </div>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/bubblebox-van-tight.png"
-                alt=""
-                draggable={false}
-                className="h-[5.5rem] w-auto shrink-0 object-contain"
-              />
+              <div className="flex h-[6.5rem] w-[9.5rem] shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-muted">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/bubblebox-van-tight.png"
+                  alt=""
+                  draggable={false}
+                  className="h-full w-full object-contain p-1.5"
+                />
+              </div>
             </CardContent>
           </Card>
 
@@ -167,6 +171,7 @@ export function TrackingView({
                   key={s.id}
                   stop={s}
                   isNext={s.id === nextStopId}
+                  accent={statusAccent}
                   locale={locale}
                   t={t}
                 />
@@ -225,11 +230,13 @@ function StatCard({ label, value }: { label: string; value: string }) {
 function StopRow({
   stop,
   isNext,
+  accent,
   locale,
   t,
 }: {
   stop: Stop
   isNext: boolean
+  accent: string
   locale: Locale
   t: (key: TranslationKey) => string
 }) {
@@ -247,16 +254,9 @@ function StopRow({
 
   return (
     <div className={cn("flex items-center gap-4 px-5 py-4", done && "opacity-55")}>
-      <StopMarker done={done} next={isNext} />
+      <StopMarker done={done} next={isNext} accent={accent} />
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <span className="text-[0.9375rem] font-semibold">{typeLabel}</span>
-          {isNext ? (
-            <span className="rounded-full bg-primary/12 px-2 py-0.5 text-[0.6875rem] font-semibold uppercase tracking-wide text-primary">
-              {t("tracking.stopNext")}
-            </span>
-          ) : null}
-        </div>
+        <div className="text-[0.9375rem] font-semibold">{typeLabel}</div>
         <div className="mt-0.5 text-[0.8125rem] text-muted-foreground">{t(statusKey)}</div>
       </div>
       <div className="shrink-0 font-mono text-[0.9375rem] font-semibold tabular-nums">
@@ -266,7 +266,15 @@ function StopRow({
   )
 }
 
-function StopMarker({ done, next }: { done: boolean; next: boolean }) {
+function StopMarker({
+  done,
+  next,
+  accent,
+}: {
+  done: boolean
+  next: boolean
+  accent: string
+}) {
   if (done) {
     return (
       <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-success/15 text-success">
@@ -274,13 +282,18 @@ function StopMarker({ done, next }: { done: boolean; next: boolean }) {
       </span>
     )
   }
+  if (next) {
+    return (
+      <span
+        className="stop-next-ring flex size-7 shrink-0 items-center justify-center rounded-full"
+        style={{ "--sel-accent": accent } as CSSProperties}
+      >
+        <span className="size-2 rounded-full" style={{ background: accent }} />
+      </span>
+    )
+  }
   return (
-    <span
-      className={cn(
-        "flex size-7 shrink-0 items-center justify-center rounded-full border-2",
-        next ? "border-primary text-primary" : "border-border text-muted-foreground"
-      )}
-    >
+    <span className="flex size-7 shrink-0 items-center justify-center rounded-full border-2 border-border text-muted-foreground">
       <span className="size-1.5 rounded-full bg-current" />
     </span>
   )
