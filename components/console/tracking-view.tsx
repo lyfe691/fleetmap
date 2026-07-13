@@ -288,7 +288,7 @@ function StopMarker({
         className="stop-next-ring flex size-7 shrink-0 items-center justify-center rounded-full"
         style={{ "--sel-accent": accent } as CSSProperties}
       >
-        <span className="size-2 rounded-full" style={{ background: accent }} />
+        <span className="size-1.5 rounded-full" style={{ background: accent }} />
       </span>
     )
   }
