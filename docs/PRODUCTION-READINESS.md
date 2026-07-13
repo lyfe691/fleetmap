@@ -1,9 +1,10 @@
 # What's Missing — from demo to a real, in-use fleet tool
 
-> Snapshot as of M12 (2026-07-01, commit range `8f3b661`..`HEAD`). Supersedes
-> the `6eff17b` (2026-07-01, pre-M12) snapshot — the dispatcher UI and the
-> driver PWA cleanup that snapshot listed as gaps are now done. Re-verify
-> against `git log` before trusting this doc again; it goes stale fast.
+> **Stale snapshot — read `docs/HANDOFF.md` for the current state (M13–M15 and
+> the 2026-07-13 console work); it is authoritative.** This began as an M12
+> snapshot (2026-07-01) and is kept for its tier/effort framing; the item
+> statuses below are corrected where they had drifted. Re-verify against
+> `git log` before trusting any of it.
 >
 > Use it as a working checklist. Each item: **what**, **why** (with code/spec
 > evidence), a coarse **effort**, and a **first step**. Effort is rough — these
@@ -18,13 +19,13 @@
 | ✅ **Real & verified** | GPS ingest (`POST /api/location`), Supabase Realtime fan-out, live map + markers, routes + ETA (OSRM proxy), order/stop model with full ingestion CRUD, dispatcher mutations + geofence auto-arrive, multi-city areas, the monitoring console (tracking / map / history / settings, i18n en-de-CH, accessibility), production deployment (Docker + Caddy TLS, live at `fleet.ysz.life`), **the dispatcher console** (`/dispatch` — real login, order intake with map-click location, orders list with add-return/cancel/reassign/status) verified end-to-end against the live Supabase project |
 | 🟡 **Placeholder data** | The `Depot` origin label (`ASSUMED_ORIGIN`). The fabricated telematics + cargo/manifest panels were **removed** from the console (2026-07-13); van load is now **derived from real stop data** (completed pickups − deliveries). |
 | 🔌 **Built, no dedicated UI** | Real driver onboarding — works via `scripts/provision-driver.ts` (secret key, must be run locally), no admin UI |
-| ❌ **Not built** | Route replay (real History); telematics integration |
+| ⏳ **Built, waiting on upstream** | Bubble Box order **sync** (M15) — pull worker + diff-apply RPC, E2E-proven in fixture mode. Live orders flow once Dmytro ships his three endpoints; this is the current gating item (see `docs/HANDOFF.md`). |
 | 🚚 **Moved out of scope** | Driver-facing screens — the driver client is now Roman's native Bubblebox app; the web `/driver` route was removed (2026-07, see `docs/specs/2026-07-01-dispatcher-console-design.md`) |
 
-**The one-line read:** everything required to run and monitor real deliveries
-is done — real-time, routing, the RLS security model, the order/stop data
-model, deployment, and now order intake itself. What's left (items 7–8 below)
-is polish, not a blocker.
+**The one-line read:** the monitoring half is fully live — real-time, routing,
+RLS, the order/stop model, deployment, the console. Orders now arrive by
+**pull** (M15 Bubble Box sync), built and fixture-proven but waiting on Dmytro's
+real endpoints — the one thing gating live order flow.
 
 ---
 
@@ -82,12 +83,9 @@ is polish, not a blocker.
 
 ## Tier 3 — Make it complete
 
-- [ ] **7. Route replay → real History**
-  - **Why:** the History tab is 100% placeholder (`assumedHistory()` in
-    `components/console/history-view.tsx`), but `vehicle_positions` is an
-    append-only history table built **for exactly this**. Replace the fake tab
-    with real trip playback.
-  - **Effort:** M (~2–3d).
+- [x] **7. Route replay → real History** — **done (M14).** The History tab
+  replays a vehicle's day from `vehicle_positions` (0008 read path,
+  `lib/replay.ts` math, play/pause/scrubber/speed in `history-view.tsx`).
 
 - [~] **8. Telematics + cargo/manifest: integrate or drop** *(product decision, not just code)* — **mostly resolved: dropped.**
   - **Done (2026-07-13):** the fabricated panels (fuel, odometer, cargo temp,
@@ -121,20 +119,20 @@ is polish, not a blocker.
 ## Recommended sequence
 
 ```
-Complete:    7 → 8        (real history, telematics call)
-Optional:    3             (only if driver count outgrows the script)
+Blocked on upstream:  Bubble Box sync — wire Dmytro's 3 endpoints when they ship
+Optional:             3  (only if driver count outgrows the script)
 ```
 
-**Everything required to run and monitor real deliveries is live.** What's
-left is history/telematics polish and, if fleet size ever demands it, a driver
-onboarding UI.
+**Monitoring is fully live; route replay (7) and the telematics call (8) are
+done.** The remaining gate is live order flow through the M15 sync — see
+`docs/HANDOFF.md` for the wire-up steps.
 
 ---
 
 ## Decisions you need to make
 
-1. **Telematics** — integrate real hardware, or drop those panels (item 8).
+1. **Telematics** — decided (2026-07-13): fabricated panels dropped, load
+   derived from real data. Only real hardware (weight/temp/fuel) remains open,
+   and the fleet has none.
 2. **Driver onboarding** — is `scripts/provision-driver.ts` fine long-term
    given the fleet stays small, or is an admin UI worth building (item 3)?
-3. **Route replay priority** — worth building now (item 7), or is the History
-   tab's placeholder acceptable for longer?
