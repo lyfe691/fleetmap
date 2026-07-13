@@ -16,7 +16,7 @@
 | Status | Area |
 |---|---|
 | ✅ **Real & verified** | GPS ingest (`POST /api/location`), Supabase Realtime fan-out, live map + markers, routes + ETA (OSRM proxy), order/stop model with full ingestion CRUD, dispatcher mutations + geofence auto-arrive, multi-city areas, the monitoring console (tracking / map / history / settings, i18n en-de-CH, accessibility), production deployment (Docker + Caddy TLS, live at `fleet.ysz.life`), **the dispatcher console** (`/dispatch` — real login, order intake with map-click location, orders list with add-return/cancel/reassign/status) verified end-to-end against the live Supabase project |
-| 🟡 **Placeholder data** | Telematics (fuel, odometer, cargo temp), cargo/manifest, **the entire History tab** — all from `lib/console/assumed.ts`, clearly marked in-UI |
+| 🟡 **Placeholder data** | The `Depot` origin label (`ASSUMED_ORIGIN`). The fabricated telematics + cargo/manifest panels were **removed** from the console (2026-07-13); van load is now **derived from real stop data** (completed pickups − deliveries). |
 | 🔌 **Built, no dedicated UI** | Real driver onboarding — works via `scripts/provision-driver.ts` (secret key, must be run locally), no admin UI |
 | ❌ **Not built** | Route replay (real History); telematics integration |
 | 🚚 **Moved out of scope** | Driver-facing screens — the driver client is now Roman's native Bubblebox app; the web `/driver` route was removed (2026-07, see `docs/specs/2026-07-01-dispatcher-console-design.md`) |
@@ -89,12 +89,15 @@ is polish, not a blocker.
     with real trip playback.
   - **Effort:** M (~2–3d).
 
-- [ ] **8. Telematics + cargo/manifest: integrate or drop** *(product decision, not just code)*
-  - **Why:** fuel / odometer / cargo temperature / manifest are placeholders
-    (`lib/console/assumed.ts`) that need real hardware/telematics or real order
-    line-items to be true. Decide whether to integrate a feed or remove those
-    panels so the UI never implies data it doesn't have.
-  - **Effort:** decision first; integration is L and vendor-dependent.
+- [~] **8. Telematics + cargo/manifest: integrate or drop** *(product decision, not just code)* — **mostly resolved: dropped.**
+  - **Done (2026-07-13):** the fabricated panels (fuel, odometer, cargo temp,
+    cargo photos, manifest) were removed from the console rather than faked, and
+    van **load is now derived from real stop data**. No fabricated telematics
+    remains on the TV; the tracking view was also moved onto the shared `ui/card`.
+  - **Still open:** real weight / temperature / fuel would need in-vehicle
+    hardware the fleet doesn't have (and likely won't). "Distance today" is
+    deferred until it can be a server-side aggregate over `vehicle_positions`
+    rather than a large per-select client fetch.
 
 ---
 

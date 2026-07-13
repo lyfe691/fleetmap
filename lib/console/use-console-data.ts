@@ -4,7 +4,7 @@ import type { Stop } from "@/lib/use-live-stops"
 import type { Route } from "@/lib/route-types"
 import type { TranslationKey } from "@/lib/i18n/en"
 import { isStale } from "@/components/map/vehicle-marker"
-import { ASSUMED_ORIGIN, assumedVehicleDetails } from "@/lib/console/assumed"
+import { ASSUMED_ORIGIN } from "@/lib/console/assumed"
 
 export type Translator = (
   key: TranslationKey,
@@ -14,7 +14,6 @@ export type Translator = (
 export type StatusTone = "onRoute" | "waiting"
 
 export type ConsoleVehicle = {
-  // real
   id: string
   reg: string
   tone: StatusTone
@@ -28,16 +27,9 @@ export type ConsoleVehicle = {
   stopsLeft: number
   routeProgressPct: number
   speedText: string
-  // assumed (placeholder — see lib/console/assumed.ts)
-  capacityPct: number
-  loadCount: number
-  loadWeight: string
-  driver: string
-  plate: string
-  model: string
-  odometer: string
-  fuelPct: number
-  cargoTemp: string
+  parcelsOnboard: number
+  collected: number
+  delivered: number
 }
 
 function formatEta(seconds: number): string {
@@ -85,7 +77,12 @@ export function buildConsoleVehicles(
     const etaSec = etaFresh ? firstLeg.duration : null
     const totalStops = stops.length
     const doneStops = Math.max(0, totalStops - active.length)
-    const assumed = assumedVehicleDetails(v.id)
+    const collected = stops.filter(
+      (s) => s.stop_type === "pickup" && s.status === "completed"
+    ).length
+    const delivered = stops.filter(
+      (s) => s.stop_type === "dropoff" && s.status === "completed"
+    ).length
 
     return {
       id: v.id,
@@ -108,15 +105,9 @@ export function buildConsoleVehicles(
       routeProgressPct: totalStops > 0 ? Math.round((doneStops / totalStops) * 100) : 0,
       // last_speed is m/s (W3C Geolocation / fake-gps); display as km/h.
       speedText: v.last_speed != null ? `${Math.round(v.last_speed * 3.6)} km/h` : "—",
-      capacityPct: assumed.capacityPct,
-      loadCount: assumed.loadCount,
-      loadWeight: assumed.loadWeight,
-      driver: assumed.driver,
-      plate: assumed.plate,
-      model: assumed.model,
-      odometer: assumed.odometer,
-      fuelPct: assumed.fuelPct,
-      cargoTemp: assumed.cargoTemp,
+      parcelsOnboard: Math.max(0, collected - delivered),
+      collected,
+      delivered,
     } satisfies ConsoleVehicle
   })
 
