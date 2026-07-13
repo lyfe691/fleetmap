@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { useTheme } from "next-themes"
 import { Map as MapGL, Marker, Source, Layer, type MapRef } from "react-map-gl/maplibre"
 import type { FeatureCollection } from "geojson"
-import { CalendarIcon, Pause, Play } from "lucide-react"
+import { CalendarIcon, Pause, Play, Truck } from "lucide-react"
 import { de, enGB } from "date-fns/locale"
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
@@ -41,7 +41,13 @@ function toYMD(d: Date): string {
   ).padStart(2, "0")}`
 }
 
-export function HistoryView({ vehicleId }: { vehicleId: string | null }) {
+export function HistoryView({
+  vehicleId,
+  vehicleReg,
+}: {
+  vehicleId: string | null
+  vehicleReg: string | null
+}) {
   const t = useTranslations()
   const locale = useLocale()
   const { resolvedTheme } = useTheme()
@@ -195,9 +201,17 @@ export function HistoryView({ vehicleId }: { vehicleId: string | null }) {
   return (
     <div className="h-full overflow-y-auto">
       <div className="mx-auto max-w-[64rem] px-8 pt-7 pb-12">
-        <h2 className="font-heading text-[1.75rem] font-semibold tracking-tight">
-          {t("history.title")}
-        </h2>
+        <div className="flex flex-wrap items-center gap-3">
+          <h2 className="font-heading text-[1.75rem] font-semibold tracking-tight">
+            {t("history.title")}
+          </h2>
+          {vehicleReg ? (
+            <span className="inline-flex items-center gap-2 rounded-full border border-border bg-muted/60 px-3 py-1 text-[0.9375rem] font-semibold">
+              <Truck className="size-4 text-muted-foreground" />
+              {vehicleReg}
+            </span>
+          ) : null}
+        </div>
         <p className="mt-1.5 text-[0.9375rem] text-muted-foreground">{t("history.subtitle")}</p>
 
         <div className="mt-5 flex flex-wrap items-center gap-3">
