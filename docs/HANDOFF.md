@@ -30,8 +30,11 @@ building them.
   app authenticates drivers against our Supabase (driver identities like
   `rider_zurichcity1@bb.ch`, one vehicle per driver via
   `vehicles.assigned_user_id`) and streams GPS. Nothing pending with him.
-  (Known parked pain point: drivers log in twice — once into the BB app, once
-  for our tracking. Untouched, deliberately.)
+  (Known pain point: drivers log in twice — once into the BB app, once for our
+  tracking. Now **designed** in `docs/specs/2026-07-13-driver-auth-federation-design.md`
+  (a Supabase Edge Function that exchanges a Bubble Box token for a Supabase
+  session), but not built — blocked on whether Bubble Box can issue a verifiable
+  JWT. Untouched in code, deliberately.)
 - **Dmytro** — lead developer of the Bubble Box booking backend. He is the
   integration counterpart for orders. The full agreement with him is settled
   (see next section); he reacted with a thumbs-up to the final recap and is
