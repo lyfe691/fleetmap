@@ -163,7 +163,10 @@ export function ConsoleShell({ onChangeCode }: { onChangeCode: () => void }) {
         ) : null}
 
         {view === "history" ? (
-          <HistoryView vehicleId={selected?.id ?? null} />
+          <HistoryView
+            vehicleId={selected?.id ?? null}
+            vehicleReg={selected?.reg ?? null}
+          />
         ) : null}
       </main>
 
