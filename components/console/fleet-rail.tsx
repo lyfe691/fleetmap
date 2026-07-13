@@ -193,25 +193,31 @@ function VehicleCard({
 
         <div className="mt-3.5 flex items-center gap-3">
           <div className="min-w-0 flex-1">
-            <div className="font-mono text-[1.625rem] leading-none font-semibold tracking-tight">
-              {onRoute ? vehicle.etaText : t("rail.idle")}
-            </div>
-            <div className="mt-1.5 text-[0.875rem] text-muted-foreground">
-              {onRoute
-                ? vehicle.stopsLeft === 1
-                  ? t("rail.stopsLeft.one", { n: vehicle.stopsLeft })
-                  : t("rail.stopsLeft.other", { n: vehicle.stopsLeft })
-                : t("rail.awaitingDispatch")}
-            </div>
-            <div className="mt-3.5 flex items-center gap-2 text-[0.875rem]">
-              <span className="max-w-[5.75rem] truncate text-muted-foreground">
-                {vehicle.origin}
-              </span>
-              <ArrowRight className="size-[18px] shrink-0 text-muted-foreground" />
-              <span className="max-w-[5.75rem] truncate font-semibold">
-                {vehicle.dest}
-              </span>
-            </div>
+            {onRoute ? (
+              <>
+                <div className="font-mono text-[1.625rem] leading-none font-semibold tracking-tight">
+                  {vehicle.etaText}
+                </div>
+                <div className="mt-1.5 text-[0.875rem] text-muted-foreground">
+                  {vehicle.stopsLeft === 1
+                    ? t("rail.stopsLeft.one", { n: vehicle.stopsLeft })
+                    : t("rail.stopsLeft.other", { n: vehicle.stopsLeft })}
+                </div>
+                <div className="mt-3.5 flex items-center gap-2 text-[0.875rem]">
+                  <span className="max-w-[5.75rem] truncate text-muted-foreground">
+                    {vehicle.origin}
+                  </span>
+                  <ArrowRight className="size-[18px] shrink-0 text-muted-foreground" />
+                  <span className="max-w-[5.75rem] truncate font-semibold">
+                    {vehicle.dest}
+                  </span>
+                </div>
+              </>
+            ) : (
+              <div className="font-mono text-[1.625rem] leading-none font-semibold tracking-tight text-muted-foreground">
+                {t("rail.idle")}
+              </div>
+            )}
           </div>
           <div className="flex h-[4.75rem] w-[7rem] shrink-0 items-center justify-center overflow-hidden rounded-xl bg-muted">
             {/* eslint-disable-next-line @next/next/no-img-element */}
