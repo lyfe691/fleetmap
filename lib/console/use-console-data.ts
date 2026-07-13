@@ -27,7 +27,7 @@ export type ConsoleVehicle = {
   stopsLeft: number
   routeProgressPct: number
   speedText: string
-  parcelsOnboard: number
+  ordersOnboard: number
   collected: number
   delivered: number
 }
@@ -105,7 +105,7 @@ export function buildConsoleVehicles(
       routeProgressPct: totalStops > 0 ? Math.round((doneStops / totalStops) * 100) : 0,
       // last_speed is m/s (W3C Geolocation / fake-gps); display as km/h.
       speedText: v.last_speed != null ? `${Math.round(v.last_speed * 3.6)} km/h` : "—",
-      parcelsOnboard: Math.max(0, collected - delivered),
+      ordersOnboard: Math.max(0, collected - delivered),
       collected,
       delivered,
     } satisfies ConsoleVehicle

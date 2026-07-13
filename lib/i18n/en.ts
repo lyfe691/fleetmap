@@ -71,7 +71,7 @@ export const en = {
   "tracking.itinerary": "Itinerary",
   "tracking.stopNext": "Next",
   "tracking.noStops": "No stops assigned to this vehicle.",
-  "tracking.parcels": "parcels",
+  "tracking.orders": "orders",
   "tracking.collected": "Collected",
   "tracking.delivered": "Delivered",
   "tracking.currentSpeed": "Current speed",
