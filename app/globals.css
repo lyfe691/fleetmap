@@ -308,3 +308,48 @@ html[data-reduce-motion] .fleet-card-selected::before {
   animation: none !important;
   background: color-mix(in srgb, var(--sel-accent) 80%, transparent);
 }
+
+/* Next-stop marker in the tracking itinerary — the same rotating conic rim as
+   the selected fleet card, sized for the circle (no card bloom). */
+.stop-next-ring {
+  --border-angle: 0deg;
+  --sel-accent: var(--brand);
+  position: relative;
+}
+.stop-next-ring::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 2px;
+  pointer-events: none;
+  background: conic-gradient(
+    from var(--border-angle),
+    color-mix(in srgb, var(--sel-accent) 18%, transparent) 0deg,
+    color-mix(in srgb, var(--sel-accent) 18%, transparent) 220deg,
+    color-mix(in srgb, var(--sel-accent) 70%, transparent) 280deg,
+    var(--sel-accent) 310deg,
+    color-mix(in srgb, var(--sel-accent) 55%, white) 335deg,
+    var(--sel-accent) 350deg,
+    color-mix(in srgb, var(--sel-accent) 18%, transparent) 360deg
+  );
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  animation: brand-border-spin 3.5s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .stop-next-ring::before {
+    animation: none;
+    background: color-mix(in srgb, var(--sel-accent) 80%, transparent);
+  }
+}
+html[data-reduce-motion] .stop-next-ring::before {
+  animation: none !important;
+  background: color-mix(in srgb, var(--sel-accent) 80%, transparent);
+}
