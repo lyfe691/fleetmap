@@ -46,7 +46,7 @@ export const deCH: Record<TranslationKey, string> = {
   "rail.noVehicles": "Keine Fahrzeuge",
   "rail.idle": "Untätig",
   "rail.awaitingDispatch": "Wartet auf Einsatz",
-  "rail.stale": "veraltet",
+  "rail.stale": "Veraltet",
   "rail.stopsLeft.one": "{n} Halt übrig",
   "rail.stopsLeft.other": "{n} Halte übrig",
   "rail.expandPanel": "Fahrzeugpanel ausklappen",

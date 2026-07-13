@@ -44,7 +44,7 @@ export const en = {
   "rail.noVehicles": "No vehicles",
   "rail.idle": "Idle",
   "rail.awaitingDispatch": "Awaiting dispatch",
-  "rail.stale": "stale",
+  "rail.stale": "Stale",
   "rail.stopsLeft.one": "{n} stop left",
   "rail.stopsLeft.other": "{n} stops left",
   "rail.expandPanel": "Expand fleet panel",

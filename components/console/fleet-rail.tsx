@@ -1,5 +1,6 @@
 "use client"
 
+import type { CSSProperties } from "react"
 import { ArrowRight, ChevronsLeft, ChevronsRight } from "lucide-react"
 import type { ConsoleCounts, StatusFilter } from "@/lib/console/types"
 import { matchesStatusFilter } from "@/lib/console/types"
@@ -133,6 +134,15 @@ export function FleetRail({
   )
 }
 
+function StaleChip({ label }: { label: string }) {
+  return (
+    <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[0.75rem] font-medium text-muted-foreground">
+      <span className="size-1.5 rounded-full bg-warning" />
+      {label}
+    </span>
+  )
+}
+
 function VehicleCard({
   vehicle,
   selected,
@@ -159,18 +169,26 @@ function VehicleCard({
       }}
       className={cn(
         "w-full cursor-pointer gap-0 text-left transition-[scale] duration-200 ease-out active:scale-[0.97]",
-        // Selected: rotating brand conic border (see .fleet-card-selected in
-        // globals.css). ring-0 kills Card's default hairline so the dual-bg
-        // border technique owns the edge.
+        // Selected: rotating conic border tinted to the vehicle's status colour
+        // (see .fleet-card-selected in globals.css). ring-0 kills Card's default
+        // hairline so the border technique owns the edge.
         selected && "fleet-card-selected ring-0"
       )}
+      style={
+        selected
+          ? ({ "--sel-accent": onRoute ? "var(--success)" : "var(--warning)" } as CSSProperties)
+          : undefined
+      }
     >
       <CardContent>
         <div className="flex items-center justify-between gap-2">
           <span className="min-w-0 flex-1 truncate text-[0.9375rem] font-semibold">
             {vehicle.reg}
           </span>
-          <StatusBadge tone={vehicle.tone} />
+          <div className="flex shrink-0 items-center gap-1.5">
+            <StatusBadge tone={vehicle.tone} />
+            {vehicle.stale ? <StaleChip label={t("rail.stale")} /> : null}
+          </div>
         </div>
 
         <div className="mt-3.5 flex items-center gap-3">
@@ -184,7 +202,6 @@ function VehicleCard({
                   ? t("rail.stopsLeft.one", { n: vehicle.stopsLeft })
                   : t("rail.stopsLeft.other", { n: vehicle.stopsLeft })
                 : t("rail.awaitingDispatch")}
-              {vehicle.stale ? ` · ${t("rail.stale")}` : ""}
             </div>
             <div className="mt-3.5 flex items-center gap-2 text-[0.875rem]">
               <span className="max-w-[5.75rem] truncate text-muted-foreground">
