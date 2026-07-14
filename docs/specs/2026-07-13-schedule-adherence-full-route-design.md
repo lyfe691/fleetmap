@@ -1,6 +1,6 @@
 # Full-day route, schedule adherence, and a stop redesign
 
-**Date:** 2026-07-13 · **Status:** design, ready to build. No upstream
+**Date:** 2026-07-13 · **Status:** implemented 2026-07-14 (M16). No upstream
 dependency — everything here is doable with the data and stack we already have.
 One small DB migration (below) needs applying to the shared Supabase, same as
 the M14 distance RPC.

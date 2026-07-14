@@ -157,35 +157,87 @@ export const VehicleMarker = memo(function VehicleMarker({
   )
 })
 
+export type StopMarkerState = "done" | "next" | "upcoming"
+
+/**
+ * Three-state stop language, legible at ~20 stops per van:
+ * - done: small, grey, a check — quietly behind the van
+ * - next: larger, accent halo (red-tinted when the van is late) — the one that matters
+ * - upcoming: neutral, the stop-type colour
+ * Pickup vs dropoff is shape, not just colour: pickups are circles, dropoffs
+ * rounded squares.
+ */
 export const StopMarker = memo(function StopMarker({
-  emphasized,
-  terminal,
+  stopType,
+  state,
   fill,
+  doneFill,
+  lateFill,
   stroke,
+  late = false,
 }: {
-  emphasized: boolean
-  terminal: boolean
+  stopType: "pickup" | "dropoff"
+  state: StopMarkerState
   fill: string
+  doneFill: string
+  lateFill: string
   stroke: string
+  late?: boolean
 }) {
-  const r = emphasized ? 9 : 6
-  const size = (r + 3) * 2
+  const r = state === "next" ? 9 : 6
+  const pad = state === "next" ? 6 : 3
+  const size = (r + pad) * 2
+  const c = size / 2
+  const color =
+    state === "done" ? doneFill : state === "next" && late ? lateFill : fill
+  const sw = state === "next" ? 3 : 2
   return (
     <svg
       width={size}
       height={size}
       viewBox={`0 0 ${size} ${size}`}
       aria-hidden
-      style={{ opacity: terminal ? 0.35 : 1 }}
+      style={{ opacity: state === "done" ? 0.55 : 1 }}
     >
-      <circle
-        cx={size / 2}
-        cy={size / 2}
-        r={r}
-        fill={fill}
-        stroke={stroke}
-        strokeWidth={emphasized ? 3 : 2}
-      />
+      {state === "next" ? (
+        stopType === "pickup" ? (
+          <circle cx={c} cy={c} r={r + 4} fill={color} opacity={0.25} />
+        ) : (
+          <rect
+            x={c - r - 4}
+            y={c - r - 4}
+            width={(r + 4) * 2}
+            height={(r + 4) * 2}
+            rx={(r + 4) * 0.35}
+            fill={color}
+            opacity={0.25}
+          />
+        )
+      ) : null}
+      {stopType === "pickup" ? (
+        <circle cx={c} cy={c} r={r} fill={color} stroke={stroke} strokeWidth={sw} />
+      ) : (
+        <rect
+          x={c - r}
+          y={c - r}
+          width={r * 2}
+          height={r * 2}
+          rx={r * 0.35}
+          fill={color}
+          stroke={stroke}
+          strokeWidth={sw}
+        />
+      )}
+      {state === "done" ? (
+        <path
+          d={`M ${c - r * 0.5} ${c} l ${r * 0.36} ${r * 0.4} l ${r * 0.62} -${r * 0.75}`}
+          stroke={stroke}
+          strokeWidth={1.8}
+          fill="none"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      ) : null}
     </svg>
   )
 })

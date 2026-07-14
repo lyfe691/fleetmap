@@ -13,9 +13,13 @@ export type Stop = {
   lng: number
   status: string
   eta_at: string | null
+  completed_at: string | null
 }
 
-const COLUMNS = "id, vehicle_id, stop_type, seq, lat, lng, status, eta_at"
+// completed_at requires migration 0011 on the shared Supabase — until it's
+// applied the snapshot errors, so apply 0011 before deploying this client.
+const COLUMNS =
+  "id, vehicle_id, stop_type, seq, lat, lng, status, eta_at, completed_at"
 
 /**
  * Second live channel for the dashboard: stops, on the SAME session the gate

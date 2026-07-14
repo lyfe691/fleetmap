@@ -27,8 +27,8 @@ export type RouteStop = {
 
 export type Route = {
   geometry: RouteGeometry
-  totalDuration: number // seconds (ETA to the last stop)
-  totalDistance: number // metres
+  totalDuration: number // seconds, full day (stop 1 → stop N)
+  totalDistance: number // metres, full day
   legs: RouteLeg[]
   stopOffsets: StopOffset[]
   stops: RouteStop[]
