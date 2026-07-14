@@ -8,7 +8,7 @@ Full design doc: `docs/specs/live-tracking-spec.md` — that's the source of tru
 
 - **Next.js** (App Router, TypeScript) — API route handlers + the dashboard.
 - **Supabase** — Postgres, Realtime (live push to the dashboard), Auth + RLS. Managed for V1; self-hosts as its own compose stack at handoff if the client requires on-prem — the app doesn't change.
-- **MapLibre GL** (`react-map-gl`) for the map. Tiles from MapTiler/Stadia — **never the public OSM tile server** (against their usage policy).
+- **MapLibre GL** (`react-map-gl`) for the map. Tiles from **OpenFreeMap** (free, keyless, no request limits; `liberty` light / `dark`) — **never the public OSM tile server** (against their usage policy).
 - **OSRM**, self-hosted (Docker, Switzerland extract) for route lines + ETA — M4.
 - **Driver client:** PWA for V1 (`watchPosition` + Screen Wake Lock). Native Expo is the escape hatch if phones go in pockets or run nav up front — not now.
 - **Deployment:** Docker on a single VPS (`fleet.ysz.life`) — Caddy (auto-TLS) → standalone Next image → internal OSRM, all in `docker-compose.prod.yml`. Supabase stays managed cloud. Full guide: `docs/deployment.md`.
@@ -60,7 +60,7 @@ lib/schedule.ts             schedule adherence — lateness (projected vs eta_at
 lib/use-route-features.ts   per-vehicle traveled/remaining FeatureCollections (cache, late-tagged)
 lib/geofence.ts             server-side geofence auto-arrive (POST /api/location)
 lib/replay.ts               route-replay math (interpolation, bearing, thinning, stats)
-lib/map-theme.ts            MapTiler style + marker palette per light/dark theme
+lib/map-theme.ts            OpenFreeMap style + marker palette per light/dark theme
 lib/console/use-console-data.ts  ConsoleVehicle view-model (real data + assumed placeholders)
 lib/console/assumed.ts      placeholder vehicle/cargo/history data (no telematics yet)
 lib/settings/               locale + a11y flags store (localStorage, `useSettings`, `setSetting`)

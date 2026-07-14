@@ -101,7 +101,6 @@ Fill in:
 |---|---|
 | `NEXT_PUBLIC_SUPABASE_URL` | same as your dev `.env` (managed Supabase project) |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | same as dev |
-| `NEXT_PUBLIC_MAPTILER_KEY` | your MapTiler key — **lock it to `fleet.ysz.life` in the MapTiler dashboard** before going public |
 | `SUPABASE_SECRET_KEY` | leave it out / blank — the deployed app never needs it (dev-scripts only) |
 | `OSRM_URL` | ignored here — compose overrides it to `http://osrm:5000` |
 | `DASHBOARD_EMAIL` / `DASHBOARD_PASSWORD` / `DASHBOARD_DISPLAY_CODE` | the TV gate identity + code |
