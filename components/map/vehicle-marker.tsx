@@ -67,17 +67,25 @@ export function InterpolatedMarker({
   latitude,
   anchor,
   onClick,
+  style,
   children,
 }: {
   longitude: number
   latitude: number
   anchor?: ComponentProps<typeof Marker>["anchor"]
   onClick?: ComponentProps<typeof Marker>["onClick"]
+  style?: ComponentProps<typeof Marker>["style"]
   children: ReactNode
 }) {
   const pos = useGlide(longitude, latitude, 5000)
   return (
-    <Marker longitude={pos.lng} latitude={pos.lat} anchor={anchor} onClick={onClick}>
+    <Marker
+      longitude={pos.lng}
+      latitude={pos.lat}
+      anchor={anchor}
+      onClick={onClick}
+      style={style}
+    >
       {children}
     </Marker>
   )
@@ -157,87 +165,105 @@ export const VehicleMarker = memo(function VehicleMarker({
   )
 })
 
-export type StopMarkerState = "done" | "next" | "upcoming"
+export type StopState = "done" | "next" | "upcoming"
 
 /**
- * Three-state stop language, legible at ~20 stops per van:
- * - done: small, grey, a check — quietly behind the van
- * - next: larger, accent halo (red-tinted when the van is late) — the one that matters
- * - upcoming: neutral, the stop-type colour
- * Pickup vs dropoff is shape, not just colour: pickups are circles, dropoffs
- * rounded squares.
+ * Fleet-tier stop glyph: a small waypoint dot sitting on the route line —
+ * texture of the route, not a marker. Ring colour mirrors the line (route
+ * accent, late red, or traveled grey when done); each van's next stop is a
+ * touch larger so the fleet view still shows where everyone is headed.
  */
-export const StopMarker = memo(function StopMarker({
-  stopType,
-  state,
+export const StopDot = memo(function StopDot({
   fill,
-  doneFill,
-  lateFill,
-  stroke,
-  late = false,
+  ring,
+  emphasized = false,
+  dimmed = false,
 }: {
-  stopType: "pickup" | "dropoff"
-  state: StopMarkerState
   fill: string
-  doneFill: string
-  lateFill: string
-  stroke: string
-  late?: boolean
+  ring: string
+  emphasized?: boolean
+  dimmed?: boolean
 }) {
-  const r = state === "next" ? 9 : 6
-  const pad = state === "next" ? 6 : 3
-  const size = (r + pad) * 2
-  const c = size / 2
-  const color =
-    state === "done" ? doneFill : state === "next" && late ? lateFill : fill
-  const sw = state === "next" ? 3 : 2
+  const r = emphasized ? 5 : 3.5
+  const size = (r + 2.5) * 2
   return (
     <svg
       width={size}
       height={size}
       viewBox={`0 0 ${size} ${size}`}
       aria-hidden
-      style={{ opacity: state === "done" ? 0.55 : 1 }}
+      style={{ opacity: dimmed ? 0.15 : 1 }}
+    >
+      <circle
+        cx={size / 2}
+        cy={size / 2}
+        r={r}
+        fill={fill}
+        stroke={ring}
+        strokeWidth={emphasized ? 2.5 : 2}
+      />
+    </svg>
+  )
+})
+
+/**
+ * Focus-tier stop glyph: the selected van's stops as seq-numbered badges.
+ * done = muted (pre-mixed fill, full opacity — a faded element fails number
+ * contrast over light tiles), next = accent with a static halo (+ optional
+ * ETA pill below, van-label pattern), upcoming = surface fill with an accent
+ * border. aria-hidden: the itinerary is the accessible surface for stops.
+ */
+export const StopBadge = memo(function StopBadge({
+  number,
+  state,
+  fill,
+  text,
+  border,
+  etaLabel = null,
+  etaLate = false,
+}: {
+  number: number
+  state: StopState
+  fill: string
+  text: string
+  border?: string
+  etaLabel?: string | null
+  etaLate?: boolean
+}) {
+  const size = state === "next" ? 30 : state === "upcoming" ? 24 : 20
+  return (
+    <div
+      aria-hidden
+      className="relative flex items-center justify-center"
+      style={{ width: size, height: size }}
     >
       {state === "next" ? (
-        stopType === "pickup" ? (
-          <circle cx={c} cy={c} r={r + 4} fill={color} opacity={0.25} />
-        ) : (
-          <rect
-            x={c - r - 4}
-            y={c - r - 4}
-            width={(r + 4) * 2}
-            height={(r + 4) * 2}
-            rx={(r + 4) * 0.35}
-            fill={color}
-            opacity={0.25}
-          />
-        )
-      ) : null}
-      {stopType === "pickup" ? (
-        <circle cx={c} cy={c} r={r} fill={color} stroke={stroke} strokeWidth={sw} />
-      ) : (
-        <rect
-          x={c - r}
-          y={c - r}
-          width={r * 2}
-          height={r * 2}
-          rx={r * 0.35}
-          fill={color}
-          stroke={stroke}
-          strokeWidth={sw}
-        />
-      )}
-      {state === "done" ? (
-        <path
-          d={`M ${c - r * 0.5} ${c} l ${r * 0.36} ${r * 0.4} l ${r * 0.62} -${r * 0.75}`}
-          stroke={stroke}
-          strokeWidth={1.8}
-          fill="none"
-          strokeLinecap="round"
-          strokeLinejoin="round"
+        <span
+          className="absolute rounded-full"
+          style={{ inset: -5, background: fill, opacity: 0.25 }}
         />
       ) : null}
-    </svg>
+      <span
+        className="relative flex h-full w-full items-center justify-center rounded-full font-semibold tabular-nums"
+        style={{
+          background: fill,
+          color: text,
+          fontSize: state === "next" ? 13 : 11,
+          border: border ? `2px solid ${border}` : undefined,
+          boxShadow: "0 1px 2px rgb(0 0 0 / 0.25)",
+        }}
+      >
+        {number}
+      </span>
+      {etaLabel ? (
+        <span
+          className={`absolute top-full left-1/2 mt-1.5 -translate-x-1/2 rounded-full bg-surface px-2 py-1 text-[0.6875rem] leading-none font-semibold whitespace-nowrap shadow-md ${
+            etaLate ? "text-destructive" : "text-foreground"
+          }`}
+        >
+          {etaLabel}
+        </span>
+      ) : null}
+    </div>
   )
 })

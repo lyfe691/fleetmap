@@ -14,9 +14,17 @@ type MapColors = {
   routeLate: string // remaining line when the van is behind schedule
   routeCasing: string
   traveled: string
-  pickup: string
-  dropoff: string
-  stopDone: string // de-emphasised fill for completed stop markers
+  pickup: string // dispatch pin-map + history replay start dot
+  dropoff: string // history replay end dot
+  // Focus-mode stop badges. Pre-mixed solid colours at full element opacity —
+  // an opacity fade over light tiles would fail number contrast. stopNextText
+  // also passes on the late-red fill in both themes (white on light-theme
+  // red, near-black on dark-theme red).
+  stopDoneFill: string
+  stopDoneText: string
+  stopNextFill: string
+  stopNextText: string
+  stopUpcomingText: string // on a markerStroke-filled badge
   vehicleOnRoute: string
   vehicleWaiting: string
   vehicleStale: string
@@ -34,7 +42,11 @@ export function mapColors(theme: MapTheme): MapColors {
       traveled: "#8f8f93",
       pickup: "#34d399",
       dropoff: "#cbd5e1",
-      stopDone: "#6b6b70",
+      stopDoneFill: "#3f3f46",
+      stopDoneText: "#a1a1aa",
+      stopNextFill: "#34d3df",
+      stopNextText: "#0c1417",
+      stopUpcomingText: "#e4e4e7",
       vehicleOnRoute: "#34d399",
       vehicleWaiting: "#fbbf24",
       vehicleStale: "#8f8f93",
@@ -48,7 +60,13 @@ export function mapColors(theme: MapTheme): MapColors {
     traveled: "#9a9a9f",
     pickup: "#16a34a",
     dropoff: "#475569",
-    stopDone: "#a8a8ad",
+    stopDoneFill: "#e4e4e7",
+    stopDoneText: "#52525b",
+    // Deeper than the route teal so the white number passes contrast; reads
+    // as a deliberate accent of the same family.
+    stopNextFill: "#0f766e",
+    stopNextText: "#ffffff",
+    stopUpcomingText: "#27272a",
     vehicleOnRoute: "#16a34a",
     vehicleWaiting: "#d97706",
     vehicleStale: "#9ca3af",

@@ -1,7 +1,7 @@
 "use client"
 
 import { type CSSProperties, useEffect, useMemo, useRef } from "react"
-import { Check, MapPin } from "lucide-react"
+import { MapPin } from "lucide-react"
 import { FleetMapView } from "@/components/map/fleet-map-view"
 import {
   Card,
@@ -173,16 +173,21 @@ export function TrackingView({
           {t("tracking.itinerary")}
         </h3>
         <Card className="mt-4 py-0">
-          <div className="divide-y divide-border">
+          {/* No divide-y: rows connect through the timeline rail instead —
+              full-width hairlines would slice across it. */}
+          <div className="py-2">
             {stops.length === 0 ? (
               <p className="px-5 py-8 text-center text-sm text-muted-foreground">
                 {t("tracking.noStops")}
               </p>
             ) : (
-              stops.map((s) => (
+              stops.map((s, i) => (
                 <StopRow
                   key={s.id}
                   stop={s}
+                  number={i + 1}
+                  first={i === 0}
+                  last={i === stops.length - 1}
                   isNext={s.id === nextStopId}
                   late={vehicle.late}
                   projectedMs={vehicle.nextStopProjectedMs}
@@ -202,11 +207,14 @@ export function TrackingView({
             a fixed island on a big wall TV — floored/capped to stay sane on laptops
             and very tall displays. */}
         <div className="mt-4 h-[clamp(420px,52vh,760px)] overflow-hidden rounded-2xl border border-border shadow-[var(--shadow-card)]">
+          {/* selectedId puts the mini-map in focus mode: numbered badges that
+              match the itinerary above it. Camera is still follow's. */}
           <FleetMapView
             vehicles={miniLive.vehicles}
             stopsByVehicle={miniLive.stopsByVehicle}
             routes={miniLive.routes}
             now={miniLive.now}
+            selectedId={vehicle.id}
             showChrome={false}
             follow
           />
@@ -256,6 +264,9 @@ function StatCard({
 
 function StopRow({
   stop,
+  number,
+  first,
+  last,
   isNext,
   late,
   projectedMs,
@@ -264,6 +275,9 @@ function StopRow({
   t,
 }: {
   stop: Stop
+  number: number // 1..N ordinal — matches the map badge
+  first: boolean
+  last: boolean
   isNext: boolean
   late: boolean // the vehicle is behind schedule (applies to the next stop)
   projectedMs: number | null // projected arrival at the next stop
@@ -271,7 +285,11 @@ function StopRow({
   locale: Locale
   t: Translator
 }) {
-  const done = stop.status === "completed"
+  // Same terminal predicate as the map badges, so a cancelled/failed stop
+  // reads muted on both surfaces instead of "done" on one and "upcoming" on
+  // the other. Completed is still the only status with an actual arrival.
+  const done = !isActive(stop)
+  const completed = stop.status === "completed"
   const typeLabel = t(
     stop.stop_type === "pickup" ? "dispatch.stop.pickup" : "dispatch.stop.dropoff"
   )
@@ -280,7 +298,11 @@ function StopRow({
       ? ("dispatch.status.completed" as const)
       : stop.status === "arrived"
         ? ("dispatch.status.arrived" as const)
-        : ("dispatch.status.planned" as const)
+        : stop.status === "failed"
+          ? ("dispatch.status.failed" as const)
+          : stop.status === "skipped"
+            ? ("dispatch.status.skipped" as const)
+            : ("dispatch.status.planned" as const)
 
   const etaMs = stop.eta_at ? Date.parse(stop.eta_at) : null
   const completedMs = stop.completed_at ? Date.parse(stop.completed_at) : null
@@ -288,56 +310,81 @@ function StopRow({
   // early delta; the next stop shows the live projected ETA with the same
   // late treatment as the route line. Times live here, not on the map pins.
   const delta =
-    done && etaMs != null && completedMs != null
+    completed && etaMs != null && completedMs != null
       ? arrivalDelta(etaMs, completedMs)
       : null
 
   return (
-    <div className={cn("flex items-center gap-4 px-5 py-4", done && "opacity-55")}>
-      <StopMarker done={done} next={isNext} accent={accent} />
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2.5">
-          <span className="text-[0.9375rem] font-semibold">{typeLabel}</span>
-          {delta ? (
-            <span
-              className={cn(
-                "rounded-full px-2 py-0.5 text-[0.75rem] font-semibold",
-                delta.kind === "late"
-                  ? "bg-destructive/12 text-destructive"
-                  : delta.kind === "early"
-                    ? "bg-success/12 text-success"
-                    : "bg-muted text-muted-foreground"
-              )}
-            >
-              {delta.kind === "onTime"
-                ? t("tracking.onTime")
-                : t(
-                    delta.kind === "late" ? "tracking.minLate" : "tracking.minEarly",
-                    { n: delta.minutes }
-                  )}
-            </span>
-          ) : null}
-          {isNext && late ? <LateChip label={t("rail.late")} /> : null}
-        </div>
-        <div className="mt-0.5 text-[0.8125rem] text-muted-foreground">{t(statusKey)}</div>
+    <div className="flex items-center gap-4 px-5 py-3.5">
+      {/* Timeline column: rail segments extend through the row's py-3.5
+          (self-stretch only spans the content box) so consecutive rows'
+          segments meet exactly at the boundary, leaving a 0.25rem breathing
+          gap at the badge. The done-fade lives on the content, not the row,
+          so badge + rail stay crisp. */}
+      <div className="relative flex w-7 shrink-0 items-center justify-center self-stretch">
+        {!first ? (
+          <span className="absolute -top-3.5 left-1/2 h-[calc(50%-0.25rem)] w-px -translate-x-1/2 bg-border" />
+        ) : null}
+        {!last ? (
+          <span className="absolute -bottom-3.5 left-1/2 h-[calc(50%-0.25rem)] w-px -translate-x-1/2 bg-border" />
+        ) : null}
+        <ItineraryBadge
+          number={number}
+          done={done}
+          next={isNext}
+          accent={isNext && late ? "var(--destructive)" : accent}
+        />
       </div>
-      <TimeCol
-        label={t("tracking.scheduled")}
-        value={etaMs != null ? formatClock(etaMs, locale) : "—"}
-        muted={done || isNext}
-      />
-      {done ? (
+      <div
+        className={cn(
+          "flex min-w-0 flex-1 items-center gap-4",
+          done && "opacity-55"
+        )}
+      >
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2.5">
+            <span className="text-[0.9375rem] font-semibold">{typeLabel}</span>
+            {delta ? (
+              <span
+                className={cn(
+                  "rounded-full px-2 py-0.5 text-[0.75rem] font-semibold",
+                  delta.kind === "late"
+                    ? "bg-destructive/12 text-destructive"
+                    : delta.kind === "early"
+                      ? "bg-success/12 text-success"
+                      : "bg-muted text-muted-foreground"
+                )}
+              >
+                {delta.kind === "onTime"
+                  ? t("tracking.onTime")
+                  : t(
+                      delta.kind === "late" ? "tracking.minLate" : "tracking.minEarly",
+                      { n: delta.minutes }
+                    )}
+              </span>
+            ) : null}
+            {isNext && late ? <LateChip label={t("rail.late")} /> : null}
+          </div>
+          <div className="mt-0.5 text-[0.8125rem] text-muted-foreground">{t(statusKey)}</div>
+        </div>
         <TimeCol
-          label={t("tracking.arrived")}
-          value={completedMs != null ? formatClock(completedMs, locale) : "—"}
+          label={t("tracking.scheduled")}
+          value={etaMs != null ? formatClock(etaMs, locale) : "—"}
+          muted={done || isNext}
         />
-      ) : isNext ? (
-        <TimeCol
-          label={t("card.eta")}
-          value={projectedMs != null ? formatClock(projectedMs, locale) : "—"}
-          late={late}
-        />
-      ) : null}
+        {completed ? (
+          <TimeCol
+            label={t("tracking.arrived")}
+            value={completedMs != null ? formatClock(completedMs, locale) : "—"}
+          />
+        ) : isNext ? (
+          <TimeCol
+            label={t("card.eta")}
+            value={projectedMs != null ? formatClock(projectedMs, locale) : "—"}
+            late={late}
+          />
+        ) : null}
+      </div>
     </div>
   )
 }
@@ -371,19 +418,24 @@ function TimeCol({
   )
 }
 
-function StopMarker({
+// The same numbered-badge language as the map (map badges are aria-hidden;
+// these numbers are the accessible text): done = muted number, next = number
+// in the animated accent ring (red when late), upcoming = bordered number.
+function ItineraryBadge({
+  number,
   done,
   next,
   accent,
 }: {
+  number: number
   done: boolean
   next: boolean
   accent: string
 }) {
   if (done) {
     return (
-      <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-success/15 text-success">
-        <Check className="size-4" />
+      <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-[0.75rem] font-semibold tabular-nums text-muted-foreground">
+        {number}
       </span>
     )
   }
@@ -393,13 +445,18 @@ function StopMarker({
         className="stop-next-ring flex size-7 shrink-0 items-center justify-center rounded-full"
         style={{ "--sel-accent": accent } as CSSProperties}
       >
-        <span className="size-1.5 rounded-full" style={{ background: accent }} />
+        <span
+          className="text-[0.75rem] font-bold tabular-nums"
+          style={{ color: accent }}
+        >
+          {number}
+        </span>
       </span>
     )
   }
   return (
-    <span className="flex size-7 shrink-0 items-center justify-center rounded-full border-2 border-border text-muted-foreground">
-      <span className="size-1.5 rounded-full bg-current" />
+    <span className="flex size-7 shrink-0 items-center justify-center rounded-full border-2 border-border text-[0.75rem] font-semibold tabular-nums text-muted-foreground">
+      {number}
     </span>
   )
 }

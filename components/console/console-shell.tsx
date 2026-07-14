@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { useFleetRoutes, type RouteJob } from "@/lib/use-fleet-routes"
 import { useLiveStops } from "@/lib/use-live-stops"
@@ -64,6 +64,14 @@ export function ConsoleShell({ onChangeCode }: { onChangeCode: () => void }) {
   const [view, setView] = useState<ConsoleView>("tracking")
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("All")
+
+  // A vanished vehicle can't stay selected: focus mode would dim the whole
+  // fleet with nothing in focus.
+  useEffect(() => {
+    if (selectedId != null && !vehicles.some((v) => v.id === selectedId)) {
+      setSelectedId(null)
+    }
+  }, [selectedId, vehicles])
 
   const handleStatusFilter = (filter: StatusFilter) => {
     setStatusFilter(filter)
