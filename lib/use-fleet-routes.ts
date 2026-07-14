@@ -31,9 +31,10 @@ async function fetchRoute(
 
 /**
  * Fetches routes for many vehicles and caches each by its stopsKey, so a
- * vehicle's route re-fetches only when its stop set changes (not on GPS pings).
- * Returns a Map<vehicleId, Route> feeding the shared route sources + side rail
- * (legs[0].duration = ETA to the next stop). Drops vehicles absent from `jobs`.
+ * vehicle's route re-fetches only when its stop set changes (not on GPS pings
+ * or status flips — the full-day geometry ignores both). Returns a
+ * Map<vehicleId, Route> feeding the shared route sources + the schedule math
+ * in lib/schedule.ts. Drops vehicles absent from `jobs`.
  */
 const TRANSIENT_RETRY_MS = 20_000
 
