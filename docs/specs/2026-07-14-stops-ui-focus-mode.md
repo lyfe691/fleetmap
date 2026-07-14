@@ -1,7 +1,7 @@
 # Stops UI redesign — focus mode
 
-**Date:** 2026-07-14 · **Status:** reviewed (adversarial pass against the
-codebase folded in), ready to build. Pure client-side
+**Date:** 2026-07-14 · **Status:** implemented 2026-07-14 (plan and diff each
+adversarially reviewed; findings folded in). Pure client-side
 polish — no API, schema, or data-model change. Follows M16 (full-day route +
 schedule adherence), which put status/timing/lateness on stops; this fixes how
 they *read*.

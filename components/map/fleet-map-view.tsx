@@ -452,7 +452,10 @@ export function FleetMapView({
               <VehicleMarker
                 label={v.label}
                 stale={stale}
-                selected={v.id === selectedId}
+                // The selected treatment (size + ping) distinguishes one van
+                // among many; the chrome-less mini-map shows exactly one, so
+                // the pulse would be pure noise there.
+                selected={v.id === selectedId && showChrome}
                 fill={fill}
                 heading={v.last_heading}
               />

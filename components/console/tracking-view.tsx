@@ -285,7 +285,11 @@ function StopRow({
   locale: Locale
   t: Translator
 }) {
-  const done = stop.status === "completed"
+  // Same terminal predicate as the map badges, so a cancelled/failed stop
+  // reads muted on both surfaces instead of "done" on one and "upcoming" on
+  // the other. Completed is still the only status with an actual arrival.
+  const done = !isActive(stop)
+  const completed = stop.status === "completed"
   const typeLabel = t(
     stop.stop_type === "pickup" ? "dispatch.stop.pickup" : "dispatch.stop.dropoff"
   )
@@ -294,7 +298,11 @@ function StopRow({
       ? ("dispatch.status.completed" as const)
       : stop.status === "arrived"
         ? ("dispatch.status.arrived" as const)
-        : ("dispatch.status.planned" as const)
+        : stop.status === "failed"
+          ? ("dispatch.status.failed" as const)
+          : stop.status === "skipped"
+            ? ("dispatch.status.skipped" as const)
+            : ("dispatch.status.planned" as const)
 
   const etaMs = stop.eta_at ? Date.parse(stop.eta_at) : null
   const completedMs = stop.completed_at ? Date.parse(stop.completed_at) : null
@@ -302,21 +310,23 @@ function StopRow({
   // early delta; the next stop shows the live projected ETA with the same
   // late treatment as the route line. Times live here, not on the map pins.
   const delta =
-    done && etaMs != null && completedMs != null
+    completed && etaMs != null && completedMs != null
       ? arrivalDelta(etaMs, completedMs)
       : null
 
   return (
     <div className="flex items-center gap-4 px-5 py-3.5">
-      {/* Timeline column: the rail runs the row's full height behind the
-          badge (halves suppressed at the ends); the done-fade lives on the
-          content, not the row, so badge + rail stay crisp. */}
+      {/* Timeline column: rail segments extend through the row's py-3.5
+          (self-stretch only spans the content box) so consecutive rows'
+          segments meet exactly at the boundary, leaving a 0.25rem breathing
+          gap at the badge. The done-fade lives on the content, not the row,
+          so badge + rail stay crisp. */}
       <div className="relative flex w-7 shrink-0 items-center justify-center self-stretch">
         {!first ? (
-          <span className="absolute top-0 left-1/2 h-[calc(50%-1.125rem)] w-px -translate-x-1/2 bg-border" />
+          <span className="absolute -top-3.5 left-1/2 h-[calc(50%-0.25rem)] w-px -translate-x-1/2 bg-border" />
         ) : null}
         {!last ? (
-          <span className="absolute bottom-0 left-1/2 h-[calc(50%-1.125rem)] w-px -translate-x-1/2 bg-border" />
+          <span className="absolute -bottom-3.5 left-1/2 h-[calc(50%-0.25rem)] w-px -translate-x-1/2 bg-border" />
         ) : null}
         <ItineraryBadge
           number={number}
@@ -362,7 +372,7 @@ function StopRow({
           value={etaMs != null ? formatClock(etaMs, locale) : "—"}
           muted={done || isNext}
         />
-        {done ? (
+        {completed ? (
           <TimeCol
             label={t("tracking.arrived")}
             value={completedMs != null ? formatClock(completedMs, locale) : "—"}
