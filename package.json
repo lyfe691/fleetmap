@@ -23,6 +23,8 @@
     "@base-ui/react": "^1.5.0",
     "@react-three/fiber": "^9.6.1",
     "@supabase/supabase-js": "^2.108.2",
+    "@turf/along": "^7.3.5",
+    "@turf/length": "^7.3.5",
     "@turf/line-slice": "^7.3.5",
     "@turf/nearest-point-on-line": "^7.3.5",
     "class-variance-authority": "^0.7.1",

@@ -14,6 +14,7 @@ import {
 import { mapColors, mapStyleUrl, type MapTheme } from "@/lib/map-theme"
 import { useTranslations } from "@/lib/i18n"
 import { useRouteFeatures } from "@/lib/use-route-features"
+import { assessLateness, snapFraction } from "@/lib/schedule"
 import type { Vehicle } from "@/lib/use-live-vehicles"
 import type { Stop } from "@/lib/use-live-stops"
 import type { Route } from "@/lib/route-types"
@@ -100,11 +101,12 @@ export function FleetMapView({
     if (map.isStyleLoaded()) setMapLoaded(true)
     else map.once("idle", () => setMapLoaded(true))
   }, [])
-  // One camera policy: ease to the selected vehicle, or fit the whole shown set
-  // when nothing is selected — that single rule covers the Live Map's
-  // focus-on-select, its "view all" (cleared selection), and the framing for
-  // the single-vehicle mini-map. Keyed so position updates don't re-frame.
+  // One camera policy: frame the selected vehicle's FULL day (route bounds —
+  // with 20 stops the day must be visible, not just the van point), or fit the
+  // whole shown set when nothing is selected. Keyed so position updates don't
+  // re-frame; a selected van re-frames when its route changes (stop set edit).
   const cameraKeyRef = useRef<string | null>(null)
+  const framedRouteRef = useRef<Route | null>(null)
   useEffect(() => {
     if (!mapLoaded) return
     if (follow) {
@@ -122,14 +124,35 @@ export function FleetMapView({
       .sort()
       .join(",")
     const key = selectedId ? `focus:${selectedId}` : `fleet:${idsKey}`
-    if (key === cameraKeyRef.current) return
+    const focusRoute = selectedId ? (routes.get(selectedId) ?? null) : null
+    if (key === cameraKeyRef.current && focusRoute === framedRouteRef.current)
+      return
     const first = cameraKeyRef.current === null
     cameraKeyRef.current = key
+    framedRouteRef.current = focusRoute
 
     if (selectedId) {
       const v = vehicles.find((x) => x.id === selectedId)
       if (!v || v.last_lng == null || v.last_lat == null) {
         cameraKeyRef.current = null
+        return
+      }
+      if (focusRoute) {
+        let w = v.last_lng
+        let e = v.last_lng
+        let s = v.last_lat
+        let n = v.last_lat
+        for (const [lng, lat] of focusRoute.geometry.coordinates) {
+          w = Math.min(w, lng)
+          e = Math.max(e, lng)
+          s = Math.min(s, lat)
+          n = Math.max(n, lat)
+        }
+        map.fitBounds([[w, s], [e, n]], {
+          padding: 80,
+          maxZoom: 15,
+          duration: first ? 0 : 700,
+        })
         return
       }
       map.easeTo({
@@ -146,7 +169,7 @@ export function FleetMapView({
       return
     }
     map.fitBounds(bounds, { padding: 80, maxZoom: 14, duration: first ? 0 : 600 })
-  }, [mapLoaded, follow, selectedId, vehicles])
+  }, [mapLoaded, follow, selectedId, vehicles, routes])
 
   // Follow mode (mini-map always; Live Map while a vehicle is selected) owns
   // the camera instead of the policy above: engaging or switching vehicles
@@ -201,6 +224,24 @@ export function FleetMapView({
     return { nextStopIds: next, onRouteIds: onRoute }
   }, [stopsByVehicle])
 
+  // Per-van schedule adherence: projected arrival at the next active stop vs
+  // its eta_at (+ grace). Late vans get a red remaining line + a red-tinted
+  // next-stop marker; each van colours independently.
+  const lateIds = useMemo(() => {
+    const late = new Set<string>()
+    for (const v of vehicles) {
+      const stops = stopsByVehicle.get(v.id)
+      if (!stops?.length) continue
+      const route = routes.get(v.id)
+      const fraction =
+        route && v.last_lng != null && v.last_lat != null
+          ? snapFraction(route.geometry, [v.last_lng, v.last_lat])
+          : null
+      if (assessLateness({ route, stops, fraction, now }).late) late.add(v.id)
+    }
+    return late
+  }, [vehicles, stopsByVehicle, routes, now])
+
   const stopMarkers = useMemo(
     () =>
       Array.from(stopsByVehicle.values())
@@ -208,17 +249,31 @@ export function FleetMapView({
         .map((s) => (
           <Marker key={s.id} longitude={s.lng} latitude={s.lat} anchor="center">
             <StopMarker
+              stopType={s.stop_type}
+              state={
+                s.status !== "planned" && s.status !== "arrived"
+                  ? "done"
+                  : nextStopIds.has(s.id)
+                    ? "next"
+                    : "upcoming"
+              }
+              late={s.vehicle_id != null && lateIds.has(s.vehicle_id)}
               fill={s.stop_type === "pickup" ? colors.pickup : colors.dropoff}
+              doneFill={colors.stopDone}
+              lateFill={colors.routeLate}
               stroke={colors.markerStroke}
-              emphasized={nextStopIds.has(s.id)}
-              terminal={s.status !== "planned" && s.status !== "arrived"}
             />
           </Marker>
         )),
-    [stopsByVehicle, nextStopIds, colors]
+    [stopsByVehicle, nextStopIds, lateIds, colors]
   )
 
-  const { remaining, traveled } = useRouteFeatures(routes, vehicles)
+  const { remaining, traveled } = useRouteFeatures(
+    routes,
+    vehicles,
+    stopsByVehicle,
+    lateIds
+  )
 
   return (
     <>
@@ -264,7 +319,18 @@ export function FleetMapView({
             id="routes-remaining-line"
             type="line"
             layout={{ "line-cap": "round", "line-join": "round" }}
-            paint={{ "line-color": colors.route, "line-width": 4.5, "line-opacity": 0.95 }}
+            paint={{
+              // Data-driven: a late van's remaining line goes red; the done
+              // (grey) portion is untouched.
+              "line-color": [
+                "case",
+                ["boolean", ["get", "late"], false],
+                colors.routeLate,
+                colors.route,
+              ],
+              "line-width": 4.5,
+              "line-opacity": 0.95,
+            }}
           />
         </Source>
 
@@ -360,6 +426,7 @@ function MapLegend() {
     <div className="absolute bottom-5 left-5 z-10 flex gap-5 rounded-2xl border border-border bg-surface/85 px-5 py-3.5 text-[0.9375rem] font-medium shadow-md backdrop-blur">
       <LegendDot className="bg-success" label={t("status.onRoute")} />
       <LegendDot className="bg-warning" label={t("status.waiting")} />
+      <LegendDot className="bg-destructive" label={t("status.late")} />
       <LegendDot className="bg-muted-foreground" label={t("status.stale")} />
     </div>
   )

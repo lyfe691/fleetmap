@@ -4,6 +4,11 @@ import type { Stop } from "@/lib/use-live-stops"
 import type { Route } from "@/lib/route-types"
 import type { TranslationKey } from "@/lib/i18n/en"
 import { isStale } from "@/components/map/vehicle-marker"
+import {
+  assessLateness,
+  remainingDriveSeconds,
+  snapFraction,
+} from "@/lib/schedule"
 import { ASSUMED_ORIGIN } from "@/lib/console/assumed"
 
 export type Translator = (
@@ -19,6 +24,8 @@ export type ConsoleVehicle = {
   tone: StatusTone
   statusLabel: string
   stale: boolean
+  late: boolean // behind schedule vs the next stop's eta_at (+ grace)
+  nextStopProjectedMs: number | null // projected arrival at the next stop
   origin: string
   dest: string
   etaText: string
@@ -68,13 +75,21 @@ export function buildConsoleVehicles(
     const route = routes.get(v.id)
 
     const stale = isStale(v.last_seen_at, now)
-    const firstLeg = route?.legs?.[0]
-    // Only trust the leg duration if the route's first leg still targets the
-    // current next stop. During an async refetch after a stop change, legs[0]
-    // points at the OLD next stop — show "—" rather than a wrong ETA.
-    const etaFresh =
-      firstLeg != null && next != null && firstLeg.toStopId === next.id
-    const etaSec = etaFresh ? firstLeg.duration : null
+    // Schedule math off the full-day route: the van's snap along the line
+    // scales the current leg, full legs ahead count whole. If the next stop
+    // isn't on the route yet (async refetch after a stop change) the estimate
+    // is null — show "—" rather than a wrong ETA.
+    const fraction =
+      route && v.last_lng != null && v.last_lat != null
+        ? snapFraction(route.geometry, [v.last_lng, v.last_lat])
+        : null
+    const lateness = assessLateness({ route, stops, fraction, now })
+    const etaSec = lateness.remainingDriveSec
+    const lastStopId = route?.stopOffsets[route.stopOffsets.length - 1]?.stopId
+    const dayLeftSec =
+      route && fraction != null && lastStopId != null
+        ? remainingDriveSeconds(route, fraction, lastStopId)
+        : (route?.totalDuration ?? null)
     const totalStops = stops.length
     const doneStops = Math.max(0, totalStops - active.length)
     const collected = stops.filter(
@@ -90,12 +105,14 @@ export function buildConsoleVehicles(
       tone: hasActive ? "onRoute" : "waiting",
       statusLabel: hasActive ? t("filter.onRoute") : t("filter.waiting"),
       stale,
+      late: lateness.late,
+      nextStopProjectedMs: lateness.projectedArrivalMs,
       origin: ASSUMED_ORIGIN,
       dest: next
         ? t(next.stop_type === "pickup" ? "dispatch.stop.pickup" : "dispatch.stop.dropoff")
         : "—",
       etaText: hasActive ? (etaSec != null ? formatEta(etaSec) : "—") : t("rail.idle"),
-      routeTimer: route ? hms(route.totalDuration) : "—",
+      routeTimer: dayLeftSec != null ? hms(dayLeftSec) : "—",
       routeLeftText: hasActive
         ? etaSec != null
           ? t("console.toNextStop", { eta: formatEta(etaSec) })

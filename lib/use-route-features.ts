@@ -2,16 +2,24 @@
 
 import { useMemo, useRef } from "react"
 import type { Feature, FeatureCollection } from "geojson"
-import { splitRoute, type RouteSplit } from "@/lib/route-slice"
+import {
+  lineLengthKm,
+  splitRouteWithFloor,
+  type RouteSplit,
+} from "@/lib/route-slice"
+import { completedFloorFraction } from "@/lib/schedule"
 import type { Route, RouteGeometry } from "@/lib/route-types"
 import type { Vehicle } from "@/lib/use-live-vehicles"
+import type { Stop } from "@/lib/use-live-stops"
 
 type ProgEntry = { split: RouteSplit; geometry: RouteGeometry }
 
 export function computeRouteFeatures(
   prog: Map<string, ProgEntry>,
   routes: Map<string, Route>,
-  vehicles: Vehicle[]
+  vehicles: Vehicle[],
+  stopsByVehicle: Map<string, Stop[]>,
+  lateIds: Set<string>
 ): { remaining: FeatureCollection; traveled: FeatureCollection } {
   const remainingFeatures: Feature[] = []
   const traveledFeatures: Feature[] = []
@@ -23,17 +31,27 @@ export function computeRouteFeatures(
     const prevEntry = prog.get(v.id)
     const prev =
       prevEntry && prevEntry.geometry === route.geometry ? prevEntry.split : null
-    const split = splitRoute(route.geometry, [v.last_lng, v.last_lat], prev)
-    prog.set(v.id, { split, geometry: route.geometry })
+    // Done boundary = max(last completed stop's offset, van's clamped snap):
+    // a finished leg is fully grey even before GPS snaps past it.
+    const floorKm =
+      completedFloorFraction(route, stopsByVehicle.get(v.id) ?? []) *
+      lineLengthKm(route.geometry)
+    const bounded = splitRouteWithFloor(
+      route.geometry,
+      [v.last_lng, v.last_lat],
+      prev,
+      floorKm
+    )
+    prog.set(v.id, { split: bounded.split, geometry: route.geometry })
     remainingFeatures.push({
       type: "Feature",
-      geometry: split.remaining,
-      properties: { vehicle_id: v.id },
+      geometry: bounded.remaining,
+      properties: { vehicle_id: v.id, late: lateIds.has(v.id) },
     })
-    if (split.traveled) {
+    if (bounded.traveled) {
       traveledFeatures.push({
         type: "Feature",
-        geometry: split.traveled,
+        geometry: bounded.traveled,
         properties: { vehicle_id: v.id },
       })
     }
@@ -47,11 +65,20 @@ export function computeRouteFeatures(
 
 export function useRouteFeatures(
   routes: Map<string, Route>,
-  vehicles: Vehicle[]
+  vehicles: Vehicle[],
+  stopsByVehicle: Map<string, Stop[]>,
+  lateIds: Set<string>
 ): { remaining: FeatureCollection; traveled: FeatureCollection } {
   const progressRef = useRef<Map<string, ProgEntry>>(new Map())
   return useMemo(
-    () => computeRouteFeatures(progressRef.current, routes, vehicles),
-    [routes, vehicles]
+    () =>
+      computeRouteFeatures(
+        progressRef.current,
+        routes,
+        vehicles,
+        stopsByVehicle,
+        lateIds
+      ),
+    [routes, vehicles, stopsByVehicle, lateIds]
   )
 }

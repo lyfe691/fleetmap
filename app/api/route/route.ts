@@ -48,10 +48,10 @@ export async function GET(request: NextRequest) {
   // it read any vehicle and its stops.
   const supabase = createUserClient(token)
 
-  // 2. The vehicle's current position.
+  // 2. The vehicle must exist (distinguishes "no such vehicle" from "no stops").
   const { data: vehicle, error: lookupError } = await supabase
     .from("vehicles")
-    .select("last_lat, last_lng")
+    .select("id")
     .eq("id", vehicleId)
     .maybeSingle()
   if (lookupError) {
@@ -64,20 +64,16 @@ export async function GET(request: NextRequest) {
   if (!vehicle) {
     return NextResponse.json({ error: "no such vehicle" }, { status: 409 })
   }
-  if (vehicle.last_lat == null || vehicle.last_lng == null) {
-    return NextResponse.json(
-      { error: "vehicle has no known position yet" },
-      { status: 409 }
-    )
-  }
 
-  // 3. Non-terminal stops in visit order. seq is treated as the true visit
-  // order (OSRM does not reorder waypoints).
+  // 3. ALL of the day's stops in visit order, regardless of status — the route
+  // is the whole day (stop 1 → stop N) and the client greys the done part.
+  // The geometry is a function of the stop set only (ids · positions · seq):
+  // it never recomputes on van movement or a status flip. seq is treated as
+  // the true visit order (OSRM does not reorder waypoints).
   const { data: stopRows, error: stopsError } = await supabase
     .from("stops")
     .select("id, seq, stop_type, lat, lng, status")
     .eq("vehicle_id", vehicleId)
-    .in("status", ["planned", "arrived"])
     .order("seq", { ascending: true })
   if (stopsError) {
     if (isAuthError(stopsError)) {
@@ -87,19 +83,20 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "db error" }, { status: 500 })
   }
   const stops = (stopRows ?? []) as StopRow[]
-  if (stops.length === 0) {
+  if (stops.length < 2) {
+    // One stop makes no line; zero makes no route. Same client handling.
     return NextResponse.json(
-      { error: "vehicle has no active stops" },
+      { error: "vehicle has no routable stops" },
       { status: 409 }
     )
   }
 
-  // 4. Proxy OSRM. Waypoints: live position, then each stop in seq order.
+  // 4. Proxy OSRM. Waypoints: every stop in seq order (no live-position
+  // origin — the van's position places the done/ahead boundary client-side).
   // Coords are lng,lat (OSRM's order); full geojson geometry.
-  const waypoints: [number, number][] = [
-    [vehicle.last_lng, vehicle.last_lat],
-    ...stops.map((s) => [s.lng, s.lat] as [number, number]),
-  ]
+  const waypoints: [number, number][] = stops.map(
+    (s) => [s.lng, s.lat] as [number, number]
+  )
   const coords = waypoints.map(([lng, lat]) => `${lng},${lat}`).join(";")
   const osrmUrl = `${OSRM_URL}/route/v1/driving/${coords}?overview=full&geometries=geojson`
 
@@ -122,20 +119,22 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: `no route (${osrm.code})` }, { status: 404 })
   }
 
-  // 5. One leg per waypoint pair => leg j arrives at stops[j].
+  // 5. One leg per waypoint pair => leg j runs stops[j] → stops[j+1], so it
+  // arrives at stops[j+1]. The first stop has no inbound leg.
   const osrmLegs = best.legs ?? []
-  const legs = stops.map((s, j) => ({
+  const legs = stops.slice(1).map((s, j) => ({
     toStopId: s.id,
     duration: osrmLegs[j]?.duration ?? 0,
     distance: osrmLegs[j]?.distance ?? 0,
   }))
 
   // 6. Each stop's fractional offset along the full line = cumulative leg
-  // distance / total distance. M8's grey boundary clamps to these.
+  // distance / total distance (stop 1 sits at 0). The client's grey boundary
+  // and the schedule-adherence estimate both key off these.
   const total = best.distance || 1
   let cumulative = 0
   const stopOffsets = stops.map((s, j) => {
-    cumulative += osrmLegs[j]?.distance ?? 0
+    if (j > 0) cumulative += osrmLegs[j - 1]?.distance ?? 0
     return {
       stopId: s.id,
       seq: s.seq,
