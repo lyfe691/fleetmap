@@ -3,6 +3,7 @@
 import { ArrowRight, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { FleetMapView } from "@/components/map/fleet-map-view"
+import { LateChip } from "@/components/console/fleet-rail"
 import type { LiveData } from "@/lib/console/types"
 import type { ConsoleVehicle } from "@/lib/console/use-console-data"
 import { StatusBadge } from "@/components/console/status-badge"
@@ -32,7 +33,6 @@ export function MapView({
         now={live.now}
         selectedId={selectedId}
         onSelectVehicle={onSelectVehicle}
-        follow={selectedId != null}
       />
       {selected ? (
         <SummaryCard
@@ -66,6 +66,7 @@ function SummaryCard({
           </h2>
           <div className="mt-2 flex items-center gap-2">
             <StatusBadge tone={vehicle.tone} size="sm" />
+            {vehicle.late ? <LateChip label={t("rail.late")} /> : null}
             {vehicle.stale ? (
               <span className="text-[0.8125rem] font-medium text-muted-foreground">
                 {t("card.stale")}

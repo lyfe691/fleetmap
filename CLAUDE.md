@@ -55,8 +55,9 @@ lib/supabase/browser.ts     browser client (publishable key) — dashboard read/
 lib/use-live-vehicles.ts    dashboard vehicles live channel (snapshot + subscribe)
 lib/use-live-stops.ts       dashboard stops live channel (snapshot + subscribe)
 lib/use-fleet-routes.ts     per-vehicle route cache (fetch on stop-set change)
-lib/route-slice.ts          traveled/remaining split (turf, forward-clamped)
-lib/use-route-features.ts   per-vehicle traveled/remaining FeatureCollections (cache)
+lib/route-slice.ts          traveled/remaining split (turf, forward-clamped, done-stop floor)
+lib/schedule.ts             schedule adherence — lateness (projected vs eta_at + grace), arrival deltas, completed floor
+lib/use-route-features.ts   per-vehicle traveled/remaining FeatureCollections (cache, late-tagged)
 lib/geofence.ts             server-side geofence auto-arrive (POST /api/location)
 lib/replay.ts               route-replay math (interpolation, bearing, thinning, stats)
 lib/map-theme.ts            MapTiler style + marker palette per light/dark theme
@@ -166,6 +167,7 @@ It writes into the shared Supabase, so a fake van and a real driver in the same 
 - [x] **M13 — dispatch as assignment surface:** orders arrive unassigned from the ingest seam (`vehicle_id` was already optional end-to-end) and `/dispatch` assigns them — orders-first layout, "Needs a van" group with per-order Assign, per-stop unassign escape hatch, stat strip; manual form demoted to second tab. `docs/order-ingestion-api.md` is the Bubble Box integration contract. See `docs/specs/2026-07-02-dispatch-assignment-surface.md`.
 - [x] **M14 — route replay:** the History tab replays a vehicle's day from `vehicle_positions` — dashboard read path (0008: claim-scoped select + `vehicle_positions_public` view), paginated day fetch + stride thinning, play/pause/scrubber/speed with an interpolated van marker (`lib/replay.ts`, unit-tested), distance/duration/points stats.
 - [x] **M15 — Bubble Box route sync:** pull worker mirrors their rider routes (assignment, stop order, and status all come from their route optimizer); `vehicles.rider_ref` mapping + diff-applying `sync_vehicle_routes` RPC (0009) + `PUT /api/ingest/vehicle-routes`; fixture mode (`BB_FIXTURE_FILE`) until their dedicated API ships. E2E-proven: status flips are in-place UPDATEs (stop ids stable → no OSRM churn). Spec: `docs/specs/2026-07-08-bubblebox-route-sync-design.md`.
+- [x] **M16 — full-day route + schedule adherence:** `/api/route` routes through ALL of a van's stops in `seq` order with no live-position origin (geometry is a function of the stop set only — less OSRM churn); the client places the done/ahead boundary as `max(last completed stop's offset, van's clamped snap)` so finished legs grey instead of vanishing. Lateness (`lib/schedule.ts`): projected arrival at the next stop vs `eta_at` + 5 min grace (scheduled-passed fallback) → red remaining line + Late chips + legend entry. Per-stop scheduled vs actual arrival in the itinerary (delta chips); needs migration `0011` (adds `completed_at` to `stops_public`) applied to the shared Supabase by a human. Stop markers: pickup=circle / dropoff=square, done/next/upcoming three-state; selecting a van frames its full route bounds. Demo data: ~16–18 stops per city, per-city `etaSpeedFactor` (Bern deliberately late), fake-gps refreshes `eta_at` per lap and the geofence stamps `completed_at` live. Spec: `docs/specs/2026-07-13-schedule-adherence-full-route-design.md`.
 - Later: wire the real Bubble Box endpoints (token/routes/statuses) when Dmytro ships, then retire geofence + `/dispatch` per the spec; telematics integrate-or-drop decision. ← next
 
 ## Workflow

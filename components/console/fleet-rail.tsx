@@ -161,6 +161,15 @@ function StaleChip({ label }: { label: string }) {
   )
 }
 
+export function LateChip({ label }: { label: string }) {
+  return (
+    <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-destructive/12 px-2 py-0.5 text-[0.75rem] font-semibold text-destructive">
+      <span className="size-1.5 rounded-full bg-destructive" />
+      {label}
+    </span>
+  )
+}
+
 function VehicleCard({
   vehicle,
   selected,
@@ -207,6 +216,7 @@ function VehicleCard({
           </span>
           <div className="flex shrink-0 items-center gap-1.5">
             <StatusBadge tone={vehicle.tone} />
+            {vehicle.late ? <LateChip label={t("rail.late")} /> : null}
             {vehicle.stale ? <StaleChip label={t("rail.stale")} /> : null}
           </div>
         </div>

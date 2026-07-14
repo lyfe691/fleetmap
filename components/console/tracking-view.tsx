@@ -11,9 +11,11 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import type { LiveData } from "@/lib/console/types"
-import type { ConsoleVehicle } from "@/lib/console/use-console-data"
+import { isActive } from "@/components/map/fleet-format"
+import type { ConsoleVehicle, Translator } from "@/lib/console/use-console-data"
+import { arrivalDelta } from "@/lib/schedule"
+import { LateChip } from "@/components/console/fleet-rail"
 import type { Stop } from "@/lib/use-live-stops"
-import type { TranslationKey } from "@/lib/i18n/en"
 import type { Locale } from "@/lib/settings/types"
 import { Skeleton } from "@/components/ui/skeleton"
 import { StatusBadge } from "@/components/console/status-badge"
@@ -48,8 +50,10 @@ export function TrackingView({
     () => live.stopsByVehicle.get(vehicle.id) ?? [],
     [live.stopsByVehicle, vehicle.id]
   )
+  // Same "next" the map + lateness use: first planned/arrived stop — a
+  // failed/skipped stop must not pick up the projected ETA.
   const nextStopId = useMemo(
-    () => stops.find((s) => s.status !== "completed")?.id ?? null,
+    () => stops.find(isActive)?.id ?? null,
     [stops]
   )
   const statusAccent =
@@ -76,6 +80,7 @@ export function TrackingView({
               {vehicle.reg}
             </h2>
             <StatusBadge tone={vehicle.tone} size="md" />
+            {vehicle.late ? <LateChip label={t("rail.late")} /> : null}
             {vehicle.stale ? (
               <span className="text-[0.9375rem] font-medium text-muted-foreground">
                 {t("card.stale")}
@@ -179,6 +184,8 @@ export function TrackingView({
                   key={s.id}
                   stop={s}
                   isNext={s.id === nextStopId}
+                  late={vehicle.late}
+                  projectedMs={vehicle.nextStopProjectedMs}
                   accent={statusAccent}
                   locale={locale}
                   t={t}
@@ -250,37 +257,115 @@ function StatCard({
 function StopRow({
   stop,
   isNext,
+  late,
+  projectedMs,
   accent,
   locale,
   t,
 }: {
   stop: Stop
   isNext: boolean
+  late: boolean // the vehicle is behind schedule (applies to the next stop)
+  projectedMs: number | null // projected arrival at the next stop
   accent: string
   locale: Locale
-  t: (key: TranslationKey) => string
+  t: Translator
 }) {
   const done = stop.status === "completed"
   const typeLabel = t(
     stop.stop_type === "pickup" ? "dispatch.stop.pickup" : "dispatch.stop.dropoff"
   )
-  const statusKey: TranslationKey =
+  const statusKey =
     stop.status === "completed"
-      ? "dispatch.status.completed"
+      ? ("dispatch.status.completed" as const)
       : stop.status === "arrived"
-        ? "dispatch.status.arrived"
-        : "dispatch.status.planned"
-  const eta = stop.eta_at ? formatClock(Date.parse(stop.eta_at), locale) : "—"
+        ? ("dispatch.status.arrived" as const)
+        : ("dispatch.status.planned" as const)
+
+  const etaMs = stop.eta_at ? Date.parse(stop.eta_at) : null
+  const completedMs = stop.completed_at ? Date.parse(stop.completed_at) : null
+  // Scheduled vs actual: completed stops show the arrival + an on-time/late/
+  // early delta; the next stop shows the live projected ETA with the same
+  // late treatment as the route line. Times live here, not on the map pins.
+  const delta =
+    done && etaMs != null && completedMs != null
+      ? arrivalDelta(etaMs, completedMs)
+      : null
 
   return (
     <div className={cn("flex items-center gap-4 px-5 py-4", done && "opacity-55")}>
       <StopMarker done={done} next={isNext} accent={accent} />
       <div className="min-w-0 flex-1">
-        <div className="text-[0.9375rem] font-semibold">{typeLabel}</div>
+        <div className="flex items-center gap-2.5">
+          <span className="text-[0.9375rem] font-semibold">{typeLabel}</span>
+          {delta ? (
+            <span
+              className={cn(
+                "rounded-full px-2 py-0.5 text-[0.75rem] font-semibold",
+                delta.kind === "late"
+                  ? "bg-destructive/12 text-destructive"
+                  : delta.kind === "early"
+                    ? "bg-success/12 text-success"
+                    : "bg-muted text-muted-foreground"
+              )}
+            >
+              {delta.kind === "onTime"
+                ? t("tracking.onTime")
+                : t(
+                    delta.kind === "late" ? "tracking.minLate" : "tracking.minEarly",
+                    { n: delta.minutes }
+                  )}
+            </span>
+          ) : null}
+          {isNext && late ? <LateChip label={t("rail.late")} /> : null}
+        </div>
         <div className="mt-0.5 text-[0.8125rem] text-muted-foreground">{t(statusKey)}</div>
       </div>
-      <div className="shrink-0 font-mono text-[0.9375rem] font-semibold tabular-nums">
-        {eta}
+      <TimeCol
+        label={t("tracking.scheduled")}
+        value={etaMs != null ? formatClock(etaMs, locale) : "—"}
+        muted={done || isNext}
+      />
+      {done ? (
+        <TimeCol
+          label={t("tracking.arrived")}
+          value={completedMs != null ? formatClock(completedMs, locale) : "—"}
+        />
+      ) : isNext ? (
+        <TimeCol
+          label={t("card.eta")}
+          value={projectedMs != null ? formatClock(projectedMs, locale) : "—"}
+          late={late}
+        />
+      ) : null}
+    </div>
+  )
+}
+
+function TimeCol({
+  label,
+  value,
+  muted = false,
+  late = false,
+}: {
+  label: string
+  value: string
+  muted?: boolean
+  late?: boolean
+}) {
+  return (
+    <div className="w-[4.75rem] shrink-0 text-right">
+      <div
+        className={cn(
+          "font-mono text-[0.9375rem] font-semibold tabular-nums",
+          muted && "font-normal text-muted-foreground",
+          late && "text-destructive"
+        )}
+      >
+        {value}
+      </div>
+      <div className="mt-0.5 text-[0.6875rem] font-medium tracking-[0.04em] text-muted-foreground uppercase">
+        {label}
       </div>
     </div>
   )
