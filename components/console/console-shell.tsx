@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
-import { isActive } from "@/components/map/fleet-format"
 import { useFleetRoutes, type RouteJob } from "@/lib/use-fleet-routes"
 import { useLiveStops } from "@/lib/use-live-stops"
 import { useLiveVehicles } from "@/lib/use-live-vehicles"
@@ -29,14 +28,20 @@ export function ConsoleShell({ onChangeCode }: { onChangeCode: () => void }) {
   // estimated TV-vs-server skew. The sidebar wall clock stays on local time.
   const now = useNow(LIVE_TICK_MS) - serverOffsetMs
 
+  // The full-day route is a function of the stop SET only (ids · positions ·
+  // seq — matching /api/route), so the cache key deliberately excludes status:
+  // a stop completing must not refetch an identical line. Vans with only
+  // terminal stops keep their (fully grey) day line until the snapshot's 24 h
+  // bound drops the stops themselves.
   const jobs: RouteJob[] = useMemo(() => {
     const out: RouteJob[] = []
     for (const [vehicleId, stops] of stopsByVehicle) {
-      const act = stops.filter(isActive)
-      if (act.length === 0) continue
+      if (stops.length === 0) continue
       out.push({
         vehicleId,
-        stopsKey: act.map((s) => `${s.id}:${s.seq}:${s.status}`).join("|"),
+        stopsKey: stops
+          .map((s) => `${s.id}:${s.seq}:${s.lat}:${s.lng}`)
+          .join("|"),
       })
     }
     return out
