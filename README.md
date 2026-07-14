@@ -8,7 +8,7 @@ Real-time map of a delivery fleet. Each vehicle's phone streams GPS to the backe
 |---|---|
 | Frontend + API | Next.js 16 (App Router, TypeScript) |
 | Database / Realtime / Auth | Supabase (Postgres, Realtime, RLS) |
-| Map | MapLibre GL via `react-map-gl`; tiles from MapTiler/Stadia |
+| Map | MapLibre GL via `react-map-gl`; tiles from OpenFreeMap (free, keyless) |
 | Routing + ETA | OSRM, self-hosted (Docker, Switzerland extract) |
 | Driver client | Native app (Bubblebox); the V1 web PWA is retired, kept as reference |
 | Deployment | Docker on one VPS — Caddy (TLS) → Next → OSRM; Supabase stays managed (see [`docs/deployment.md`](docs/deployment.md)) |
@@ -49,7 +49,6 @@ Copy `.env.example` to `.env` and fill in:
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase dashboard → Project Settings → API |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Supabase dashboard → Project Settings → API |
 | `SUPABASE_SECRET_KEY` | Dev/scripts only — never ship in a deployed image |
-| `NEXT_PUBLIC_MAPTILER_KEY` | MapTiler dashboard (restrict by domain before any public deploy) |
 | `OSRM_URL` | `http://localhost:5000` in dev; `http://osrm:5000` inside compose |
 | `DASHBOARD_EMAIL` / `DASHBOARD_PASSWORD` / `DASHBOARD_DISPLAY_CODE` | Set when provisioning the dashboard identity |
 | `DISPATCHER_EMAIL` / `DISPATCHER_PASSWORD` / `DISPATCHER_INGEST_SECRET` | Set when provisioning the dispatcher identity |

@@ -91,7 +91,7 @@ export function FleetMapView({
     mapRef.current = instance
     if (!instance) return
     const map = instance.getMap()
-    // MapTiler basemap styles sometimes reference a blank icon id (" ").
+    // Some basemap styles reference a blank icon id (" ").
     // MapLibre then spam-logs "Image \" \" could not be loaded" — unrelated to
     // our markers (those are DOM). Stub a transparent pixel for empty ids only.
     if (!mapsWithImageStub.has(map)) {
