@@ -27,7 +27,6 @@ services:
         # NEXT_PUBLIC_* must be present at build time (inlined into the client bundle).
         NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
         NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY}
-        NEXT_PUBLIC_MAPTILER_KEY: ${NEXT_PUBLIC_MAPTILER_KEY}
     restart: unless-stopped
     env_file: .env       # server-only secrets read at runtime (DASHBOARD_*, DISPATCHER_*, OSRM_URL, GEOFENCE_*)
     environment:
