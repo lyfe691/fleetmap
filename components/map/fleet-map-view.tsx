@@ -11,10 +11,12 @@ import {
   Source,
   type MapRef,
 } from "react-map-gl/maplibre"
+import type { DataDrivenPropertyValueSpecification } from "maplibre-gl"
 import { mapColors, mapStyleUrl, type MapTheme } from "@/lib/map-theme"
-import { useTranslations } from "@/lib/i18n"
+import { useLocale, useTranslations } from "@/lib/i18n"
+import { formatClock } from "@/lib/i18n/format"
 import { useRouteFeatures } from "@/lib/use-route-features"
-import { assessLateness, snapFraction } from "@/lib/schedule"
+import { assessLateness, snapFraction, type Lateness } from "@/lib/schedule"
 import type { Vehicle } from "@/lib/use-live-vehicles"
 import type { Stop } from "@/lib/use-live-stops"
 import type { Route } from "@/lib/route-types"
@@ -22,9 +24,15 @@ import { isActive } from "@/components/map/fleet-format"
 import {
   InterpolatedMarker,
   VehicleMarker,
-  StopMarker,
+  StopBadge,
+  StopDot,
   isStale,
+  type StopState,
 } from "@/components/map/vehicle-marker"
+
+// Explicit stacking tiers — react-map-gl markers are DOM siblings added at
+// mount, so JSX order can't restack them on selection; the style prop can.
+const Z = { dimmedDot: 1, dot: 2, badge: 3, next: 4, vehicle: 5 } as const
 
 // Avoid stacking styleimagemissing handlers when reuseMaps re-attaches.
 const mapsWithImageStub = new WeakSet<object>()
@@ -225,10 +233,10 @@ export function FleetMapView({
   }, [stopsByVehicle])
 
   // Per-van schedule adherence: projected arrival at the next active stop vs
-  // its eta_at (+ grace). Late vans get a red remaining line + a red-tinted
-  // next-stop marker; each van colours independently.
-  const lateIds = useMemo(() => {
-    const late = new Set<string>()
+  // its eta_at (+ grace). Late vans get a red remaining line + a red next
+  // badge/ETA pill; each van colours independently.
+  const latenessById = useMemo(() => {
+    const map = new Map<string, Lateness>()
     for (const v of vehicles) {
       const stops = stopsByVehicle.get(v.id)
       if (!stops?.length) continue
@@ -237,36 +245,105 @@ export function FleetMapView({
         route && v.last_lng != null && v.last_lat != null
           ? snapFraction(route.geometry, [v.last_lng, v.last_lat])
           : null
-      if (assessLateness({ route, stops, fraction, now }).late) late.add(v.id)
+      map.set(v.id, assessLateness({ route, stops, fraction, now }))
     }
-    return late
+    return map
   }, [vehicles, stopsByVehicle, routes, now])
-
-  const stopMarkers = useMemo(
+  const lateIds = useMemo(
     () =>
-      Array.from(stopsByVehicle.values())
-        .flat()
-        .map((s) => (
-          <Marker key={s.id} longitude={s.lng} latitude={s.lat} anchor="center">
-            <StopMarker
-              stopType={s.stop_type}
-              state={
-                s.status !== "planned" && s.status !== "arrived"
-                  ? "done"
-                  : nextStopIds.has(s.id)
-                    ? "next"
-                    : "upcoming"
-              }
-              late={s.vehicle_id != null && lateIds.has(s.vehicle_id)}
-              fill={s.stop_type === "pickup" ? colors.pickup : colors.dropoff}
-              doneFill={colors.stopDone}
-              lateFill={colors.routeLate}
-              stroke={colors.markerStroke}
-            />
-          </Marker>
-        )),
-    [stopsByVehicle, nextStopIds, lateIds, colors]
+      new Set(
+        [...latenessById].filter(([, l]) => l.late).map(([id]) => id)
+      ),
+    [latenessById]
   )
+
+  const locale = useLocale()
+  // Two-tier stop language. Fleet view: every stop is a small on-line dot
+  // (ring = the van's line colour; done = traveled grey), the next stop a
+  // touch larger. Focus mode (a van selected): that van's stops upgrade to
+  // seq-numbered badges (done/next/upcoming), its next stop carries the
+  // projected-ETA pill, and every other van's dots dim with its line.
+  const stopMarkers = useMemo(() => {
+    const markers: React.ReactNode[] = []
+    for (const [vid, stops] of stopsByVehicle) {
+      const focused = vid === selectedId
+      const lateness = latenessById.get(vid)
+      const late = lateness?.late ?? false
+      stops.forEach((s, i) => {
+        const done = s.status !== "planned" && s.status !== "arrived"
+        const isNext = nextStopIds.has(s.id)
+        if (focused) {
+          const state: StopState = done ? "done" : isNext ? "next" : "upcoming"
+          // Pill hidden while the van sits at the stop (status "arrived"):
+          // its own label pill occupies the same pixels, and the projection
+          // is ~now anyway.
+          const etaLabel =
+            isNext && s.status !== "arrived" && lateness?.projectedArrivalMs != null
+              ? formatClock(lateness.projectedArrivalMs, locale)
+              : null
+          markers.push(
+            <Marker
+              key={s.id}
+              longitude={s.lng}
+              latitude={s.lat}
+              anchor="center"
+              style={{ zIndex: state === "next" ? Z.next : Z.badge }}
+            >
+              <StopBadge
+                number={i + 1}
+                state={state}
+                fill={
+                  state === "done"
+                    ? colors.stopDoneFill
+                    : state === "next"
+                      ? late
+                        ? colors.routeLate
+                        : colors.stopNextFill
+                      : colors.markerStroke
+                }
+                text={
+                  state === "done"
+                    ? colors.stopDoneText
+                    : state === "next"
+                      ? colors.stopNextText
+                      : colors.stopUpcomingText
+                }
+                border={
+                  state === "next"
+                    ? colors.markerStroke
+                    : state === "upcoming"
+                      ? colors.route
+                      : undefined
+                }
+                etaLabel={etaLabel}
+                etaLate={late}
+              />
+            </Marker>
+          )
+        } else {
+          markers.push(
+            <Marker
+              key={s.id}
+              longitude={s.lng}
+              latitude={s.lat}
+              anchor="center"
+              style={{ zIndex: selectedId ? Z.dimmedDot : Z.dot }}
+            >
+              <StopDot
+                fill={colors.markerStroke}
+                ring={
+                  done ? colors.traveled : late ? colors.routeLate : colors.route
+                }
+                emphasized={isNext}
+                dimmed={selectedId != null}
+              />
+            </Marker>
+          )
+        }
+      })
+    }
+    return markers
+  }, [stopsByVehicle, nextStopIds, latenessById, selectedId, colors, locale])
 
   const { remaining, traveled } = useRouteFeatures(
     routes,
@@ -274,6 +351,17 @@ export function FleetMapView({
     stopsByVehicle,
     lateIds
   )
+
+  // Focus mode dims the other vans' lines to ~15%. Built conditionally —
+  // MapLibre expressions can't compare against a JS null. The traveled
+  // features only carry vehicle_id (no `late`), so only opacity is
+  // data-driven there.
+  const dimmable = (
+    full: number
+  ): DataDrivenPropertyValueSpecification<number> =>
+    selectedId != null
+      ? ["case", ["==", ["get", "vehicle_id"], selectedId], full, full * 0.15]
+      : full
 
   return (
     <>
@@ -304,7 +392,11 @@ export function FleetMapView({
             id="routes-traveled-line"
             type="line"
             layout={{ "line-cap": "round", "line-join": "round" }}
-            paint={{ "line-color": colors.traveled, "line-width": 4, "line-opacity": 0.45 }}
+            paint={{
+              "line-color": colors.traveled,
+              "line-width": 4,
+              "line-opacity": dimmable(0.45),
+            }}
           />
         </Source>
 
@@ -313,7 +405,11 @@ export function FleetMapView({
             id="routes-remaining-casing"
             type="line"
             layout={{ "line-cap": "round", "line-join": "round" }}
-            paint={{ "line-color": colors.routeCasing, "line-width": 8, "line-opacity": 0.9 }}
+            paint={{
+              "line-color": colors.routeCasing,
+              "line-width": 8,
+              "line-opacity": dimmable(0.9),
+            }}
           />
           <Layer
             id="routes-remaining-line"
@@ -329,7 +425,7 @@ export function FleetMapView({
                 colors.route,
               ],
               "line-width": 4.5,
-              "line-opacity": 0.95,
+              "line-opacity": dimmable(0.95),
             }}
           />
         </Source>
@@ -351,11 +447,15 @@ export function FleetMapView({
               latitude={v.last_lat}
               anchor="center"
               onClick={() => onSelectVehicle?.(v.id)}
+              style={{ zIndex: Z.vehicle }}
             >
               <VehicleMarker
                 label={v.label}
                 stale={stale}
-                selected={v.id === selectedId}
+                // The selected treatment (size + ping) distinguishes one van
+                // among many; the chrome-less mini-map shows exactly one, so
+                // the pulse would be pure noise there.
+                selected={v.id === selectedId && showChrome}
                 fill={fill}
                 heading={v.last_heading}
               />
