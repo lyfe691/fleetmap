@@ -1,5 +1,7 @@
 import nearestPointOnLine from "@turf/nearest-point-on-line"
 import lineSlice from "@turf/line-slice"
+import along from "@turf/along"
+import length from "@turf/length"
 import type { RouteGeometry } from "@/lib/route-types"
 
 // A truck can't move more than this far along its line between updates. A larger
@@ -49,4 +51,67 @@ export function splitRoute(
   const remaining = lineSlice(snapPt, coords[coords.length - 1], geometry)
     .geometry as RouteGeometry
   return { traveled, remaining, location: rawLoc, held: 0 }
+}
+
+/** Length of the route line in km (same haversine turf's `location` uses). */
+export function lineLengthKm(geometry: RouteGeometry): number {
+  return length({ type: "Feature", properties: {}, geometry }, { units: "kilometers" })
+}
+
+/** Cut the line at an absolute distance, independent of any GPS snap. */
+export function splitAtKm(
+  geometry: RouteGeometry,
+  km: number
+): { traveled: RouteGeometry | null; remaining: RouteGeometry } {
+  const coords = geometry.coordinates
+  if (km <= 0 || coords.length < 2) return { traveled: null, remaining: geometry }
+  const total = lineLengthKm(geometry)
+  if (km >= total) {
+    // Fully done: the remaining line collapses to the endpoint (renders empty).
+    const end = coords[coords.length - 1]
+    return {
+      traveled: geometry,
+      remaining: { type: "LineString", coordinates: [end, end] },
+    }
+  }
+  const pt = along(geometry, km, { units: "kilometers" }).geometry
+    .coordinates as [number, number]
+  return {
+    traveled: lineSlice(coords[0], pt, geometry).geometry as RouteGeometry,
+    remaining: lineSlice(pt, coords[coords.length - 1], geometry)
+      .geometry as RouteGeometry,
+  }
+}
+
+export type BoundedSplit = {
+  split: RouteSplit // snap state to carry forward (pass back as `prev`)
+  traveled: RouteGeometry | null
+  remaining: RouteGeometry
+  boundaryKm: number // where the done/ahead boundary actually sits
+}
+
+/**
+ * Full-day boundary: the grey/coloured cut is the FARTHER of the van's
+ * forward-clamped snap and `floorKm` — the last completed stop's position
+ * along the line. The floor keeps a finished leg fully grey even when GPS
+ * hasn't snapped past it yet; the snap state itself stays floor-free so the
+ * forward clamp keeps working off real GPS.
+ */
+export function splitRouteWithFloor(
+  geometry: RouteGeometry,
+  position: [number, number],
+  prev: RouteSplit | null,
+  floorKm: number
+): BoundedSplit {
+  const split = splitRoute(geometry, position, prev)
+  if (floorKm <= split.location) {
+    return {
+      split,
+      traveled: split.traveled,
+      remaining: split.remaining,
+      boundaryKm: split.location,
+    }
+  }
+  const { traveled, remaining } = splitAtKm(geometry, floorKm)
+  return { split, traveled, remaining, boundaryKm: floorKm }
 }

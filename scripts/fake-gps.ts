@@ -75,21 +75,22 @@ async function ensureDriverAndVehicle(
   return inserted.id as string
 }
 
+type ActiveStop = { id: string; pos: Pt }
+
 async function getActiveStops(
   admin: SupabaseClient,
   vehicleId: string
-): Promise<Pt[]> {
+): Promise<ActiveStop[]> {
   const { data, error } = await admin
     .from("stops")
-    .select("lng, lat, seq, status")
+    .select("id, lng, lat, seq, status")
     .eq("vehicle_id", vehicleId)
     .in("status", ["planned", "arrived"])
     .order("seq", { ascending: true })
   if (error) throw error
-  return ((data ?? []) as { lng: number; lat: number }[]).map((s) => [
-    s.lng,
-    s.lat,
-  ])
+  return ((data ?? []) as { id: string; lng: number; lat: number }[]).map(
+    (s) => ({ id: s.id, pos: [s.lng, s.lat] as Pt })
+  )
 }
 
 async function fetchRouteCoords(stops: Pt[]): Promise<Pt[] | null> {
@@ -230,8 +231,8 @@ function makePoster(city: City): Poster {
 }
 
 // Reactivate a van's stops so the next lap is a fresh on-route run; the geofence
-// greys them off again as the van passes. Dev-only, keeps the demo continuously
-// live instead of freezing once every stop is completed.
+// re-completes them (stamping completed_at) as the van passes. Dev-only, keeps
+// the demo continuously live instead of freezing once every stop is completed.
 async function reactivateStops(
   admin: SupabaseClient,
   vehicleId: string
@@ -241,6 +242,52 @@ async function reactivateStops(
     .update({ status: "planned", completed_at: null })
     .eq("vehicle_id", vehicleId)
     .in("status", ["arrived", "completed"])
+}
+
+// Distance along the path to each stop: the first path index nearest the stop
+// (strictly-smaller comparison so a closed loop matches the outbound pass,
+// not the return to start).
+function stopPathDistances(path: Path, stops: ActiveStop[]): number[] {
+  return stops.map(({ pos }) => {
+    let best = Infinity
+    let bestIdx = 0
+    for (let i = 0; i < path.coords.length; i++) {
+      const d = haversineMeters(path.coords[i], pos)
+      if (d < best) {
+        best = d
+        bestIdx = i
+      }
+    }
+    return path.cum[bestIdx]
+  })
+}
+
+// Refresh each stop's scheduled eta_at for the lap that's about to drive:
+// distance-based times assuming SPEED_MPS * etaSpeedFactor. Factor >1 writes
+// an optimistic schedule the van can't keep (goes late → red route); <1 gives
+// slack. Keeps schedules meaningful lap after lap instead of drifting into
+// the past after the first loop.
+async function refreshEtas(
+  admin: SupabaseClient,
+  city: City,
+  path: Path,
+  stops: ActiveStop[]
+): Promise<void> {
+  const dists = stopPathDistances(path, stops)
+  const startMs = Date.now()
+  for (let i = 0; i < stops.length; i++) {
+    const etaAt = new Date(
+      startMs + (dists[i] / (SPEED_MPS * city.etaSpeedFactor)) * 1000
+    ).toISOString()
+    const { error } = await admin
+      .from("stops")
+      .update({ eta_at: etaAt })
+      .eq("id", stops[i].id)
+    if (error) {
+      console.warn(`[${city.slug}] eta refresh failed:`, error.message)
+      return
+    }
+  }
 }
 
 // Drive one van forever: lap its closed OSRM route (…last -> first) so it returns
@@ -257,7 +304,8 @@ async function driveCity(
   for (;;) {
     await reactivateStops(admin, vehicleId)
     const stops = await getActiveStops(admin, vehicleId)
-    const waypoints = stops.length >= 2 ? [...stops, stops[0]] : stops
+    const stopPts = stops.map((s) => s.pos)
+    const waypoints = stopPts.length >= 2 ? [...stopPts, stopPts[0]] : stopPts
     const coords =
       waypoints.length >= 2 ? await fetchRouteCoords(waypoints) : null
 
@@ -270,9 +318,13 @@ async function driveCity(
     }
 
     const path = buildPath(coords)
+    // Scheduled times for this lap — the geofence stamps actual arrivals
+    // (completed_at) as the van passes, so scheduled-vs-actual and the
+    // late/red route all move live during a demo.
+    await refreshEtas(admin, city, path, stops)
     console.log(
       `[${city.slug}] driving ${(path.total / 1000).toFixed(1)} km loop through ` +
-        `${stops.length} stops at ${SPEED_MPS} m/s.`
+        `${stops.length} stops at ${SPEED_MPS} m/s (eta factor ${city.etaSpeedFactor}).`
     )
     let dist = 0
     while (dist < path.total) {

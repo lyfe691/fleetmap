@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest"
-import { splitRoute } from "@/lib/route-slice"
+import {
+  lineLengthKm,
+  splitAtKm,
+  splitRoute,
+  splitRouteWithFloor,
+} from "@/lib/route-slice"
 import type { RouteGeometry } from "@/lib/route-types"
 
 // Straight north-south line along lng=0, lat 0→3
@@ -93,5 +98,60 @@ describe("splitRoute", () => {
     expect(result.traveled).toBeNull()
     expect(result.remaining).toEqual(singlePt)
     expect(result.location).toBe(0)
+  })
+})
+
+describe("splitAtKm", () => {
+  it("km 0 → traveled null, remaining is the full geometry", () => {
+    const { traveled, remaining } = splitAtKm(LINE, 0)
+    expect(traveled).toBeNull()
+    expect(remaining).toEqual(LINE)
+  })
+
+  it("midway cut → both parts exist and meet near the cut point", () => {
+    const total = lineLengthKm(LINE)
+    const { traveled, remaining } = splitAtKm(LINE, total / 2)
+    expect(traveled).not.toBeNull()
+    const lastTraveled = traveled!.coordinates[traveled!.coordinates.length - 1]
+    const firstRemaining = remaining.coordinates[0]
+    expect(lastTraveled[1]).toBeCloseTo(1.5, 1)
+    expect(firstRemaining[1]).toBeCloseTo(1.5, 1)
+  })
+
+  it("beyond the end → traveled is the whole line, remaining degenerate", () => {
+    const { traveled, remaining } = splitAtKm(LINE, lineLengthKm(LINE) + 10)
+    expect(traveled).toEqual(LINE)
+    expect(remaining.coordinates).toHaveLength(2)
+    expect(remaining.coordinates[0]).toEqual(remaining.coordinates[1])
+  })
+})
+
+describe("splitRouteWithFloor", () => {
+  it("floor behind the snap → boundary is the snap location (floor is a no-op)", () => {
+    const bounded = splitRouteWithFloor(LINE, [0, 1.5], null, 10)
+    expect(bounded.boundaryKm).toBe(bounded.split.location)
+    expect(bounded.boundaryKm).toBeGreaterThan(10)
+    expect(bounded.traveled).toBe(bounded.split.traveled)
+  })
+
+  it("floor ahead of the snap → boundary is the floor, done leg fully grey", () => {
+    // Van snapped near the start, but a completed stop sits ~166 km along.
+    const floorKm = 166
+    const bounded = splitRouteWithFloor(LINE, [0, 0.1], null, floorKm)
+    expect(bounded.boundaryKm).toBe(floorKm)
+    expect(bounded.split.location).toBeLessThan(floorKm)
+    // The cut sits at the floor, not at the van.
+    const lastTraveled =
+      bounded.traveled!.coordinates[bounded.traveled!.coordinates.length - 1]
+    expect(lastTraveled[1]).toBeGreaterThan(1.4)
+  })
+
+  it("snap state stays floor-free: the forward clamp keeps working off GPS", () => {
+    const first = splitRouteWithFloor(LINE, [0, 0.1], null, 166)
+    // Next tick the van has moved a little; its snap advances normally even
+    // though the floor still owns the visible boundary.
+    const second = splitRouteWithFloor(LINE, [0, 0.105], first.split, 166)
+    expect(second.split.location).toBeGreaterThan(first.split.location)
+    expect(second.boundaryKm).toBe(166)
   })
 })
