@@ -107,6 +107,7 @@ export const deCH: Record<TranslationKey, string> = {
   "landing.dispatch.title": "Dispatch",
   "landing.dispatch.desc": "Heutige Abhol- und Rückgabeaufträge erfassen und verwalten.",
   "landing.open": "Öffnen",
+  "landing.live": "Live",
   "dispatch.login.title": "Dispatch-Anmeldung",
   "dispatch.login.subtitle": "Mit dem Dispatcher-Konto anmelden, um Aufträge zu verwalten.",
   "dispatch.login.email": "E-Mail",

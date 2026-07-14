@@ -105,6 +105,7 @@ export const en = {
   "landing.dispatch.title": "Dispatch",
   "landing.dispatch.desc": "Enter and manage today's pickup and return orders.",
   "landing.open": "Open",
+  "landing.live": "Live",
   "dispatch.login.title": "Dispatch sign in",
   "dispatch.login.subtitle": "Sign in with the dispatcher account to manage orders.",
   "dispatch.login.email": "Email",
