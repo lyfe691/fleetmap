@@ -8,7 +8,7 @@ Real-time map of a delivery fleet. Each vehicle's phone streams GPS to the backe
 |---|---|
 | Frontend + API | Next.js 16 (App Router, TypeScript) |
 | Database / Realtime / Auth | Supabase (Postgres, Realtime, RLS) |
-| Map | MapLibre GL via `react-map-gl`; tiles from OpenFreeMap (free, keyless) |
+| Map | MapLibre GL via `react-map-gl`; tiles from OpenFreeMap (light) + VersaTiles (dark) — free, keyless |
 | Routing + ETA | OSRM, self-hosted (Docker, Switzerland extract) |
 | Driver client | Native app (Bubblebox); the V1 web PWA is retired, kept as reference |
 | Deployment | Docker on one VPS — Caddy (TLS) → Next → OSRM; Supabase stays managed (see [`docs/deployment.md`](docs/deployment.md)) |

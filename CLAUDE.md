@@ -8,7 +8,7 @@ Full design doc: `docs/specs/live-tracking-spec.md` — that's the source of tru
 
 - **Next.js** (App Router, TypeScript) — API route handlers + the dashboard.
 - **Supabase** — Postgres, Realtime (live push to the dashboard), Auth + RLS. Managed for V1; self-hosts as its own compose stack at handoff if the client requires on-prem — the app doesn't change.
-- **MapLibre GL** (`react-map-gl`) for the map. Tiles from **OpenFreeMap** (free, keyless, no request limits; `liberty` light / `dark`) — **never the public OSM tile server** (against their usage policy).
+- **MapLibre GL** (`react-map-gl`) for the map. Tiles are free + keyless, no request limits: **OpenFreeMap** `liberty` (light) + **VersaTiles** `eclipse` (dark; OpenFreeMap's dark styles are too dim for the TV) — both hosts in the CSP — **never the public OSM tile server** (against their usage policy).
 - **OSRM**, self-hosted (Docker, Switzerland extract) for route lines + ETA — M4.
 - **Driver client:** PWA for V1 (`watchPosition` + Screen Wake Lock). Native Expo is the escape hatch if phones go in pockets or run nav up front — not now.
 - **Deployment:** Docker on a single VPS (`fleet.ysz.life`) — Caddy (auto-TLS) → standalone Next image → internal OSRM, all in `docker-compose.prod.yml`. Supabase stays managed cloud. Full guide: `docs/deployment.md`.

@@ -1,13 +1,15 @@
 export type MapTheme = "light" | "dark"
 
-// OpenFreeMap: free public tiles, no API key, no request limits (donation-
-// funded; commercial use allowed; MapLibre adds the attribution control).
-// liberty = maintained light street style; fiord = the readable dark style
-// (their "dark" is a Dark Matter fork — a near-black dataviz basemap where
-// streets are barely visible on a TV).
+// Free, keyless, no-request-limit tiles from two community hosts (both must
+// stay in next.config.ts's CSP):
+// - light: OpenFreeMap "liberty" — the maintained light street style.
+// - dark: VersaTiles "eclipse" — a readable dark STREET style (dark variant
+//   of their colorful). OpenFreeMap's dark styles lost: "dark" is a
+//   near-black dataviz basemap, "fiord" still too dim for the TV.
 export function mapStyleUrl(theme: MapTheme): string {
-  const style = theme === "dark" ? "fiord" : "liberty"
-  return `https://tiles.openfreemap.org/styles/${style}`
+  return theme === "dark"
+    ? "https://tiles.versatiles.org/assets/styles/eclipse/style.json"
+    : "https://tiles.openfreemap.org/styles/liberty"
 }
 
 // MapLibre paint needs concrete colors (it can't read CSS vars); mirrors the
