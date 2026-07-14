@@ -2,9 +2,11 @@ export type MapTheme = "light" | "dark"
 
 // OpenFreeMap: free public tiles, no API key, no request limits (donation-
 // funded; commercial use allowed; MapLibre adds the attribution control).
-// liberty = maintained light street style; dark = dark-matter fork.
+// liberty = maintained light street style; fiord = the readable dark style
+// (their "dark" is a Dark Matter fork — a near-black dataviz basemap where
+// streets are barely visible on a TV).
 export function mapStyleUrl(theme: MapTheme): string {
-  const style = theme === "dark" ? "dark" : "liberty"
+  const style = theme === "dark" ? "fiord" : "liberty"
   return `https://tiles.openfreemap.org/styles/${style}`
 }
 
