@@ -1,22 +1,27 @@
 "use client"
 
-import * as React from "react"
-import { Check } from "lucide-react"
+import { useId, useSyncExternalStore } from "react"
+import { Monitor, Moon, Sun } from "lucide-react"
+import { motion } from "motion/react"
 import { useTheme } from "next-themes"
 import { cn } from "@/lib/utils"
 import { useTranslations } from "@/lib/i18n/index"
 import type { TranslationKey } from "@/lib/i18n/en"
 
-type ThemeChoice = "system" | "light" | "dark"
+const emptySubscribe = () => () => {}
 
-const CHOICES: { value: ThemeChoice; labelKey: TranslationKey }[] = [
-  { value: "system", labelKey: "settings.theme.system" },
-  { value: "light", labelKey: "settings.theme.light" },
-  { value: "dark", labelKey: "settings.theme.dark" },
+const THEMES: {
+  value: "light" | "dark" | "system"
+  labelKey: TranslationKey
+  icon: typeof Sun
+}[] = [
+  { value: "light", labelKey: "settings.theme.light", icon: Sun },
+  { value: "dark", labelKey: "settings.theme.dark", icon: Moon },
+  { value: "system", labelKey: "settings.theme.system", icon: Monitor },
 ]
 
-// Mirrors the app tokens / map-theme palettes; hardcoded because each preview
-// must render the *other* theme's colors, which CSS vars can't reach.
+// Original fleetmap map-scene palettes — must hardcode so each preview can
+// paint the *other* theme (CSS vars on the live page can't reach them).
 type PreviewPalette = {
   bg: string
   panel: string
@@ -44,76 +49,65 @@ const DARK: PreviewPalette = {
 export function AppearanceSection() {
   const { theme, setTheme } = useTheme()
   const t = useTranslations()
-  const refs = React.useRef<Array<HTMLButtonElement | null>>([])
-  const active = (theme ?? "system") as ThemeChoice
+  const mounted = useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false
+  )
 
-  function select(index: number) {
-    const next = (index + CHOICES.length) % CHOICES.length
-    refs.current[next]?.focus()
-    setTheme(CHOICES[next].value)
-  }
+  if (!mounted) return null
 
-  function onKeyDown(event: React.KeyboardEvent, index: number) {
-    switch (event.key) {
-      case "ArrowRight":
-      case "ArrowDown":
-        event.preventDefault()
-        select(index + 1)
-        break
-      case "ArrowLeft":
-      case "ArrowUp":
-        event.preventDefault()
-        select(index - 1)
-        break
-    }
-  }
+  const active = theme ?? "system"
 
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-[0.8125rem] text-muted-foreground">{t("settings.theme.desc")}</p>
-      <div role="radiogroup" aria-label={t("settings.theme")} className="grid grid-cols-3 gap-3">
-        {CHOICES.map((choice, index) => {
-          const isActive = active === choice.value
+      <p className="text-[0.8125rem] text-muted-foreground">
+        {t("settings.theme.desc")}
+      </p>
+
+      <div
+        role="radiogroup"
+        aria-label={t("settings.theme")}
+        className="mt-1 grid grid-cols-3 gap-2"
+      >
+        {THEMES.map(({ value, labelKey, icon: Icon }) => {
+          const isActive = active === value
+
           return (
-            <button
-              key={choice.value}
-              ref={(node) => {
-                refs.current[index] = node
-              }}
+            <motion.button
+              key={value}
               type="button"
               role="radio"
               aria-checked={isActive}
-              tabIndex={isActive ? 0 : -1}
-              onClick={() => setTheme(choice.value)}
-              onKeyDown={(event) => onKeyDown(event, index)}
+              onClick={() => setTheme(value)}
+              whileTap={{ scale: 0.97 }}
+              transition={{ type: "spring", stiffness: 400, damping: 25 }}
               className={cn(
-                "group flex flex-col gap-2 rounded-2xl border p-2 pb-2.5 transition duration-200 outline-none",
-                "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.98]",
+                "group relative flex flex-col items-center gap-2 rounded-xl p-2 pb-2.5 transition-colors",
                 isActive
-                  ? "border-primary ring-1 ring-primary"
-                  : "border-border hover:bg-muted/40"
+                  ? "text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
               )}
             >
-              <span className="relative overflow-hidden rounded-xl border border-border">
-                <ThemePreview choice={choice.value} />
-                <span
-                  className={cn(
-                    "absolute top-1.5 right-1.5 flex size-5 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm transition duration-200",
-                    isActive ? "scale-100 opacity-100" : "scale-50 opacity-0"
-                  )}
-                >
-                  <Check className="size-3.5" strokeWidth={3} />
-                </span>
+              {isActive ? (
+                <motion.span
+                  layoutId="settings-theme-indicator"
+                  className="absolute inset-0 rounded-xl bg-foreground/[0.06]"
+                  transition={{
+                    type: "spring",
+                    duration: 0.4,
+                    bounce: 0.15,
+                  }}
+                />
+              ) : null}
+              <span className="relative w-full overflow-hidden rounded-lg ring-1 ring-foreground/[0.06]">
+                <ThemePreview choice={value} />
               </span>
-              <span
-                className={cn(
-                  "text-[0.875rem] font-medium transition-colors",
-                  isActive ? "text-foreground" : "text-muted-foreground group-hover:text-foreground/80"
-                )}
-              >
-                {t(choice.labelKey)}
+              <span className="relative flex items-center gap-1.5 text-xs font-medium">
+                <Icon className="size-3.5" />
+                {t(labelKey)}
               </span>
-            </button>
+            </motion.button>
           )
         })}
       </div>
@@ -121,8 +115,9 @@ export function AppearanceSection() {
   )
 }
 
-function ThemePreview({ choice }: { choice: ThemeChoice }) {
-  const clipId = React.useId()
+/** Original fleetmap map-scene SVG (sidebar + route + dots). Unchanged. */
+function ThemePreview({ choice }: { choice: "light" | "dark" | "system" }) {
+  const clipId = useId()
   if (choice !== "system") {
     return (
       <svg viewBox="0 0 120 74" className="block h-auto w-full" aria-hidden>
