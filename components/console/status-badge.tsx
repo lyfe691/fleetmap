@@ -17,13 +17,17 @@ export function StatusBadge({
 }) {
   const t = useTranslations()
   const { tint, dot } = TONE_STYLES[tone]
+  // sm matches LateChip / StaleChip so they sit flush in fleet-rail cards.
+  // md stays larger for the tracking header (standalone, no chip siblings).
+  const sized =
+    size === "md"
+      ? { shell: "gap-1.5 px-3.5 py-1.5 text-[0.9375rem]", mark: "size-2" }
+      : { shell: "gap-1 px-2 py-0.5 text-[0.75rem]", mark: "size-1.5" }
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full font-semibold ${tint} ${
-        size === "md" ? "px-3.5 py-1.5 text-[0.9375rem]" : "px-3 py-1 text-[0.8125rem]"
-      }`}
+      className={`inline-flex shrink-0 items-center rounded-full font-semibold ${tint} ${sized.shell}`}
     >
-      <span className={`size-2 rounded-full ${dot}`} />
+      <span className={`rounded-full ${sized.mark} ${dot}`} />
       {t(tone === "onRoute" ? "status.onRoute" : "status.waiting")}
     </span>
   )
