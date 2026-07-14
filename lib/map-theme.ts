@@ -1,10 +1,11 @@
 export type MapTheme = "light" | "dark"
 
-const KEY = process.env.NEXT_PUBLIC_MAPTILER_KEY
-
+// OpenFreeMap: free public tiles, no API key, no request limits (donation-
+// funded; commercial use allowed; MapLibre adds the attribution control).
+// liberty = maintained light street style; dark = dark-matter fork.
 export function mapStyleUrl(theme: MapTheme): string {
-  const style = theme === "dark" ? "streets-v2-dark" : "streets-v2"
-  return `https://api.maptiler.com/maps/${style}/style.json?key=${KEY}`
+  const style = theme === "dark" ? "dark" : "liberty"
+  return `https://tiles.openfreemap.org/styles/${style}`
 }
 
 // MapLibre paint needs concrete colors (it can't read CSS vars); mirrors the
