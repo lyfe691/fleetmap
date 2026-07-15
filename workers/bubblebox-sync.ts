@@ -46,6 +46,23 @@ function zurichToday(): string {
   )
 }
 
+// One JSON line per event — grep-able in `docker logs`, shippable later.
+function log(
+  level: "info" | "warn" | "error",
+  event: string,
+  fields: Record<string, unknown> = {}
+): void {
+  const line = JSON.stringify({
+    ts: new Date().toISOString(),
+    level,
+    event,
+    ...fields,
+  })
+  if (level === "error") console.error(line)
+  else if (level === "warn") console.warn(line)
+  else console.log(line)
+}
+
 // --- Fleetmap side -----------------------------------------------------------
 
 class UnauthorizedError extends Error {}
@@ -105,6 +122,41 @@ async function putVehicleRoutes(
   }
 }
 
+// Heartbeat for GET /api/health (sync_state, 0013). Best-effort: a heartbeat
+// failure must never fail the tick, and errors are kept alongside the last
+// success rather than clearing it — the timestamps disambiguate.
+async function writeHeartbeat(
+  fields: Partial<{
+    last_success_at: string
+    last_error: string
+    last_error_at: string
+  }>
+): Promise<void> {
+  try {
+    await withToken(async (token) => {
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/sync_state?on_conflict=id`,
+        {
+          method: "POST",
+          headers: {
+            apikey: SUPABASE_KEY!,
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+            Prefer: "resolution=merge-duplicates",
+          },
+          body: JSON.stringify({ id: "bubblebox-sync", ...fields }),
+        }
+      )
+      if (res.status === 401) throw new UnauthorizedError()
+      if (!res.ok) throw new Error(`heartbeat write failed (${res.status})`)
+    })
+  } catch (err) {
+    log("warn", "heartbeat_failed", {
+      error: err instanceof Error ? err.message : String(err),
+    })
+  }
+}
+
 // --- Bubble Box side ---------------------------------------------------------
 // Final wiring (URLs, token endpoint, field names) lands when their dedicated
 // API ships — see the spec's open item. Fixture mode covers everything else.
@@ -143,7 +195,7 @@ async function tick(): Promise<void> {
     riderMap
   )
   if (unmatchedRiders.length > 0) {
-    console.warn(`no vehicle for rider(s): ${unmatchedRiders.join(", ")}`)
+    log("warn", "unmatched_riders", { riders: unmatchedRiders })
   }
 
   for (const p of payloads) {
@@ -153,19 +205,27 @@ async function tick(): Promise<void> {
     (n, p) => n + p.orders.reduce((m, o) => m + o.stops.length, 0),
     0
   )
-  console.log(
-    `${new Date().toISOString()} synced ${payloads.length} vehicles / ${stops} stops`
-  )
+  log("info", "tick", { vehicles: payloads.length, stops })
+  await writeHeartbeat({ last_success_at: new Date().toISOString() })
 }
 
 async function main(): Promise<void> {
-  console.log(`bubblebox-sync: ${FIXTURE ? `fixture ${FIXTURE}` : BB_API_URL}`)
+  log("info", "startup", {
+    mode: FIXTURE ? "fixture" : "live",
+    source: FIXTURE ?? BB_API_URL,
+    interval_ms: SYNC_MS,
+  })
   for (;;) {
     try {
       await tick()
     } catch (err) {
       // Keep the last good picture on the TV; never crash the loop.
-      console.error("tick failed:", err instanceof Error ? err.message : err)
+      const message = err instanceof Error ? err.message : String(err)
+      log("error", "tick_failed", { error: message })
+      await writeHeartbeat({
+        last_error: message,
+        last_error_at: new Date().toISOString(),
+      })
     }
     await new Promise((r) => setTimeout(r, SYNC_MS))
   }

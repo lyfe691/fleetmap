@@ -153,6 +153,17 @@ A `200`/`307` over a valid TLS cert means the edge + app are live.
   # expect: osrm 200
   ```
 
+- **Health:** one endpoint covers app + Supabase + OSRM + sync freshness:
+
+  ```bash
+  curl -s https://fleet.ysz.life/api/health
+  # {"ok":true,"supabase":"ok","osrm":"ok","sync":null}
+  # sync is null until the Bubble Box worker has run; 503 when supabase/osrm is down
+  ```
+
+  Point an external uptime monitor (e.g. UptimeRobot, free tier) at this URL —
+  it's the only alerting the stack has.
+
 That's the full chain confirmed: TLS → app → auth → routing.
 
 ---

@@ -101,8 +101,12 @@ real endpoints — the one thing gating live order flow.
 
 ## Cross-cutting hardening (do alongside, not blocking)
 
-- [ ] **Observability** — structured logs, error tracking, and an uptime/health
-  check on the API + OSRM (none today).
+- [x] **Observability** — **done (2026-07-15).** `GET /api/health` probes
+  Supabase + OSRM and reports sync freshness from the `sync_state` heartbeat
+  (migration `0013`, written by the worker each tick); the sync worker logs
+  structured JSON lines. Remaining ops task: point an external uptime monitor
+  at `/api/health` (see `docs/deployment.md`). Also added: nightly
+  `vehicle_positions` prune to 30 days (pg_cron, migration `0012`).
 - [x] **Dashboard session self-heal** — **done (2026-07-13).** A dead TV session
   (`SIGNED_OUT`) re-mints from the stored display code and remounts the console
   (re-arming Realtime + reloading the snapshot); transient failures back off and

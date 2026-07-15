@@ -121,6 +121,8 @@ edit the fixture and watch stops change within a tick.
 
 **2. Deploy:** `./redeploy.sh` on the VPS. The `sync` service exits on boot
 while `BB_*` env is empty — that's expected and fine.
+(Migrations `0012` retention + `0013` sync heartbeat must be applied to the
+shared Supabase before the worker's heartbeat writes stop warning.)
 
 **3. Prove it live, then the retirements** (spec, "Retirements" section):
 - **Geofence auto-arrive**: remove the `applyGeofence` call from
@@ -131,6 +133,9 @@ while `BB_*` env is empty — that's expected and fine.
   `lib/dispatch/*`, `PATCH /api/stops/:id`. It's dormant break-glass today —
   any manual mutation gets overwritten by the next sync tick anyway. The
   dispatcher *identity* + its RLS **stay** (they're the sync's auth).
+  Same migration: **drop `stops.address`** (+ remove it from `ingest_stops`
+  and the seed data) — it then has no writer, which structurally closes the
+  CLAUDE.md-flagged Realtime PII exposure.
 
 **4. Independent of all this:** telematics integrate-or-drop decision
 (placeholder panels in `lib/console/assumed.ts`).
@@ -167,6 +172,19 @@ while `BB_*` env is empty — that's expected and fine.
   `/dispatch` is dormant; disappears when it's deleted.
 - `fake-gps` writes into the shared DB — a fake van and a real driver fight
   over one marker. Demo tool only.
+
+## Post-handoff additions (2026-07-15)
+
+- **Observability:** `GET /api/health` (Supabase + OSRM reachability + sync
+  freshness, informational not gating); the worker logs structured JSON lines
+  and upserts a `sync_state` heartbeat after each tick (migration `0013`).
+  Point an uptime monitor at `/api/health` once deployed.
+- **Retention:** `vehicle_positions` is pruned nightly to 30 days (pg_cron,
+  migration `0012`) — it was unbounded before.
+- **The stops PII caveat was re-verified:** the old "move address onto
+  `orders`" fix in CLAUDE.md was stale and is now corrected — `stops.address`
+  simply gets dropped during the `/dispatch` retirement (the sync never writes
+  it; only the dormant form and dev seeds do).
 
 ## Working with Yanis (learned the hard way — saves you a round trip)
 
