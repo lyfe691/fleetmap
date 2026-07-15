@@ -30,6 +30,20 @@ function reducedMotion(): boolean {
   )
 }
 
+// Larger than any real inter-tick movement (~140 m at 100 km/h): such a jump
+// is a background-tab catch-up (rAF frozen while Realtime kept moving the
+// target), a reconnect gap, or a sim reset — snap, don't glide across town.
+export const SNAP_JUMP_M = 300
+
+export function approxMeters(
+  a: { lng: number; lat: number },
+  b: { lng: number; lat: number }
+): number {
+  const dLat = (b.lat - a.lat) * 111_320
+  const dLng = (b.lng - a.lng) * 111_320 * Math.cos((a.lat * Math.PI) / 180)
+  return Math.hypot(dLat, dLng)
+}
+
 function useGlide(targetLng: number, targetLat: number, durationMs: number) {
   const [pos, setPos] = useState({ lng: targetLng, lat: targetLat })
   const posRef = useRef(pos)
@@ -40,7 +54,7 @@ function useGlide(targetLng: number, targetLat: number, durationMs: number) {
     const to = { lng: targetLng, lat: targetLat }
     const settled =
       Math.abs(to.lng - from.lng) + Math.abs(to.lat - from.lat) < 1e-7
-    if (settled || reducedMotion()) {
+    if (settled || reducedMotion() || approxMeters(from, to) > SNAP_JUMP_M) {
       setPos(to)
       return
     }

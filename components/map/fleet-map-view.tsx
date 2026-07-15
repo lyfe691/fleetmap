@@ -26,7 +26,9 @@ import {
   VehicleMarker,
   StopBadge,
   StopDot,
+  approxMeters,
   isStale,
+  SNAP_JUMP_M,
   type StopState,
 } from "@/components/map/vehicle-marker"
 
@@ -216,6 +218,13 @@ export function FleetMapView({
     // Let the switch re-frame land before gliding — a glide arriving mid-ease
     // would cancel it and drop its zoom target.
     if (userPannedRef.current || performance.now() < reframeUntilRef.current) return
+    // Mirrors the marker's snap guard: after a background-tab gap the camera
+    // would otherwise pan across town chasing the accumulated delta.
+    const c = map.getCenter()
+    if (approxMeters(c, { lng: center[0], lat: center[1] }) > SNAP_JUMP_M) {
+      map.jumpTo({ center })
+      return
+    }
     map.easeTo({ center, duration: 4000, easing: (x) => x })
   }, [mapLoaded, followTarget?.id, followTarget?.last_lng, followTarget?.last_lat])
 
