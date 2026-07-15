@@ -78,6 +78,9 @@ export function InterpolatedMarker({
   children: ReactNode
 }) {
   const pos = useGlide(longitude, latitude, 5000)
+  // Without subpixel positioning maplibre rounds the marker to whole pixels;
+  // at full-route zoom a glide advances <1px/frame and stair-steps. Moving
+  // markers only — static stop markers keep the crisp rounded default.
   return (
     <Marker
       longitude={pos.lng}
@@ -85,6 +88,7 @@ export function InterpolatedMarker({
       anchor={anchor}
       onClick={onClick}
       style={style}
+      subpixelPositioning
     >
       {children}
     </Marker>
