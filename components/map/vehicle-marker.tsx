@@ -263,7 +263,8 @@ export const StopBadge = memo(function StopBadge({
       ) : null}
       <span
         // mono + tabular-nums keeps 1/11/10 the same width; leading-none + a
-        // 0.5px lift corrects the usual optical-low sit of digits in a circle.
+        // whole-pixel lift (matches ItineraryBadge; fractional would blur on
+        // the 1x-DPR TV) corrects the optical-low sit of digits in a circle.
         className="relative flex h-full w-full items-center justify-center rounded-full font-mono font-semibold leading-none tabular-nums"
         style={{
           background: fill,
@@ -273,7 +274,7 @@ export const StopBadge = memo(function StopBadge({
           boxShadow: "0 1px 2px rgb(0 0 0 / 0.25)",
         }}
       >
-        <span style={{ transform: "translateY(-0.5px)" }}>{number}</span>
+        <span style={{ transform: "translateY(-1px)" }}>{number}</span>
       </span>
       {etaLabel ? (
         <span

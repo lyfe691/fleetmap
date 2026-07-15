@@ -132,6 +132,10 @@ async function writeHeartbeat(
     last_error_at: string
   }>
 ): Promise<void> {
+  // last_error is served to the public internet via GET /api/health — cap it
+  // so a verbose upstream error body can never ride along verbatim.
+  const row = { id: "bubblebox-sync", ...fields }
+  if (row.last_error) row.last_error = row.last_error.slice(0, 200)
   try {
     await withToken(async (token) => {
       const res = await fetch(
@@ -144,7 +148,7 @@ async function writeHeartbeat(
             "Content-Type": "application/json",
             Prefer: "resolution=merge-duplicates",
           },
-          body: JSON.stringify({ id: "bubblebox-sync", ...fields }),
+          body: JSON.stringify(row),
         }
       )
       if (res.status === 401) throw new UnauthorizedError()
