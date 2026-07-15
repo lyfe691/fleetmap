@@ -71,6 +71,7 @@ export const en = {
   "tracking.routeProgress": "Route Progress",
   "tracking.liveLocation": "Live Location",
   "tracking.itinerary": "Itinerary",
+  "tracking.noStopsTitle": "No stops yet",
   "tracking.noStops": "No stops assigned to this vehicle.",
   "tracking.orders": "orders",
   "tracking.collected": "Collected",

@@ -1,7 +1,7 @@
 "use client"
 
 import { type CSSProperties, useEffect, useMemo, useRef } from "react"
-import { MapPin } from "lucide-react"
+import { MapPin, MapPinOff } from "lucide-react"
 import { FleetMapView } from "@/components/map/fleet-map-view"
 import {
   Card,
@@ -10,6 +10,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty"
 import type { LiveData } from "@/lib/console/types"
 import { isActive } from "@/components/map/fleet-format"
 import type { ConsoleVehicle, Translator } from "@/lib/console/use-console-data"
@@ -177,9 +184,15 @@ export function TrackingView({
               full-width hairlines would slice across it. */}
           <div className="py-2">
             {stops.length === 0 ? (
-              <p className="px-5 py-8 text-center text-sm text-muted-foreground">
-                {t("tracking.noStops")}
-              </p>
+              <Empty className="p-8">
+                <EmptyHeader>
+                  <EmptyMedia variant="icon">
+                    <MapPinOff />
+                  </EmptyMedia>
+                  <EmptyTitle>{t("tracking.noStopsTitle")}</EmptyTitle>
+                  <EmptyDescription>{t("tracking.noStops")}</EmptyDescription>
+                </EmptyHeader>
+              </Empty>
             ) : (
               stops.map((s, i) => (
                 <StopRow
