@@ -262,9 +262,9 @@ export const StopBadge = memo(function StopBadge({
         />
       ) : null}
       <span
-        // mono + tabular-nums keeps 1/11/10 the same width; leading-none + a
-        // whole-pixel lift (matches ItineraryBadge; fractional would blur on
-        // the 1x-DPR TV) corrects the optical-low sit of digits in a circle.
+        // mono + tabular-nums keeps 1/11/10 the same width; leading-none makes
+        // the line box the font size, and JetBrains Mono's metrics center
+        // digits in it — no manual lift (ItineraryBadge matches).
         className="relative flex h-full w-full items-center justify-center rounded-full font-mono font-semibold leading-none tabular-nums"
         style={{
           background: fill,
@@ -274,7 +274,7 @@ export const StopBadge = memo(function StopBadge({
           boxShadow: "0 1px 2px rgb(0 0 0 / 0.25)",
         }}
       >
-        <span style={{ transform: "translateY(-1px)" }}>{number}</span>
+        {number}
       </span>
       {etaLabel ? (
         <span

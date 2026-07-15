@@ -445,12 +445,13 @@ function ItineraryBadge({
   next: boolean
   accent: string
 }) {
-  // mono + leading-none matches the map StopBadge so 1/11 sit evenly in the
-  // circle (sans digits sit optically low and change width digit-to-digit).
+  // mono + leading-none matches the map StopBadge: equal digit widths and a
+  // line box the font size, which flex centering + the font's metrics center
+  // in the circle — no manual lift.
   if (done) {
     return (
       <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted font-mono text-[0.75rem] font-semibold leading-none tabular-nums text-muted-foreground">
-        <span className="-translate-y-px">{number}</span>
+        {number}
       </span>
     )
   }
@@ -461,7 +462,7 @@ function ItineraryBadge({
         style={{ "--sel-accent": accent } as CSSProperties}
       >
         <span
-          className="-translate-y-px font-mono text-[0.75rem] font-bold leading-none tabular-nums"
+          className="font-mono text-[0.75rem] font-bold leading-none tabular-nums"
           style={{ color: accent }}
         >
           {number}
@@ -471,7 +472,7 @@ function ItineraryBadge({
   }
   return (
     <span className="flex size-7 shrink-0 items-center justify-center rounded-full border-2 border-border font-mono text-[0.75rem] font-semibold leading-none tabular-nums text-muted-foreground">
-      <span className="-translate-y-px">{number}</span>
+      {number}
     </span>
   )
 }
