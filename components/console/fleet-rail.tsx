@@ -121,15 +121,7 @@ export function FleetRail({
             />
           </div>
 
-          <div
-            className="flex-1 overflow-y-auto px-5 pt-2 pb-6"
-            style={{
-              maskImage:
-                "linear-gradient(to bottom, transparent 0, #000 14px, #000 calc(100% - 24px), transparent 100%)",
-              WebkitMaskImage:
-                "linear-gradient(to bottom, transparent 0, #000 14px, #000 calc(100% - 24px), transparent 100%)",
-            }}
-          >
+          <div className="scroll-fade flex-1 overflow-y-auto px-5 pt-2 pb-6">
             <div className="flex flex-col gap-3">
               {filtered.map((v) => (
                 <VehicleCard
