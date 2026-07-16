@@ -58,12 +58,11 @@ export const deCH: Record<TranslationKey, string> = {
   "rail.stopsLeft.other": "{n} Halte übrig",
   "rail.expandPanel": "Fahrzeugpanel ausklappen",
   "rail.collapsePanel": "Fahrzeugpanel einklappen",
-  // Short chrome for a 4-up PillTabs row (+ counts). Full phrases on status.*
-  // / rail.late ("Verspätet") for badges and aria.
+  // Full words — fleet rail is a 2×2 TV grid with room for them.
   "filter.all": "Alle",
-  "filter.onRoute": "Route",
-  "filter.waiting": "Warten",
-  "filter.late": "Spät",
+  "filter.onRoute": "Unterwegs",
+  "filter.waiting": "Wartend",
+  "filter.late": "Verspätet",
   "console.enRoute": "Unterwegs",
   "console.toNextStop": "{eta} bis zum nächsten Halt",
   "card.speed": "Tempo",
