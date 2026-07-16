@@ -25,11 +25,28 @@ const SEGMENTS: {
   filter: StatusFilter
   key: keyof ConsoleCounts
   tKey: TranslationKey
+  /** Longer label for aria (filter.* is short chrome for 4-up). */
+  ariaKey: TranslationKey
 }[] = [
-  { filter: "All", key: "all", tKey: "filter.all" },
-  { filter: "On Route", key: "onRoute", tKey: "filter.onRoute" },
-  { filter: "Waiting", key: "waiting", tKey: "filter.waiting" },
-  { filter: "Late", key: "late", tKey: "filter.late" },
+  { filter: "All", key: "all", tKey: "filter.all", ariaKey: "filter.all" },
+  {
+    filter: "On Route",
+    key: "onRoute",
+    tKey: "filter.onRoute",
+    ariaKey: "status.onRoute",
+  },
+  {
+    filter: "Waiting",
+    key: "waiting",
+    tKey: "filter.waiting",
+    ariaKey: "status.waiting",
+  },
+  {
+    filter: "Late",
+    key: "late",
+    tKey: "filter.late",
+    ariaKey: "rail.late",
+  },
 ]
 
 const RAIL_WIDTH = { collapsed: "3.5rem", expanded: "23.75rem" } as const
@@ -110,19 +127,20 @@ export function FleetRail({
               </button>
             </div>
 
-            {/* 4-up PillTabs: full TV touch size. de-CH labels can overflow
-                the strip for now — follow-up to tune density/layout. */}
+            {/* size=lg keeps TV touch height; short filter.* chrome + truncate
+                so 4-up + counts never bleed into the next tab. */}
             <PillTabs
-              className="mt-5 flex w-full"
+              className="mt-5 w-full"
+              size="lg"
               activeId={statusFilter}
               onTabChange={(id) => onStatusFilter(id as StatusFilter)}
               tabs={SEGMENTS.map((seg) => ({
                 id: seg.filter,
-                ariaLabel: t(seg.tKey),
+                ariaLabel: `${t(seg.ariaKey)} ${formatCount(counts[seg.key], locale)}`,
                 label: (
                   <>
-                    {t(seg.tKey)}
-                    <span className="opacity-55 tabular-nums">
+                    <span className="min-w-0 truncate">{t(seg.tKey)}</span>
+                    <span className="shrink-0 opacity-55 tabular-nums">
                       {formatCount(counts[seg.key], locale)}
                     </span>
                   </>

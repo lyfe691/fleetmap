@@ -56,9 +56,10 @@ export const en = {
   "rail.stopsLeft.other": "{n} stops left",
   "rail.expandPanel": "Expand fleet panel",
   "rail.collapsePanel": "Collapse fleet panel",
+  // Short chrome for a 4-up PillTabs row (+ counts). Full phrases on status.*.
   "filter.all": "All",
-  "filter.onRoute": "On Route",
-  "filter.waiting": "Waiting",
+  "filter.onRoute": "Route",
+  "filter.waiting": "Wait",
   "filter.late": "Late",
   "console.enRoute": "En route",
   "console.toNextStop": "{eta} to next stop",

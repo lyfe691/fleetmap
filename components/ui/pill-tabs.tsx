@@ -15,8 +15,24 @@ type PillTabsProps = {
   defaultActiveId?: string
   activeId?: string
   onTabChange?: (id: string) => void
+  /** `lg` is taller with larger type — good for dialogs and full-width bars. */
+  size?: "default" | "lg"
   className?: string
 }
+
+const sizeStyles = {
+  default: {
+    list: "h-9",
+    tab: "px-4 text-xs sm:px-5 sm:text-sm",
+    // 4+ equal tabs (fleet filters): keep height, tighten horizontal chrome.
+    tabDense: "px-2 text-xs sm:px-2.5 sm:text-sm",
+  },
+  lg: {
+    list: "h-11 sm:h-12",
+    tab: "px-5 text-sm sm:text-base",
+    tabDense: "px-2 text-sm sm:px-2.5 sm:text-sm",
+  },
+} as const
 
 const spring = {
   type: "spring",
@@ -30,6 +46,7 @@ export function PillTabs({
   defaultActiveId = tabs[0]?.id,
   activeId,
   onTabChange,
+  size = "default",
   className,
 }: PillTabsProps) {
   const isControlled = activeId !== undefined
@@ -37,9 +54,44 @@ export function PillTabs({
     React.useState(defaultActiveId)
   const active = isControlled ? activeId : uncontrolledActive
 
-  const layoutId = React.useId()
   const reduceMotion = useReducedMotion()
+  const listRef = React.useRef<HTMLDivElement | null>(null)
   const tabRefs = React.useRef<Array<HTMLButtonElement | null>>([])
+  const [pill, setPill] = React.useState<{ x: number; width: number } | null>(
+    null
+  )
+  // The pill used to live inside the button, so whileTap squeezed it too;
+  // now that it's container-level, mirror the press on the active tab.
+  const [activePressed, setActivePressed] = React.useState(false)
+
+  const activeIndex = tabs.findIndex((tab) => tab.id === active)
+
+  // Position the pill from offsetLeft/offsetWidth — parent-relative values
+  // that page scroll cannot contaminate, unlike layoutId's page-space
+  // snapshots (which jumped whenever scroll shifted mid-transition).
+  React.useLayoutEffect(() => {
+    const list = listRef.current
+    if (!list) return
+
+    const measure = () => {
+      const el = activeIndex >= 0 ? tabRefs.current[activeIndex] : null
+      setPill((prev) => {
+        if (!el) return null
+        const next = { x: el.offsetLeft, width: el.offsetWidth }
+        return prev && prev.x === next.x && prev.width === next.width
+          ? prev
+          : next
+      })
+    }
+
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(list)
+    for (const el of tabRefs.current) {
+      if (el) observer.observe(el)
+    }
+    return () => observer.disconnect()
+  }, [activeIndex, tabs.length, size])
 
   const select = React.useCallback(
     (id: string) => {
@@ -81,15 +133,41 @@ export function PillTabs({
     }
   }
 
+  if (tabs.length === 0) return null
+
+  const styles = sizeStyles[size]
+  // Four (or more) equal-width tabs need denser horizontal padding so long
+  // labels + counts don't paint over neighbours. Height / touch target stay.
+  const dense = tabs.length >= 4
+
   return (
     <div
+      ref={listRef}
       role="tablist"
       aria-orientation="horizontal"
       className={cn(
-        "inline-flex items-center rounded-full bg-muted p-1",
+        "relative inline-flex min-w-0 items-center",
+        styles.list,
         className
       )}
     >
+      <div
+        aria-hidden
+        className="absolute inset-x-1 inset-y-0.5 rounded-full bg-muted"
+      />
+      {pill && (
+        <motion.span
+          aria-hidden
+          className="pointer-events-none absolute inset-y-0.5 left-0 rounded-full bg-background ring-1 ring-black/5 ring-inset dark:ring-white/10"
+          initial={false}
+          animate={{
+            x: pill.x,
+            width: pill.width,
+            scale: activePressed && !reduceMotion ? 0.96 : 1,
+          }}
+          transition={reduceMotion ? { duration: 0 } : spring}
+        />
+      )}
       {tabs.map((tab, index) => {
         const isActive = active === tab.id
         return (
@@ -102,28 +180,27 @@ export function PillTabs({
             role="tab"
             aria-selected={isActive}
             aria-label={tab.ariaLabel}
-            tabIndex={isActive ? 0 : -1}
+            tabIndex={
+              activeIndex >= 0 ? (isActive ? 0 : -1) : index === 0 ? 0 : -1
+            }
             onClick={() => select(tab.id)}
             onKeyDown={(event) => onKeyDown(event, index)}
+            onTapStart={() => isActive && setActivePressed(true)}
+            onTap={() => setActivePressed(false)}
+            onTapCancel={() => setActivePressed(false)}
             whileTap={reduceMotion ? undefined : { scale: 0.96 }}
             className={cn(
-              // TV-sized: comfortable tap target + readable from a distance.
-              "relative isolate flex-1 rounded-full px-3 py-3 text-[0.9375rem] font-semibold whitespace-nowrap outline-none transition-colors duration-200 ease-out select-none",
-              "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-muted",
+              // min-w-0 + overflow-hidden: flex-1 tabs must be allowed to
+              // shrink or long nowrap labels bleed into the next tab.
+              "relative h-full min-w-0 flex-1 overflow-hidden rounded-full font-medium outline-none select-none",
+              dense ? styles.tabDense : styles.tab,
+              "transition-colors duration-200 ease-out focus-visible:ring-2 focus-visible:ring-ring",
               isActive
                 ? "text-foreground"
                 : "text-muted-foreground hover:text-foreground/80"
             )}
           >
-            {isActive && (
-              <motion.span
-                layoutId={`pill-${layoutId}`}
-                transition={reduceMotion ? { duration: 0 } : spring}
-                style={{ borderRadius: 999 }}
-                className="absolute inset-0 -z-10 rounded-full bg-background shadow-sm ring-1 ring-black/4 dark:bg-foreground/10 dark:shadow-none dark:ring-white/5"
-              />
-            )}
-            <span className="relative flex items-center justify-center gap-1.5">
+            <span className="relative flex min-w-0 items-center justify-center gap-1">
               {tab.label}
             </span>
           </motion.button>
