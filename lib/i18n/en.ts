@@ -56,11 +56,9 @@ export const en = {
   "rail.stopsLeft.other": "{n} stops left",
   "rail.expandPanel": "Expand fleet panel",
   "rail.collapsePanel": "Collapse fleet panel",
-  // Full words — fleet rail is a 2×2 TV grid with room for them.
   "filter.all": "All",
   "filter.onRoute": "On Route",
   "filter.waiting": "Waiting",
-  "filter.late": "Late",
   "console.enRoute": "En route",
   "console.toNextStop": "{eta} to next stop",
   "card.speed": "Speed",

@@ -18,6 +18,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty"
+import { PillTabs } from "@/components/ui/pill-tabs"
 import { cn } from "@/lib/utils"
 
 const SEGMENTS: {
@@ -28,7 +29,6 @@ const SEGMENTS: {
   { filter: "All", key: "all", tKey: "filter.all" },
   { filter: "On Route", key: "onRoute", tKey: "filter.onRoute" },
   { filter: "Waiting", key: "waiting", tKey: "filter.waiting" },
-  { filter: "Late", key: "late", tKey: "filter.late" },
 ]
 
 const RAIL_WIDTH = { collapsed: "3.5rem", expanded: "23.75rem" } as const
@@ -109,12 +109,23 @@ export function FleetRail({
               </button>
             </div>
 
-            {/* 2×2 TV grid — same visual language as PillTabs (muted track +
-                elevated active cell) with room for full de-CH labels. */}
-            <FleetFilterGrid
-              statusFilter={statusFilter}
-              onStatusFilter={onStatusFilter}
-              counts={counts}
+            <PillTabs
+              className="mt-5 w-full"
+              size="lg"
+              activeId={statusFilter}
+              onTabChange={(id) => onStatusFilter(id as StatusFilter)}
+              tabs={SEGMENTS.map((seg) => ({
+                id: seg.filter,
+                ariaLabel: `${t(seg.tKey)} ${formatCount(counts[seg.key], locale)}`,
+                label: (
+                  <>
+                    {t(seg.tKey)}
+                    <span className="opacity-55 tabular-nums">
+                      {formatCount(counts[seg.key], locale)}
+                    </span>
+                  </>
+                ),
+              }))}
             />
           </div>
 
@@ -150,61 +161,6 @@ export function FleetRail({
         </div>
       }
     />
-  )
-}
-
-function FleetFilterGrid({
-  statusFilter,
-  onStatusFilter,
-  counts,
-}: {
-  statusFilter: StatusFilter
-  onStatusFilter: (filter: StatusFilter) => void
-  counts: ConsoleCounts
-}) {
-  const t = useTranslations()
-  const locale = useLocale()
-
-  return (
-    <div
-      role="tablist"
-      aria-label={t("rail.fleet")}
-      className="mt-5 grid grid-cols-2 gap-1 rounded-[1.25rem] bg-muted p-1.5"
-    >
-      {SEGMENTS.map((seg) => {
-        const active = statusFilter === seg.filter
-        const count = formatCount(counts[seg.key], locale)
-        return (
-          <button
-            key={seg.filter}
-            type="button"
-            role="tab"
-            aria-selected={active}
-            aria-label={`${t(seg.tKey)} ${count}`}
-            onClick={() => onStatusFilter(seg.filter)}
-            className={cn(
-              "flex min-h-12 items-center justify-between gap-2 rounded-[0.9rem] px-3.5 py-3 text-left outline-none select-none",
-              "text-[0.9375rem] font-semibold transition-[color,background-color,box-shadow,transform] duration-200 ease-out",
-              "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-muted",
-              "active:scale-[0.98]",
-              active
-                ? "bg-background text-foreground shadow-sm ring-1 ring-black/5 dark:ring-white/10"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            <span className="min-w-0 leading-snug">{t(seg.tKey)}</span>
-            <span
-              className={cn(
-                "shrink-0 font-mono text-[0.875rem] tabular-nums",
-                active ? "opacity-70" : "opacity-50"
-              )}
-            >
-              {count}
-            </span>
-          </button>
-        )
-      })}
-    </div>
   )
 }
 

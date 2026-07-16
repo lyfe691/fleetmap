@@ -58,11 +58,9 @@ export const deCH: Record<TranslationKey, string> = {
   "rail.stopsLeft.other": "{n} Halte übrig",
   "rail.expandPanel": "Fahrzeugpanel ausklappen",
   "rail.collapsePanel": "Fahrzeugpanel einklappen",
-  // Full words — fleet rail is a 2×2 TV grid with room for them.
   "filter.all": "Alle",
   "filter.onRoute": "Unterwegs",
   "filter.waiting": "Wartend",
-  "filter.late": "Verspätet",
   "console.enRoute": "Unterwegs",
   "console.toNextStop": "{eta} bis zum nächsten Halt",
   "card.speed": "Tempo",

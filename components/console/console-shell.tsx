@@ -112,7 +112,6 @@ export function ConsoleShell({ onChangeCode }: { onChangeCode: () => void }) {
       all: consoleVehicles.length,
       onRoute: consoleVehicles.filter((v) => v.tone === "onRoute").length,
       waiting: consoleVehicles.filter((v) => v.tone === "waiting").length,
-      late: consoleVehicles.filter((v) => v.late).length,
       online: consoleVehicles.filter((v) => !v.stale).length,
     }),
     [consoleVehicles]
