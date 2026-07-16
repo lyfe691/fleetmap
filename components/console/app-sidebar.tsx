@@ -49,14 +49,16 @@ export function AppSidebar({
   onOpenSettings: () => void
 }) {
   const t = useTranslations()
+  // Map first: matches the default view and the TV's ambient "whole fleet"
+  // home. Tracking is the per-van drill-in under it.
   const monitor: NavEntry[] = [
+    { id: "map", label: t("nav.map"), icon: MapIcon },
     {
       id: "tracking",
       label: t("nav.tracking"),
       icon: Navigation,
       badge: onRouteCount,
     },
-    { id: "map", label: t("nav.map"), icon: MapIcon },
   ]
   const records: NavEntry[] = [
     { id: "history", label: t("nav.history"), icon: HistoryIcon },

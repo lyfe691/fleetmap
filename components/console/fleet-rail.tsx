@@ -1,7 +1,7 @@
 "use client"
 
 import type { CSSProperties } from "react"
-import { ArrowRight, ChevronsLeft, ChevronsRight } from "lucide-react"
+import { ArrowRight, ChevronsLeft, ChevronsRight, FilterX, Truck } from "lucide-react"
 import type { ConsoleCounts, StatusFilter } from "@/lib/console/types"
 import { matchesStatusFilter } from "@/lib/console/types"
 import type { ConsoleVehicle } from "@/lib/console/use-console-data"
@@ -11,6 +11,13 @@ import { useTranslations, useLocale } from "@/lib/i18n"
 import { formatCount } from "@/lib/i18n/format"
 import type { TranslationKey } from "@/lib/i18n/en"
 import { Card, CardContent } from "@/components/ui/card"
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty"
 import { PillTabs } from "@/components/ui/pill-tabs"
 import { cn } from "@/lib/utils"
 
@@ -22,6 +29,7 @@ const SEGMENTS: {
   { filter: "All", key: "all", tKey: "filter.all" },
   { filter: "On Route", key: "onRoute", tKey: "filter.onRoute" },
   { filter: "Waiting", key: "waiting", tKey: "filter.waiting" },
+  { filter: "Late", key: "late", tKey: "filter.late" },
 ]
 
 const RAIL_WIDTH = { collapsed: "3.5rem", expanded: "23.75rem" } as const
@@ -102,6 +110,8 @@ export function FleetRail({
               </button>
             </div>
 
+            {/* 4-up PillTabs: full TV touch size. de-CH labels can overflow
+                the strip for now — follow-up to tune density/layout. */}
             <PillTabs
               className="mt-5 flex w-full"
               activeId={statusFilter}
@@ -112,7 +122,7 @@ export function FleetRail({
                 label: (
                   <>
                     {t(seg.tKey)}
-                    <span className="opacity-55">
+                    <span className="opacity-55 tabular-nums">
                       {formatCount(counts[seg.key], locale)}
                     </span>
                   </>
@@ -132,15 +142,49 @@ export function FleetRail({
                 />
               ))}
               {filtered.length === 0 ? (
-                <p className="px-1 py-8 text-center text-sm text-muted-foreground">
-                  {t("rail.noVehicles")}
-                </p>
+                <RailEmpty
+                  // Fleet empty vs filter empty — same Empty family as
+                  // Tracking/History, denser for the narrow rail.
+                  title={
+                    counts.all === 0
+                      ? t("rail.noVehiclesTitle")
+                      : t("rail.noMatchesTitle")
+                  }
+                  description={
+                    counts.all === 0
+                      ? t("rail.noVehicles")
+                      : t("rail.noMatches")
+                  }
+                  icon={counts.all === 0 ? "fleet" : "filter"}
+                />
               ) : null}
             </div>
           </div>
         </div>
       }
     />
+  )
+}
+
+function RailEmpty({
+  title,
+  description,
+  icon,
+}: {
+  title: string
+  description: string
+  icon: "fleet" | "filter"
+}) {
+  return (
+    <Empty className="border-0 p-6">
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          {icon === "fleet" ? <Truck /> : <FilterX />}
+        </EmptyMedia>
+        <EmptyTitle className="text-base">{title}</EmptyTitle>
+        <EmptyDescription>{description}</EmptyDescription>
+      </EmptyHeader>
+    </Empty>
   )
 }
 

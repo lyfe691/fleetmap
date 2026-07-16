@@ -5,11 +5,18 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { useTheme } from "next-themes"
 import { Map as MapGL, Marker, Source, Layer, type MapRef } from "react-map-gl/maplibre"
 import type { FeatureCollection } from "geojson"
-import { CalendarIcon, Pause, Play, Truck } from "lucide-react"
+import { CalendarIcon, Pause, Play, Route, Truck } from "lucide-react"
 import { de, enGB } from "date-fns/locale"
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
 import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty"
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Progress } from "@/components/ui/progress"
@@ -142,17 +149,27 @@ export function HistoryView({
     [points]
   )
 
-  // Replay clock. Reset when the track changes; play resumes from the scrubber.
+  // Replay clock. Reset when the track key changes *during render* so the
+  // same pass never applies the previous track's playing/tMs to the new
+  // geometry (effect-based reset raced fitBounds + follow for a frame).
+  // https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes
   const [playing, setPlaying] = useState(false)
   const [speed, setSpeed] = useState<number>(60)
   const [tMs, setTMs] = useState<number | null>(null)
-  const startMs = points[0]?.tMs ?? null
-  const endMs = points.length > 1 ? points[points.length - 1].tMs : null
-
-  useEffect(() => {
+  // Follow the van during playback; a manual pan hands the camera back until
+  // the operator hits play again (fleet rail is still the van picker).
+  const [follow, setFollow] = useState(true)
+  const [playbackTrackKey, setPlaybackTrackKey] = useState(trackKey)
+  if (trackKey !== playbackTrackKey) {
+    setPlaybackTrackKey(trackKey)
     setPlaying(false)
     setTMs(null)
-  }, [points])
+    setFollow(true)
+  }
+  // One-shot zoom floor when follow re-engages (play after pan / new session).
+  const followEngageRef = useRef(false)
+  const startMs = points[0]?.tMs ?? null
+  const endMs = points.length > 1 ? points[points.length - 1].tMs : null
 
   useEffect(() => {
     if (!playing || startMs == null || endMs == null) return
@@ -178,6 +195,7 @@ export function HistoryView({
 
   const mapRef = useRef<MapRef>(null)
   const [mapLoaded, setMapLoaded] = useState(false)
+  // Whole-track frame on load / vehicle+day change — not while following.
   useEffect(() => {
     if (!mapLoaded || points.length < 2) return
     let minLat = Infinity, minLng = Infinity, maxLat = -Infinity, maxLng = -Infinity
@@ -196,7 +214,35 @@ export function HistoryView({
     )
   }, [mapLoaded, points])
 
+  // Stick the camera to the replay van while playing (and when scrubbing with
+  // follow still on). Skip the initial post-load frame so fitBounds keeps the
+  // full day in view until the operator plays or seeks. High playback speeds
+  // fire often enough that jumpTo avoids stacking easeTo cancellations.
+  useEffect(() => {
+    if (!mapLoaded || !follow || !pos) return
+    if (!playing && tMs == null) return
+    const map = mapRef.current
+    if (!map) return
+    const center: [number, number] = [pos.lng, pos.lat]
+    if (playing) {
+      if (followEngageRef.current) {
+        followEngageRef.current = false
+        map.easeTo({
+          center,
+          zoom: Math.max(map.getZoom(), 13),
+          duration: 400,
+        })
+        return
+      }
+      map.jumpTo({ center })
+      return
+    }
+    // Scrub while paused: short ease so seeking still feels intentional.
+    map.easeTo({ center, duration: 120 })
+  }, [mapLoaded, follow, playing, tMs, pos?.lng, pos?.lat])
+
   const hasTrack = points.length > 1
+  const needsVehicle = vehicleId == null
 
   return (
     <div className="h-full overflow-y-auto">
@@ -212,7 +258,9 @@ export function HistoryView({
             </span>
           ) : null}
         </div>
-        <p className="mt-1.5 text-[0.9375rem] text-muted-foreground">{t("history.subtitle")}</p>
+        <p className="mt-1.5 text-[0.9375rem] text-muted-foreground">
+          {needsVehicle ? t("history.pickVehicle") : t("history.subtitle")}
+        </p>
 
         <div className="mt-5 flex flex-wrap items-center gap-3">
           <HistoryDatePicker
@@ -234,6 +282,7 @@ export function HistoryView({
             mapStyle={styleUrl}
             style={{ width: "100%", height: "100%" }}
             onLoad={() => setMapLoaded(true)}
+            onDragStart={() => setFollow(false)}
           >
             {hasTrack ? (
               <>
@@ -289,10 +338,24 @@ export function HistoryView({
           </MapGL>
 
             {!loading && !hasTrack ? (
-              <div className="absolute inset-0 flex items-center justify-center bg-background/55 backdrop-blur-[2px]">
-                <p className="max-w-xs text-center text-sm text-muted-foreground">
-                  {t("history.empty")}
-                </p>
+              <div className="absolute inset-0 flex items-center justify-center bg-background/55 backdrop-blur-[2px] p-6">
+                <Empty className="max-w-sm border-0 bg-transparent p-6">
+                  <EmptyHeader>
+                    <EmptyMedia variant="icon">
+                      {needsVehicle ? <Truck /> : <Route />}
+                    </EmptyMedia>
+                    <EmptyTitle>
+                      {needsVehicle
+                        ? t("history.pickVehicleTitle")
+                        : t("history.emptyTitle")}
+                    </EmptyTitle>
+                    <EmptyDescription>
+                      {needsVehicle
+                        ? t("history.pickVehicle")
+                        : t("history.empty")}
+                    </EmptyDescription>
+                  </EmptyHeader>
+                </Empty>
               </div>
             ) : null}
           </div>
@@ -303,7 +366,13 @@ export function HistoryView({
                 playing={playing}
                 label={playing ? t("history.pause") : t("history.play")}
                 onClick={() => {
-                  if (!playing && tMs != null && tMs >= endMs) setTMs(startMs)
+                  if (!playing) {
+                    // Re-engage follow when the operator presses play (also
+                    // after they panned away mid-replay); floor zoom once.
+                    setFollow(true)
+                    followEngageRef.current = true
+                    if (tMs != null && tMs >= endMs) setTMs(startMs)
+                  }
                   setPlaying((p) => !p)
                 }}
               />

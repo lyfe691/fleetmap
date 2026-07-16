@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { useFleetRoutes, type RouteJob } from "@/lib/use-fleet-routes"
 import { useLiveStops } from "@/lib/use-live-stops"
@@ -12,14 +12,21 @@ import { buildConsoleVehicles } from "@/lib/console/use-console-data"
 import type { ConsoleView, LiveData, StatusFilter } from "@/lib/console/types"
 import { matchesStatusFilter } from "@/lib/console/types"
 import { ConsoleLoading } from "@/components/console/console-loading"
-import { BubbleboxLogo } from "@/components/console/bubblebox-logo"
 import { AppSidebar } from "@/components/console/app-sidebar"
 import { FleetRail } from "@/components/console/fleet-rail"
 import { MapView } from "@/components/console/map-view"
 import { TrackingView } from "@/components/console/tracking-view"
 import { HistoryView } from "@/components/console/history-view"
 import { SettingsDialog } from "@/components/console/settings/settings-dialog"
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty"
 import { translate, useLocale, useTranslations } from "@/lib/i18n"
+import { Truck } from "lucide-react"
 
 export function ConsoleShell({ onChangeCode }: { onChangeCode: () => void }) {
   const { vehicles, error, ready, loaded, serverOffsetMs } = useLiveVehicles()
@@ -61,7 +68,9 @@ export function ConsoleShell({ onChangeCode }: { onChangeCode: () => void }) {
     [live, locale]
   )
 
-  const [view, setView] = useState<ConsoleView>("tracking")
+  // Map is the TV home: ambient fleet view works with no selection. Tracking
+  // and History need an explicit rail pick (see EmptyMain).
+  const [view, setView] = useState<ConsoleView>("map")
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("All")
 
@@ -93,22 +102,49 @@ export function ConsoleShell({ onChangeCode }: { onChangeCode: () => void }) {
     "fleetmap.fleet-collapsed",
     false
   )
-  // explicit = the user's actual pick (null until they choose / after "view
-  // all"); selected = that, falling back to the first van for views that always
-  // need one (tracking detail + rail highlight). The map uses `explicit` so a
-  // cleared selection means "show the whole fleet".
-  const explicit = consoleVehicles.find((v) => v.id === selectedId) ?? null
-  const selected = explicit ?? consoleVehicles[0] ?? null
+  // Selection is always explicit: the fleet rail is the van picker. No silent
+  // fall-back to the first van — Tracking/History empty-state until a card is
+  // tapped; the map treats null as "whole fleet" (view all).
+  const selected = consoleVehicles.find((v) => v.id === selectedId) ?? null
 
   const counts = useMemo(
     () => ({
       all: consoleVehicles.length,
       onRoute: consoleVehicles.filter((v) => v.tone === "onRoute").length,
       waiting: consoleVehicles.filter((v) => v.tone === "waiting").length,
+      late: consoleVehicles.filter((v) => v.late).length,
       online: consoleVehicles.filter((v) => !v.stale).length,
     }),
     [consoleVehicles]
   )
+
+  // Open the fleet rail when a pick becomes necessary — entering Tracking/
+  // History without a selection, or vans first appearing while already on
+  // those views with nothing selected. Do NOT re-expand when the operator
+  // clears selection (they may have collapsed the rail on purpose).
+  // Map-as-default softens cold-load, but does not cover map → tracking/history
+  // before the snapshot lands, so fleet 0→N still needs a reaction.
+  const prevViewRef = useRef(view)
+  const prevFleetLenRef = useRef(0)
+  useEffect(() => {
+    const needsPick =
+      (view === "tracking" || view === "history") &&
+      selectedId == null &&
+      consoleVehicles.length > 0
+
+    const enteredPickView =
+      prevViewRef.current !== view &&
+      (view === "tracking" || view === "history")
+    const fleetArrived =
+      prevFleetLenRef.current === 0 && consoleVehicles.length > 0
+
+    if (needsPick && (enteredPickView || fleetArrived)) {
+      setRailCollapsed(false)
+    }
+
+    prevViewRef.current = view
+    prevFleetLenRef.current = consoleVehicles.length
+  }, [view, selectedId, consoleVehicles.length])
 
   // Hold the loader until the first snapshot resolves (or a snapshot/auth error
   // surfaces) so the empty "no vehicles" state never flashes before data. The
@@ -131,7 +167,7 @@ export function ConsoleShell({ onChangeCode }: { onChangeCode: () => void }) {
 
       <FleetRail
         vehicles={consoleVehicles}
-        selectedId={selected?.id ?? null}
+        selectedId={selectedId}
         onSelect={setSelectedId}
         statusFilter={statusFilter}
         onStatusFilter={handleStatusFilter}
@@ -158,14 +194,25 @@ export function ConsoleShell({ onChangeCode }: { onChangeCode: () => void }) {
               onLocate={() => setView("map")}
             />
           ) : (
-            <EmptyMain label={t("shell.noVehicles")} />
+            <EmptyMain
+              title={
+                consoleVehicles.length === 0
+                  ? t("shell.noVehiclesTitle")
+                  : t("shell.pickVehicleTitle")
+              }
+              description={
+                consoleVehicles.length === 0
+                  ? t("shell.noVehicles")
+                  : t("shell.pickVehicle")
+              }
+            />
           )
         ) : null}
 
         {view === "map" ? (
           <MapView
             live={live}
-            selected={explicit}
+            selected={selected}
             selectedId={selectedId}
             onSelectVehicle={setSelectedId}
             onClearSelection={() => setSelectedId(null)}
@@ -186,13 +233,26 @@ export function ConsoleShell({ onChangeCode }: { onChangeCode: () => void }) {
   )
 }
 
-function EmptyMain({ label }: { label: string }) {
+// Same Empty pattern as the stop-less itinerary in TrackingView — keep
+// console empty states on one component family.
+function EmptyMain({
+  title,
+  description,
+}: {
+  title: string
+  description: string
+}) {
   return (
-    <div className="flex h-full w-full flex-col items-center justify-center gap-4">
-      <div className="flex size-16 items-center justify-center rounded-2xl bg-muted">
-        <BubbleboxLogo className="size-8 text-muted-foreground" />
-      </div>
-      <p className="text-[0.9375rem] text-muted-foreground">{label}</p>
+    <div className="flex h-full w-full items-center justify-center p-8">
+      <Empty className="max-w-md border-0">
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <Truck />
+          </EmptyMedia>
+          <EmptyTitle>{title}</EmptyTitle>
+          <EmptyDescription>{description}</EmptyDescription>
+        </EmptyHeader>
+      </Empty>
     </div>
   )
 }

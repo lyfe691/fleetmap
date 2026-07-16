@@ -103,7 +103,8 @@ export function buildConsoleVehicles(
       id: v.id,
       reg: v.label ?? v.id.slice(0, 8),
       tone: hasActive ? "onRoute" : "waiting",
-      statusLabel: hasActive ? t("filter.onRoute") : t("filter.waiting"),
+      // Full status vocabulary (not the short filter.* chrome labels).
+      statusLabel: hasActive ? t("status.onRoute") : t("status.waiting"),
       stale,
       late: lateness.late,
       nextStopProjectedMs: lateness.projectedArrivalMs,
