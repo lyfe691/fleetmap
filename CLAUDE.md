@@ -11,7 +11,7 @@ Full design doc: `docs/specs/live-tracking-spec.md` — that's the source of tru
 - **MapLibre GL** (`react-map-gl`) for the map. Tiles from **OpenFreeMap** (free, keyless, no request limits; `liberty` light / `dark`) — **never the public OSM tile server** (against their usage policy).
 - **OSRM**, self-hosted (Docker, Switzerland extract) for route lines + ETA — M4.
 - **Driver client:** PWA for V1 (`watchPosition` + Screen Wake Lock). Native Expo is the escape hatch if phones go in pockets or run nav up front — not now.
-- **Deployment:** Docker on a single VPS (`fleet.ysz.life`) — Caddy (auto-TLS) → standalone Next image → internal OSRM, all in `docker-compose.prod.yml`. Supabase stays managed cloud. Full guide: `docs/deployment.md`.
+- **Deployment:** Docker on a single VPS (`fleet.ysz.life`) — two compose stacks joined by the `fleetmap-edge` network: Caddy (auto-TLS) → standalone Next image → internal OSRM (`docker-compose.prod.yml`), beside the self-hosted Supabase (`supabase-docker/`, Kong behind `sb.fleet.ysz.life`). App images build locally and ship as a tar — the 4GB box must never build. Full guide: `docs/deployment.md`.
 
 ## Architecture
 
@@ -141,7 +141,7 @@ pnpm test                         # vitest unit suite (route-slice, geofence, in
 docker compose up -d osrm         # routing engine (build the dataset first — see docker-compose.yml)
 
 # Prod (on the VPS, from /opt/fleetmap)
-./redeploy.sh                     # git pull + rebuild the prod stack (docker-compose.prod.yml)
+./redeploy.sh                     # git pull + load shipped images + restart (never builds on the box)
 ```
 
 Env: `.env.example` — `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`.
@@ -172,7 +172,8 @@ It writes into prod's Supabase, so a fake van and a real driver in the same city
 - [x] **M14 — route replay:** the History tab replays a vehicle's day from `vehicle_positions` — dashboard read path (0008: claim-scoped select + `vehicle_positions_public` view), paginated day fetch + stride thinning, play/pause/scrubber/speed with an interpolated van marker (`lib/replay.ts`, unit-tested), distance/duration/points stats.
 - [x] **M15 — Bubble Box route sync:** pull worker mirrors their rider routes (assignment, stop order, and status all come from their route optimizer); `vehicles.rider_ref` mapping + diff-applying `sync_vehicle_routes` RPC (0009) + `PUT /api/ingest/vehicle-routes`; fixture mode (`BB_FIXTURE_FILE`) until their dedicated API ships. E2E-proven: status flips are in-place UPDATEs (stop ids stable → no OSRM churn). Spec: `docs/specs/2026-07-08-bubblebox-route-sync-design.md`.
 - [x] **M16 — full-day route + schedule adherence:** `/api/route` routes through ALL of a van's stops in `seq` order with no live-position origin (geometry is a function of the stop set only — less OSRM churn); the client places the done/ahead boundary as `max(last completed stop's offset, van's clamped snap)` so finished legs grey instead of vanishing. Lateness (`lib/schedule.ts`): projected arrival at the next stop vs `eta_at` + 5 min grace (scheduled-passed fallback) → red remaining line + Late chips + legend entry. Per-stop scheduled vs actual arrival in the itinerary (delta chips); needs migration `0011` (adds `completed_at` to `stops_public`) applied to the shared Supabase by a human. Stop markers: pickup=circle / dropoff=square, done/next/upcoming three-state; selecting a van frames its full route bounds. Demo data: ~16–18 stops per city, per-city `etaSpeedFactor` (Bern deliberately late), fake-gps refreshes `eta_at` per lap and the geofence stamps `completed_at` live. Spec: `docs/specs/2026-07-13-schedule-adherence-full-route-design.md`.
-- Later: wire the real Bubble Box endpoints (token/routes/statuses) when Dmytro ships, then retire geofence + `/dispatch` per the spec; telematics integrate-or-drop decision. ← next
+- [x] **M17 — Supabase local + self-host:** dev runs the local CLI stack (`supabase/config.toml`, 4432x ports, explicit grants migration 0015); prod migrated off managed cloud onto the vendored `supabase-docker/` stack on the VPS (Kong behind `sb.fleet.ysz.life`, data + auth users moved with logins intact, nightly pg_dump backups). App images build locally and ship as tars. Cloud project retained as rollback until Yanis retires it. Spec: `docs/specs/2026-07-20-supabase-local-and-selfhost-design.md`.
+- Later: wire the real Bubble Box endpoints (token/routes/statuses) when Dmytro ships, then retire geofence + `/dispatch` per the spec; telematics integrate-or-drop decision. Roman re-points his app at `https://sb.fleet.ysz.life` + the new publishable key. ← next
 
 ## Workflow
 
