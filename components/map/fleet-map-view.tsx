@@ -129,6 +129,12 @@ export function FleetMapView({
     const map = mapRef.current
     if (!map) return
 
+    // The corner chrome hugs the right edge (fullscreen, zoom ≤76px deep) and
+    // the bottom edge (legend ≤70px tall) — edge markers need to clear it.
+    const pad = showChrome
+      ? { top: 80, right: 104, bottom: 104, left: 80 }
+      : 80
+
     const idsKey = vehicles
       .map((v) => v.id)
       .sort()
@@ -159,7 +165,7 @@ export function FleetMapView({
           n = Math.max(n, lat)
         }
         map.fitBounds([[w, s], [e, n]], {
-          padding: 80,
+          padding: pad,
           maxZoom: 15,
           duration: first ? 0 : 700,
         })
@@ -178,8 +184,8 @@ export function FleetMapView({
       cameraKeyRef.current = null
       return
     }
-    map.fitBounds(bounds, { padding: 80, maxZoom: 14, duration: first ? 0 : 600 })
-  }, [mapLoaded, follow, selectedId, vehicles, routes])
+    map.fitBounds(bounds, { padding: pad, maxZoom: 14, duration: first ? 0 : 600 })
+  }, [mapLoaded, follow, selectedId, vehicles, routes, showChrome])
 
   // Follow mode (mini-map always; Live Map while a vehicle is selected) owns
   // the camera instead of the policy above: engaging or switching vehicles
