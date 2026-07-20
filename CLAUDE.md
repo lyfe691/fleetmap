@@ -7,7 +7,7 @@ Full design doc: `docs/specs/live-tracking-spec.md` — that's the source of tru
 ## Stack
 
 - **Next.js** (App Router, TypeScript) — API route handlers + the dashboard.
-- **Supabase** — Postgres, Realtime (live push to the dashboard), Auth + RLS. Managed for V1; self-hosts as its own compose stack at handoff if the client requires on-prem — the app doesn't change.
+- **Supabase** — Postgres, Realtime (live push to the dashboard), Auth + RLS — local CLI stack for dev (`pnpm supabase start`); prod self-hosts on the VPS (Stage 2, spec 2026-07-20).
 - **MapLibre GL** (`react-map-gl`) for the map. Tiles from **OpenFreeMap** (free, keyless, no request limits; `liberty` light / `dark`) — **never the public OSM tile server** (against their usage policy).
 - **OSRM**, self-hosted (Docker, Switzerland extract) for route lines + ETA — M4.
 - **Driver client:** PWA for V1 (`watchPosition` + Screen Wake Lock). Native Expo is the escape hatch if phones go in pockets or run nav up front — not now.
@@ -92,7 +92,7 @@ pnpm dlx shadcn@latest init --preset b1VlIttI --base base --template next --poin
 # name it: fleetmap
 ```
 
-Then from the project root: `pnpm add @supabase/supabase-js`, `pnpm add -D tsx`, copy `.env.example` → `.env` (fill the Supabase keys), apply `supabase/migrations/0001_init.sql`.
+Then from the project root: `pnpm add @supabase/supabase-js`, `pnpm add -D tsx`. Supabase itself runs locally via the pinned CLI dev dependency (`supabase/config.toml` is already committed) — `pnpm supabase start` (first run pulls images), then `pnpm supabase db reset` to apply every migration + `supabase/seed.sql`. Copy `.env.example` → `.env` and fill `NEXT_PUBLIC_SUPABASE_URL`/`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`/`SUPABASE_SECRET_KEY` from the `supabase start` output (local API is `http://127.0.0.1:44321`). Then `pnpm provision-dashboard && pnpm provision-dispatcher && pnpm provision-driver` to create the Auth identities, and `pnpm fake-gps` once before `pnpm seed-stops` (fake-gps provisions the city vans; seed-stops attaches stops to them).
 
 ## Data model
 
@@ -133,7 +133,9 @@ pnpm fake-gps                     # dev-only: moving fake feed (dev server must 
 pnpm provision-dispatcher         # create the dispatcher identity (role=dispatcher)
 pnpm seed-stops                   # dev-only: seed a day of orders/stops (dev server running)
 pnpm bb-sync                      # Bubble Box route sync worker (BB_FIXTURE_FILE=workers/dev-fixture.json for dev)
-supabase db push                  # apply migrations
+pnpm supabase start               # local Supabase stack (Docker)
+pnpm supabase stop                # stop it (state survives)
+pnpm supabase db reset            # re-apply all migrations + seed
 pnpm exec tsc --noEmit            # typecheck
 pnpm test                         # vitest unit suite (route-slice, geofence, ingest validation)
 docker compose up -d osrm         # routing engine (build the dataset first — see docker-compose.yml)
@@ -144,13 +146,13 @@ docker compose up -d osrm         # routing engine (build the dataset first — 
 
 Env: `.env.example` — `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`.
 
-**Demo against prod with fake-gps:** `fake-gps` is a local tool — it needs `SUPABASE_SECRET_KEY` (admin setup + reading stops), which must never live on the VPS. Run it from your machine but point its POSTs at the deployed ingest endpoint, with local OSRM up for route geometry (prod OSRM is internal-only). Since prod reuses the same managed Supabase project, the keys are identical and the fake vans appear on the real TV:
+**Demo against prod with fake-gps:** `fake-gps` is a local tool — it needs `SUPABASE_SECRET_KEY` (admin setup + reading stops), which must never live on the VPS. Dev `.env` now points at the local Supabase stack, so targeting prod means passing the cloud project's URL/keys inline for that one run (never stored in `.env` — they live in `.env.cloud`, gitignored). Run it from your machine but point its POSTs at the deployed ingest endpoint, with local OSRM up for route geometry (prod OSRM is internal-only):
 
 ```
-FAKE_GPS_API_URL=https://fleet.ysz.life/api/location pnpm fake-gps
+FAKE_GPS_API_URL=https://fleet.ysz.life/api/location NEXT_PUBLIC_SUPABASE_URL=... NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=... SUPABASE_SECRET_KEY=... pnpm fake-gps
 ```
 
-It writes into the shared Supabase, so a fake van and a real driver in the same city fight over one marker — use it for demos before real drivers stream, not alongside them.
+It writes into prod's Supabase, so a fake van and a real driver in the same city fight over one marker — use it for demos before real drivers stream, not alongside them.
 
 ## Milestones
 
