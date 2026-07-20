@@ -4,3 +4,5 @@
 
 # dotenvx decryption private key
 .env.keys
+.env.local
+.env.*.local
