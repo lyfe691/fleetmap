@@ -6,3 +6,7 @@ fleet.ysz.life {
 	encode zstd gzip
 	reverse_proxy app:3000
 }
+
+sb.fleet.ysz.life {
+	reverse_proxy kong:8000
+}

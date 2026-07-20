@@ -19,6 +19,9 @@ services:
       - caddy_config:/config
     depends_on:
       - app
+    networks:
+      - default
+      - fleetmap-edge
 
   app:
     build:
@@ -59,3 +62,7 @@ services:
 volumes:
   caddy_data:
   caddy_config:
+
+networks:
+  fleetmap-edge:
+    external: true
