@@ -29,7 +29,7 @@ const sizeStyles = {
   },
   lg: {
     list: "h-11 sm:h-12",
-    tab: "px-5 text-sm sm:text-base",
+    tab: "px-2 text-sm sm:px-2.5 sm:text-base",
     tabDense: "px-2 text-sm sm:px-2.5 sm:text-sm",
   },
 } as const
@@ -200,7 +200,7 @@ export function PillTabs({
                 : "text-muted-foreground hover:text-foreground/80"
             )}
           >
-            <span className="relative flex min-w-0 items-center justify-center gap-1">
+            <span className="relative flex min-w-0 items-center justify-center gap-1 whitespace-nowrap">
               {tab.label}
             </span>
           </motion.button>
