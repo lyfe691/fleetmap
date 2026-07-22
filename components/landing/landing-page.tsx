@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { ArrowRight, ClipboardList, Monitor } from "lucide-react"
+import { ArrowRight, Monitor } from "lucide-react"
 import { BubbleboxLogo } from "@/components/console/bubblebox-logo"
 import {
   Card,
@@ -26,12 +26,6 @@ const ENTRIES: Entry[] = [
     titleKey: "landing.dashboard.title",
     descKey: "landing.dashboard.desc",
     live: true,
-  },
-  {
-    href: "/dispatch",
-    icon: ClipboardList,
-    titleKey: "landing.dispatch.title",
-    descKey: "landing.dispatch.desc",
   },
 ]
 
@@ -66,7 +60,7 @@ export function LandingPage() {
         {/* Map language: traveled grey · remaining brand · stop dots · top-down van. */}
         <RouteVignette className="mx-auto mt-10 w-full max-w-xl sm:mt-12" />
 
-        <div className="mt-10 grid gap-4 sm:mt-12 sm:grid-cols-2 sm:gap-5">
+        <div className="mx-auto mt-10 w-full max-w-md sm:mt-12">
           {ENTRIES.map((entry) => (
             <LandingCard key={entry.href} entry={entry} />
           ))}

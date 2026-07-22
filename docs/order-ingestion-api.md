@@ -85,7 +85,6 @@ Body:
           "seq": 1,
           "lat": 47.3769,
           "lng": 8.5417,
-          "address": "Bahnhofstrasse 1, 8001 Zürich",
           "eta_at": "2026-07-03T09:00:00+02:00"
         }
       ]
@@ -108,8 +107,10 @@ Send an array — one call can carry many orders.
 | `stops[].stop_type` | **yes** | `"pickup"` or `"dropoff"`. |
 | `stops[].seq` | **yes** | Visit order within the order: pickup `1`, dropoff `2`. |
 | `stops[].lat` / `stops[].lng` | **yes** | Coordinates — see *Locations* below. |
-| `stops[].address` | no | Human-readable label, shown to dispatch. |
 | `stops[].eta_at` | no | ISO timestamp — the planned time window start, if you have one. |
+
+No address or other free-text location field exists — stops are coordinates
+only (nothing beyond `orderCode`-level data ever reaches the public screen).
 
 ### Idempotency (this is how updates work)
 
@@ -119,7 +120,7 @@ whatever you send. So:
 
 - Send the pickup today; send the same `external_ref` again next week with
   `pickup` + `dropoff` to add the return.
-- Correcting an address = re-send with the fixed value.
+- Correcting a coordinate or time = re-send with the fixed value.
 - There is no separate "update" call — create and update are the same request.
 
 > **Note:** re-sending replaces the whole stop list for that order, so always
@@ -150,22 +151,12 @@ second. `source` must match what you created it with.
 
 ---
 
-## ⚠ Open item — Locations
+## Locations
 
-The endpoint currently stores each stop as **coordinates** (`lat`/`lng`),
-because the map needs a point to draw. Your bookings capture **street
-addresses**. So we need to know:
-
-- **If your booking system already has coordinates** (many address-autocomplete
-  widgets return them) → send them as `lat`/`lng`, and `address` as the label.
-  Nothing more to do.
-- **If you only have the address string** → tell us. We'll add address→coordinate
-  resolution on our side, and you'd then send just the `address` field and skip
-  `lat`/`lng`. This is a small change on our end, but we need to build it before
-  you go live, so we need to know which case you're in.
-
-**This is the one thing that blocks finalizing the contract.** Everything else
-above is ready today.
+Each stop is stored as **coordinates** (`lat`/`lng`) — the map needs a point
+to draw, and no address/free-text field exists (0016 dropped it). A feed whose
+source only has street addresses must resolve them to coordinates before
+posting.
 
 ---
 

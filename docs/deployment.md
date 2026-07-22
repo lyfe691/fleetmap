@@ -247,7 +247,6 @@ nano .env
 | `OSRM_URL` | ignored here — compose overrides it to `http://osrm:5000` |
 | `DASHBOARD_EMAIL` / `DASHBOARD_PASSWORD` / `DASHBOARD_DISPLAY_CODE` | the TV gate identity + code |
 | `DISPATCHER_EMAIL` / `DISPATCHER_PASSWORD` / `DISPATCHER_INGEST_SECRET` | dispatcher identity + ingest secret |
-| `GEOFENCE_ARRIVE_RADIUS_M` / `GEOFENCE_DEPART_RADIUS_M` | keep defaults (60 / 120) |
 | `BB_API_URL` / `BB_API_USERNAME` / `BB_API_PASSWORD` | Bubble Box fleet API base + the fleet user that mints its 24 h token |
 
 This file is read for both the build (`NEXT_PUBLIC_*` gets baked into the

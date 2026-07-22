@@ -211,8 +211,14 @@ shared Supabase before the worker's heartbeat writes stop warning.)
   longer shared — dev runs the local CLI stack, prod self-hosts on the VPS.
   Local testing can't touch prod. (Staging BB creds live in the gitignored
   dev `.env`.)
-- **Remaining:** prod rollout (BB env on the VPS, `rider_ref` per real van,
-  ship images), prove it live, then the retirements in step 3 above.
+- **Remaining:** prod rollout (BB env on the VPS, provision the real fleet —
+  prod has no real driver identities yet — `rider_ref` per van, ship images),
+  prove it live, then merge the retirements.
+- **The retirements are already built** on branch `retire-dispatch-geofence`
+  (deletes `/dispatch` + geofence, migration 0016 drops the driver stop
+  policies + `stops.address`, console stop labels renamed to
+  `stop.*`/`stopStatus.*`). Merge after the first proven prod day — do not
+  re-execute step 3 from scratch.
 
 ## Working with Yanis (learned the hard way — saves you a round trip)
 

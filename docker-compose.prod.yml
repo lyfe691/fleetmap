@@ -31,7 +31,7 @@ services:
         NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
         NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY}
     restart: unless-stopped
-    env_file: .env       # server-only secrets read at runtime (DASHBOARD_*, DISPATCHER_*, OSRM_URL, GEOFENCE_*)
+    env_file: .env       # server-only secrets read at runtime (DASHBOARD_*, DISPATCHER_*, OSRM_URL)
     environment:
       OSRM_URL: http://osrm:5000   # reach OSRM by service name inside the stack
     expose:

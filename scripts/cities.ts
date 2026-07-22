@@ -18,7 +18,6 @@ export type CityStop = {
   stopType: "pickup" | "dropoff"
   lat: number
   lng: number
-  address: string
 }
 
 export type CityOrder = {
@@ -56,72 +55,72 @@ export const CITIES: City[] = [
         externalRef: "ZRH-001",
         customerName: "Müller",
         stops: [
-          { stopType: "pickup", lat: 47.3769, lng: 8.5417, address: "Bahnhofstrasse 1" },
-          { stopType: "dropoff", lat: 47.3886, lng: 8.5446, address: "Stampfenbachstrasse 52" },
+          { stopType: "pickup", lat: 47.3769, lng: 8.5417 },
+          { stopType: "dropoff", lat: 47.3886, lng: 8.5446 },
         ],
       },
       {
         externalRef: "ZRH-002",
         customerName: "Weber",
         stops: [
-          { stopType: "pickup", lat: 47.3654, lng: 8.5251, address: "Langstrasse 20" },
-          { stopType: "dropoff", lat: 47.3601, lng: 8.5302, address: "Brauerstrasse 12" },
+          { stopType: "pickup", lat: 47.3654, lng: 8.5251 },
+          { stopType: "dropoff", lat: 47.3601, lng: 8.5302 },
         ],
       },
       {
         externalRef: "ZRH-003",
         customerName: "Huber",
         stops: [
-          { stopType: "pickup", lat: 47.3565, lng: 8.5532, address: "Seefeldstrasse 123" },
-          { stopType: "dropoff", lat: 47.3667, lng: 8.5452, address: "Bellevueplatz 2" },
+          { stopType: "pickup", lat: 47.3565, lng: 8.5532 },
+          { stopType: "dropoff", lat: 47.3667, lng: 8.5452 },
         ],
       },
       {
         externalRef: "ZRH-004",
         customerName: "Meier",
         stops: [
-          { stopType: "pickup", lat: 47.3862, lng: 8.5479, address: "Universitätstrasse 84" },
-          { stopType: "dropoff", lat: 47.3941, lng: 8.5296, address: "Bucheggplatz 5" },
+          { stopType: "pickup", lat: 47.3862, lng: 8.5479 },
+          { stopType: "dropoff", lat: 47.3941, lng: 8.5296 },
         ],
       },
       {
         externalRef: "ZRH-005",
         customerName: "Fischer",
         stops: [
-          { stopType: "pickup", lat: 47.3906, lng: 8.5177, address: "Hönggerstrasse 40" },
-          { stopType: "dropoff", lat: 47.3928, lng: 8.5032, address: "Hardturmstrasse 253" },
+          { stopType: "pickup", lat: 47.3906, lng: 8.5177 },
+          { stopType: "dropoff", lat: 47.3928, lng: 8.5032 },
         ],
       },
       {
         externalRef: "ZRH-006",
         customerName: "Schneider",
         stops: [
-          { stopType: "pickup", lat: 47.3757, lng: 8.4992, address: "Badenerstrasse 329" },
-          { stopType: "dropoff", lat: 47.3729, lng: 8.4951, address: "Albisriederstrasse 199" },
+          { stopType: "pickup", lat: 47.3757, lng: 8.4992 },
+          { stopType: "dropoff", lat: 47.3729, lng: 8.4951 },
         ],
       },
       {
         externalRef: "ZRH-007",
         customerName: "Baumann",
         stops: [
-          { stopType: "pickup", lat: 47.3663, lng: 8.5079, address: "Birmensdorferstrasse 150" },
-          { stopType: "dropoff", lat: 47.3731, lng: 8.5441, address: "Limmatquai 92" },
+          { stopType: "pickup", lat: 47.3663, lng: 8.5079 },
+          { stopType: "dropoff", lat: 47.3731, lng: 8.5441 },
         ],
       },
       {
         externalRef: "ZRH-008",
         customerName: "Steiner",
         stops: [
-          { stopType: "pickup", lat: 47.3622, lng: 8.5731, address: "Klusplatz 1" },
-          { stopType: "dropoff", lat: 47.3558, lng: 8.5619, address: "Zollikerstrasse 87" },
+          { stopType: "pickup", lat: 47.3622, lng: 8.5731 },
+          { stopType: "dropoff", lat: 47.3558, lng: 8.5619 },
         ],
       },
       {
         externalRef: "ZRH-009",
         customerName: "Graf",
         stops: [
-          { stopType: "pickup", lat: 47.3963, lng: 8.5487, address: "Winterthurerstrasse 190" },
-          { stopType: "dropoff", lat: 47.4087, lng: 8.5441, address: "Schaffhauserstrasse 331" },
+          { stopType: "pickup", lat: 47.3963, lng: 8.5487 },
+          { stopType: "dropoff", lat: 47.4087, lng: 8.5441 },
         ],
       },
     ],
@@ -140,64 +139,64 @@ export const CITIES: City[] = [
         externalRef: "BRN-001",
         customerName: "Schmid",
         stops: [
-          { stopType: "pickup", lat: 46.948, lng: 7.4474, address: "Bundesplatz 3" },
-          { stopType: "dropoff", lat: 46.9512, lng: 7.4386, address: "Länggassstrasse 49" },
+          { stopType: "pickup", lat: 46.948, lng: 7.4474 },
+          { stopType: "dropoff", lat: 46.9512, lng: 7.4386 },
         ],
       },
       {
         externalRef: "BRN-002",
         customerName: "Keller",
         stops: [
-          { stopType: "pickup", lat: 46.9446, lng: 7.436, address: "Effingerstrasse 21" },
-          { stopType: "dropoff", lat: 46.9389, lng: 7.429, address: "Weissensteinstrasse 8" },
+          { stopType: "pickup", lat: 46.9446, lng: 7.436 },
+          { stopType: "dropoff", lat: 46.9389, lng: 7.429 },
         ],
       },
       {
         externalRef: "BRN-003",
         customerName: "Zbinden",
         stops: [
-          { stopType: "pickup", lat: 46.9479, lng: 7.4522, address: "Kramgasse 49" },
-          { stopType: "dropoff", lat: 46.9591, lng: 7.4529, address: "Breitenrainplatz 4" },
+          { stopType: "pickup", lat: 46.9479, lng: 7.4522 },
+          { stopType: "dropoff", lat: 46.9591, lng: 7.4529 },
         ],
       },
       {
         externalRef: "BRN-004",
         customerName: "Lehmann",
         stops: [
-          { stopType: "pickup", lat: 46.9642, lng: 7.4653, address: "Wankdorffeldstrasse 102" },
-          { stopType: "dropoff", lat: 46.9658, lng: 7.4592, address: "Papiermühlestrasse 71" },
+          { stopType: "pickup", lat: 46.9642, lng: 7.4653 },
+          { stopType: "dropoff", lat: 46.9658, lng: 7.4592 },
         ],
       },
       {
         externalRef: "BRN-005",
         customerName: "Hofer",
         stops: [
-          { stopType: "pickup", lat: 46.9412, lng: 7.4618, address: "Thunstrasse 63" },
-          { stopType: "dropoff", lat: 46.9437, lng: 7.4611, address: "Muristrasse 12" },
+          { stopType: "pickup", lat: 46.9412, lng: 7.4618 },
+          { stopType: "dropoff", lat: 46.9437, lng: 7.4611 },
         ],
       },
       {
         externalRef: "BRN-006",
         customerName: "Berger",
         stops: [
-          { stopType: "pickup", lat: 46.9328, lng: 7.4342, address: "Seftigenstrasse 41" },
-          { stopType: "dropoff", lat: 46.9284, lng: 7.4293, address: "Morillonstrasse 77" },
+          { stopType: "pickup", lat: 46.9328, lng: 7.4342 },
+          { stopType: "dropoff", lat: 46.9284, lng: 7.4293 },
         ],
       },
       {
         externalRef: "BRN-007",
         customerName: "Wyss",
         stops: [
-          { stopType: "pickup", lat: 46.9428, lng: 7.4211, address: "Freiburgstrasse 44" },
-          { stopType: "dropoff", lat: 46.9434, lng: 7.4323, address: "Belpstrasse 37" },
+          { stopType: "pickup", lat: 46.9428, lng: 7.4211 },
+          { stopType: "dropoff", lat: 46.9434, lng: 7.4323 },
         ],
       },
       {
         externalRef: "BRN-008",
         customerName: "Moser",
         stops: [
-          { stopType: "pickup", lat: 46.9557, lng: 7.4301, address: "Neufeldstrasse 9" },
-          { stopType: "dropoff", lat: 46.9433, lng: 7.4718, address: "Ostring 4" },
+          { stopType: "pickup", lat: 46.9557, lng: 7.4301 },
+          { stopType: "dropoff", lat: 46.9433, lng: 7.4718 },
         ],
       },
     ],
@@ -216,64 +215,64 @@ export const CITIES: City[] = [
         externalRef: "BAS-001",
         customerName: "Brunner",
         stops: [
-          { stopType: "pickup", lat: 47.5596, lng: 7.5886, address: "Marktplatz 9" },
-          { stopType: "dropoff", lat: 47.564, lng: 7.599, address: "Clarastrasse 57" },
+          { stopType: "pickup", lat: 47.5596, lng: 7.5886 },
+          { stopType: "dropoff", lat: 47.564, lng: 7.599 },
         ],
       },
       {
         externalRef: "BAS-002",
         customerName: "Frei",
         stops: [
-          { stopType: "pickup", lat: 47.553, lng: 7.58, address: "Steinenvorstadt 33" },
-          { stopType: "dropoff", lat: 47.548, lng: 7.576, address: "Gundeldingerstrasse 175" },
+          { stopType: "pickup", lat: 47.553, lng: 7.58 },
+          { stopType: "dropoff", lat: 47.548, lng: 7.576 },
         ],
       },
       {
         externalRef: "BAS-003",
         customerName: "Vogel",
         stops: [
-          { stopType: "pickup", lat: 47.5581, lng: 7.5829, address: "Spalenberg 65" },
-          { stopType: "dropoff", lat: 47.5611, lng: 7.5763, address: "Missionsstrasse 35" },
+          { stopType: "pickup", lat: 47.5581, lng: 7.5829 },
+          { stopType: "dropoff", lat: 47.5611, lng: 7.5763 },
         ],
       },
       {
         externalRef: "BAS-004",
         customerName: "Suter",
         stops: [
-          { stopType: "pickup", lat: 47.5678, lng: 7.5918, address: "Feldbergstrasse 42" },
-          { stopType: "dropoff", lat: 47.5697, lng: 7.5812, address: "Elsässerstrasse 40" },
+          { stopType: "pickup", lat: 47.5678, lng: 7.5918 },
+          { stopType: "dropoff", lat: 47.5697, lng: 7.5812 },
         ],
       },
       {
         externalRef: "BAS-005",
         customerName: "Wenger",
         stops: [
-          { stopType: "pickup", lat: 47.5512, lng: 7.5934, address: "Aeschenvorstadt 55" },
-          { stopType: "dropoff", lat: 47.5537, lng: 7.5992, address: "St. Alban-Vorstadt 12" },
+          { stopType: "pickup", lat: 47.5512, lng: 7.5934 },
+          { stopType: "dropoff", lat: 47.5537, lng: 7.5992 },
         ],
       },
       {
         externalRef: "BAS-006",
         customerName: "Roth",
         stops: [
-          { stopType: "pickup", lat: 47.5628, lng: 7.5613, address: "Burgfelderstrasse 190" },
-          { stopType: "dropoff", lat: 47.5571, lng: 7.5568, address: "Wasgenring 30" },
+          { stopType: "pickup", lat: 47.5628, lng: 7.5613 },
+          { stopType: "dropoff", lat: 47.5571, lng: 7.5568 },
         ],
       },
       {
         externalRef: "BAS-007",
         customerName: "Gerber",
         stops: [
-          { stopType: "pickup", lat: 47.5489, lng: 7.6049, address: "Hardstrasse 43" },
-          { stopType: "dropoff", lat: 47.5503, lng: 7.5966, address: "Sevogelstrasse 21" },
+          { stopType: "pickup", lat: 47.5489, lng: 7.6049 },
+          { stopType: "dropoff", lat: 47.5503, lng: 7.5966 },
         ],
       },
       {
         externalRef: "BAS-008",
         customerName: "Kaufmann",
         stops: [
-          { stopType: "pickup", lat: 47.5688, lng: 7.6041, address: "Riehenstrasse 90" },
-          { stopType: "dropoff", lat: 47.5443, lng: 7.5852, address: "Dornacherstrasse 192" },
+          { stopType: "pickup", lat: 47.5688, lng: 7.6041 },
+          { stopType: "dropoff", lat: 47.5443, lng: 7.5852 },
         ],
       },
     ],

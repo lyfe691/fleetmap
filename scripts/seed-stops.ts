@@ -86,7 +86,6 @@ function buildOrders(city: City, vehicleId: string, areaId: string, baseMs: numb
       seq: ++seq,
       lat: s.lat,
       lng: s.lng,
-      address: s.address,
       eta_at: new Date(
         baseMs + ETA_FIRST_OFFSET_MS + (seq - 1) * ETA_SPACING_MS
       ).toISOString(),

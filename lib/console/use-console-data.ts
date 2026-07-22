@@ -110,7 +110,7 @@ export function buildConsoleVehicles(
       nextStopProjectedMs: lateness.projectedArrivalMs,
       origin: ASSUMED_ORIGIN,
       dest: next
-        ? t(next.stop_type === "pickup" ? "dispatch.stop.pickup" : "dispatch.stop.dropoff")
+        ? t(next.stop_type === "pickup" ? "stop.pickup" : "stop.dropoff")
         : "—",
       etaText: hasActive ? (etaSec != null ? formatEta(etaSec) : "—") : t("rail.idle"),
       routeTimer: dayLeftSec != null ? hms(dayLeftSec) : "—",

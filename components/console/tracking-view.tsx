@@ -304,18 +304,18 @@ function StopRow({
   const done = !isActive(stop)
   const completed = stop.status === "completed"
   const typeLabel = t(
-    stop.stop_type === "pickup" ? "dispatch.stop.pickup" : "dispatch.stop.dropoff"
+    stop.stop_type === "pickup" ? "stop.pickup" : "stop.dropoff"
   )
   const statusKey =
     stop.status === "completed"
-      ? ("dispatch.status.completed" as const)
+      ? ("stopStatus.completed" as const)
       : stop.status === "arrived"
-        ? ("dispatch.status.arrived" as const)
+        ? ("stopStatus.arrived" as const)
         : stop.status === "failed"
-          ? ("dispatch.status.failed" as const)
+          ? ("stopStatus.failed" as const)
           : stop.status === "skipped"
-            ? ("dispatch.status.skipped" as const)
-            : ("dispatch.status.planned" as const)
+            ? ("stopStatus.skipped" as const)
+            : ("stopStatus.planned" as const)
 
   const etaMs = stop.eta_at ? Date.parse(stop.eta_at) : null
   const completedMs = stop.completed_at ? Date.parse(stop.completed_at) : null
