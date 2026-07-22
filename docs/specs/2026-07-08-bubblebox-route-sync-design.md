@@ -287,9 +287,13 @@ fetch happens every tick; it returns with the status tier.
 
 The dedicated API shipped on staging; everything previously unknown (URLs,
 field names, token mechanics, status enum, rider identifier) is documented in
-"Shipped API" above and wired in the worker/translator. Still open upstream:
-the slim status tier (`isShort`), error-stub objects for skipped routes, and
-confirming `rider.id` stays stable long-term.
+"Shipped API" above and wired in the worker/translator. Confirmed by Dmytro
+2026-07-22: `actualFulfillmentTime` is set by the rider's "done" button (the
+intended completion signal), `rider.id` is an immutable DB id, and the
+null-coordinate points were staging test-data artifacts. Still open upstream:
+the slim status tier (`isShort`), error-stub objects for skipped routes, prod
+deployment timing/credentials, and whether rider id numbers match between
+their staging and prod DBs.
 
 ## Testing
 

@@ -7,6 +7,12 @@ integration so the identity bridge folds into the same work as the M15 order
 sync instead of being an afterthought. Nothing here ships until the upstream
 token contract (below) is real.
 
+> **Reviewed 2026-07-22** (post M17 self-host, M18 real API, M19 retirements) —
+> the core design holds; see "2026-07-22 review" at the end for what today's
+> facts confirmed, what drifted, and the revised hosting recommendation
+> (internal exchange service instead of an Edge Function). Read that section
+> together with this spec before building.
+
 **Author's note:** the first draft of this spec recommended registering Bubble
 Box as a trusted Supabase third-party issuer (or using `signInWithIdToken` with a
 `bubblebox` provider). Review killed both: Supabase third-party auth is a closed
@@ -320,3 +326,71 @@ tier, generous limits above it); this exchange is called roughly once per driver
 per refresh-window, so volume is trivial. No new plan tier is required, unlike the
 Custom OIDC path (which is plan-gated on provider count). Worth a one-line check
 against the project's current plan at build time.
+
+---
+
+## 2026-07-22 review — the design against post-M17/M18/M19 reality
+
+**Verdict: the core survives untouched** — verify BB token → map via
+`rider_ref` → find-or-auto-provision the driver user → mint a Supabase
+session; zero RLS changes; the trust-scope analysis; all three rejected
+alternatives stay rejected. What changed is the environment around it.
+
+**Confirmed by M18 (facts, no longer assumptions):**
+
+- Bubble Box signs **RS256 JWTs today** — the fleet token endpoint
+  (`POST /api/v2/fleet/authentication-token`) returns one. The hinge question
+  ("can they issue a verifiable JWT?") is answered in principle; only the
+  public key (or a JWKS URL) is missing on our side.
+- The rider identifier is **settled**: `rider.id`, an immutable DB id, stored
+  as text in `vehicles.rider_ref` (M18). The sync populates and reads it.
+- Their token payload is **Lexik-style, not OIDC-style**: no `sub`, no `iss`,
+  no `aud` — payload is `{ iat, exp, admin: { uuid, username, fullName,
+  roles[], assignedLaundry, rider } }` (observed on our fleet token, where
+  `rider` is null). The spec's `iss`/`aud` claim-pinning maps onto reality as:
+  require the rider object (or whatever marks a rider login) and take the
+  rider id from it. **Ask Dmytro for one example rider-token payload** — the
+  rider marker and id location are the only unknowns left in the contract.
+  The ask shrinks accordingly: public key + example payload, probably zero
+  new build on his side.
+
+**Drifted — corrections to the text above:**
+
+- **Hosting: not an Edge Function anymore.** Neither stack runs the edge
+  runtime (the vendored `supabase-docker/` compose trimmed the service; local
+  `config.toml` has `[edge_runtime] enabled = false`), and the boundary the
+  Edge Function protected — "service key inside Supabase's environment, never
+  on the VPS" — dissolved in M17: the VPS *is* Supabase's environment now
+  (`SERVICE_ROLE_KEY` lives in `/opt/fleetmap/supabase-docker/.env`).
+  Re-adding a Deno runtime + Kong route for one small function is the wrong
+  trade on the 4 GB box. **Build the exchange as a small internal service in
+  `docker-compose.prod.yml` following the sync-worker pattern** (same
+  TypeScript toolchain, no public port, one Caddy route `/driver-session` →
+  the service), holding the service key in its env exactly as the edge
+  runtime container would have. Everything in "The exchange" applies
+  verbatim; only the box it runs in changes. Shipping this requires amending
+  CLAUDE.md's secret-key rule to name this service as the sanctioned holder
+  (never the Next app image).
+- **The shared dev/prod DB rule is gone** (M17): dev is the local CLI stack,
+  prod is self-hosted. The Testing section's "separate test function / never a
+  project-level test issuer" caution is moot — test freely against the local
+  stack with a hand-signed keypair; prod has its own stack.
+- **Policy citations:** 0016 (M19) dropped the driver *stop* policies (0004/
+  0005) with the geofence. The driver policies federation cares about are the
+  0001 vehicle/position ones (`assigned_user_id = auth.uid()`), which are
+  untouched — the "zero RLS changes" property stands, just over a smaller set.
+- **Auto-provisioning is now the primary path, not an optimization:** prod has
+  **no driver identities at all** (verified + demo data purged 2026-07-22),
+  so first federated login creating the driver user is how the real fleet
+  gets provisioned — no roster collection, no password distribution to Roman.
+  Go-live prep per van collapses to: create the vehicle row + set `rider_ref`.
+- **Sequencing opportunity:** Roman has not yet shipped the M17 re-point
+  (new Supabase URL + key). If the exchange service exists first, his update
+  becomes re-point + call-the-exchange in **one** release, and drivers never
+  hold Supabase passwords at any point. Strongly prefer this over two
+  releases.
+
+**Revised asks (deferred until Yanis opens the go-live conversation):**
+Dmytro — the RS256 public key (or JWKS URL) and one example rider-token
+payload; confirmation the rider id in it equals `rider.id` from the routes
+API. Roman — nothing until the exchange exists.
