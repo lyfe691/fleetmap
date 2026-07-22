@@ -1,11 +1,12 @@
 # Driver auth federation — kill the double-login
 
-**Date:** 2026-07-13 (rewritten after review) · **Status:** design only, not
-scheduled. Implementation is **blocked on Bubble Box** (Dmytro) and requires
-**Roman's** native app to change. This spec exists to get ahead of the
-integration so the identity bridge folds into the same work as the M15 order
-sync instead of being an afterthought. Nothing here ships until the upstream
-token contract (below) is real.
+**Date:** 2026-07-13 (rewritten after review) · **Status:** implemented
+2026-07-22 (M20) per the "2026-07-22 review" — `workers/driver-session.ts` +
+`lib/driver-auth/verify.ts`, E2E-proven locally against a stand-in keypair
+(existing-user path, auto-provision path, fleet-token and unmapped-rider
+rejections, RLS isolation). Live cutover still needs Bubble Box's real public
+key + a rider-token payload sample (Dmytro) and the app change
+(`docs/driver-session-api.md`, Roman).
 
 > **Reviewed 2026-07-22** (post M17 self-host, M18 real API, M19 retirements) —
 > the core design holds; see "2026-07-22 review" at the end for what today's

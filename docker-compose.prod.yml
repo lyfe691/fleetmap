@@ -50,6 +50,20 @@ services:
     depends_on:
       - app
 
+  driver-session:
+    build:
+      context: .
+      target: driver-session
+    restart: unless-stopped
+    # Deliberately NOT env_file: .env — this service is the only sanctioned
+    # holder of the Supabase secret key outside scripts/, and its secrets live
+    # in a separate file so they never enter the app container's environment.
+    env_file: .env.driver-session
+    environment:
+      NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+    expose:
+      - "3100"
+
   osrm:
     image: osrm/osrm-backend@sha256:af5d4a83fb90086a43b1ae2ca22872e6768766ad5fcbb07a29ff90ec644ee409
     command: osrm-routed --algorithm mld /data/switzerland-latest.osrm

@@ -51,3 +51,6 @@ next-env.d.ts
 # local-only handoff doc (contains client keys; shared privately, never committed)
 docs/driver-app-handoff.md
 /tmp
+
+# dev-only stand-in keypair for the driver-session exchange
+.driver-auth-dev/

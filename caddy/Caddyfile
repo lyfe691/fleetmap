@@ -4,7 +4,14 @@
 
 fleet.ysz.life {
 	encode zstd gzip
-	reverse_proxy app:3000
+	# Driver token exchange lives in its own internal service (the sanctioned
+	# secret-key holder) — one route, everything else goes to the app.
+	handle /api/driver-session {
+		reverse_proxy driver-session:3100
+	}
+	handle {
+		reverse_proxy app:3000
+	}
 }
 
 sb.fleet.ysz.life {

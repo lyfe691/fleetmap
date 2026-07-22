@@ -16,6 +16,8 @@
     "provision-driver": "tsx --env-file=.env scripts/provision-driver.ts",
     "seed-stops": "tsx --env-file=.env scripts/seed-stops.ts",
     "bb-sync": "tsx --env-file=.env workers/bubblebox-sync.ts",
+    "driver-session": "tsx --env-file=.env workers/driver-session.ts",
+    "driver-test-token": "tsx scripts/gen-driver-test-token.ts",
     "test": "vitest run",
     "test:watch": "vitest"
   },
@@ -31,6 +33,7 @@
     "clsx": "^2.1.1",
     "date-fns": "^4.4.0",
     "idb": "^8.0.3",
+    "jose": "^6.2.3",
     "lucide-react": "^1.18.0",
     "maplibre-gl": "^5.24.0",
     "motion": "^12.42.0",
