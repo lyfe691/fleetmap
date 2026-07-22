@@ -214,11 +214,13 @@ shared Supabase before the worker's heartbeat writes stop warning.)
 - **Remaining:** prod rollout (BB env on the VPS, provision the real fleet —
   prod has no real driver identities yet — `rider_ref` per van, ship images),
   prove it live, then merge the retirements.
-- **The retirements are already built** on branch `retire-dispatch-geofence`
-  (deletes `/dispatch` + geofence, migration 0016 drops the driver stop
-  policies + `stops.address`, console stop labels renamed to
-  `stop.*`/`stopStatus.*`). Merge after the first proven prod day — do not
-  re-execute step 3 from scratch.
+- **The retirements are done and merged to main** (2026-07-22): `/dispatch` +
+  geofence deleted, migration 0016 drops the driver stop policies +
+  `stops.address`, console stop labels renamed to `stop.*`/`stopStatus.*`.
+  Step 3 above is history — do not re-execute it. Prod still runs the
+  pre-retirement image and schema until the next image ship + 0016 `db push`
+  (either order is safe; the old code's geofence no-ops against the new
+  schema).
 
 ## Working with Yanis (learned the hard way — saves you a round trip)
 
