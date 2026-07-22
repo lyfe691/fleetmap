@@ -5,31 +5,31 @@ import {
   type BBStatusEntry,
 } from "./translate"
 
-// Data mirrors Dmytro's rider-app example (docs/bubblebox-rider-route-example.json),
-// reshaped to the agreed contract (spec: "Upstream contract").
+// Data mirrors the shipped fleet API (staging, 2026-07-22; sample response
+// checked in at docs/bubblebox-fleet-routes-example.json).
 const point = (over: Partial<BBRoute["routePoints"][number]> = {}) => ({
   type: "pickup",
   status: "processing",
   arrivalTime: "2026-07-08T08:00:00+02:00",
-  fulfilledAt: null,
-  latitude: 47.3245229,
-  longitude: 8.5065959,
+  actualFulfillmentTime: null,
+  latitude: "47.32452290",
+  longitude: "8.50659590",
   orders: [{ orderCode: "3AB-7RG", type: "pickup" as const }],
   ...over,
 })
 
 const route = (over: Partial<BBRoute> = {}): BBRoute => ({
-  riderRef: "rider_zurichcity1@bb.ch",
-  date: "2026-07-08",
+  rider: { id: 6, fullName: "Rider Zurich City 1" },
+  dueDate: "2026-07-08T00:00:00+02:00",
   type: "morning",
   routePoints: [point()],
   ...over,
 })
 
-const MAP = new Map([["rider_zurichcity1@bb.ch", "veh-1"]])
+const MAP = new Map([["6", "veh-1"]])
 
 describe("buildSyncPayloads", () => {
-  it("maps a pickup point to a pickup stop with eta from arrivalTime", () => {
+  it("maps a pickup point to a pickup stop, eta from arrivalTime, date from dueDate", () => {
     const { payloads } = buildSyncPayloads([route()], null, MAP)
     expect(payloads).toEqual([
       {
@@ -55,13 +55,13 @@ describe("buildSyncPayloads", () => {
     ])
   })
 
-  it("maps delivery to dropoff and done to completed with fulfilledAt", () => {
+  it("completes a stop when actualFulfillmentTime is set", () => {
     const r = route({
       routePoints: [
         point({
           type: "delivery",
           status: "done",
-          fulfilledAt: "2026-07-08T08:03:12+02:00",
+          actualFulfillmentTime: "2026-07-08T08:03:12+02:00",
           orders: [{ orderCode: "3AB-7RG", type: "delivery" }],
         }),
       ],
@@ -73,8 +73,29 @@ describe("buildSyncPayloads", () => {
     expect(stop.completed_at).toBe("2026-07-08T08:03:12+02:00")
   })
 
+  it("completes a picked_up pickup point (fulfillment time set, status not done)", () => {
+    const r = route({
+      routePoints: [
+        point({
+          status: "picked_up",
+          actualFulfillmentTime: "2026-07-08T08:05:00+02:00",
+        }),
+      ],
+    })
+    const { payloads } = buildSyncPayloads([r], null, MAP)
+    expect(payloads[0].orders[0].stops[0].status).toBe("completed")
+  })
+
+  it("keeps unfulfilled points planned whatever their pipeline status", () => {
+    for (const status of ["ready_for_delivery", "loaded_for_delivery", "somethingNew"]) {
+      const r = route({ routePoints: [point({ status })] })
+      const { payloads } = buildSyncPayloads([r], null, MAP)
+      expect(payloads[0].orders[0].stops[0].status).toBe("planned")
+    }
+  })
+
   it("skips depot points and sorts the rest by arrivalTime", () => {
-    // The real example lists endPoint FIRST — array order is untrustworthy.
+    // The real feed lists endPoint first and gives startPoint no arrivalTime.
     const r = route({
       routePoints: [
         point({ type: "endPoint", orders: [], arrivalTime: "2026-07-08T13:31:48+02:00" }),
@@ -86,7 +107,7 @@ describe("buildSyncPayloads", () => {
           arrivalTime: "2026-07-08T08:00:00+02:00",
           orders: [{ orderCode: "AAA-111", type: "pickup" }],
         }),
-        point({ type: "startPoint", orders: [], arrivalTime: "2026-07-08T05:49:28+02:00" }),
+        point({ type: "startPoint", orders: [], arrivalTime: undefined }),
       ],
     })
     const { payloads } = buildSyncPayloads([r], null, MAP)
@@ -150,7 +171,7 @@ describe("buildSyncPayloads", () => {
     ])
   })
 
-  it("applies status entries over the structure's point status", () => {
+  it("applies status entries over the structure's point data", () => {
     const statuses: BBStatusEntry[] = [
       {
         orderCode: "3AB-7RG",
@@ -165,12 +186,6 @@ describe("buildSyncPayloads", () => {
     expect(stop.completed_at).toBe("2026-07-08T08:10:00+02:00")
   })
 
-  it("treats unknown upstream statuses as planned", () => {
-    const r = route({ routePoints: [point({ status: "somethingNew" })] })
-    const { payloads } = buildSyncPayloads([r], null, MAP)
-    expect(payloads[0].orders[0].stops[0].status).toBe("planned")
-  })
-
   it("coerces string coordinates (their backend serializes decimals as strings)", () => {
     const r = route({
       routePoints: [point({ latitude: "47.32452290", longitude: "8.50659590" })],
@@ -181,17 +196,37 @@ describe("buildSyncPayloads", () => {
     expect(stop.lng).toBe(8.5065959)
   })
 
-  it("reports unmatched riders and emits empty payloads for route-less vehicles", () => {
+  it("drops null-coordinate points without consuming seq and reports them", () => {
+    const r = route({
+      routePoints: [
+        point({
+          latitude: null,
+          longitude: null,
+          orders: [{ orderCode: "NO-GEO", type: "pickup" }],
+        }),
+        point({
+          arrivalTime: "2026-07-08T09:00:00+02:00",
+          orders: [{ orderCode: "HAS-GEO", type: "pickup" }],
+        }),
+      ],
+    })
+    const { payloads, droppedOrderCodes } = buildSyncPayloads([r], null, MAP)
+    expect(droppedOrderCodes).toEqual(["NO-GEO"])
+    expect(payloads[0].orders.map((o) => o.external_ref)).toEqual(["HAS-GEO"])
+    expect(payloads[0].orders[0].stops[0].seq).toBe(1)
+  })
+
+  it("reports unmatched riders by id and name, emits empty payloads for route-less vehicles", () => {
     const map = new Map([
-      ["rider_zurichcity1@bb.ch", "veh-1"],
-      ["rider_basel1@bb.ch", "veh-2"],
+      ["6", "veh-1"],
+      ["13", "veh-2"],
     ])
     const { payloads, unmatchedRiders } = buildSyncPayloads(
-      [route(), route({ riderRef: "rider_unknown@bb.ch" })],
+      [route(), route({ rider: { id: 99, fullName: "Rider Nowhere" } })],
       null,
       map
     )
-    expect(unmatchedRiders).toEqual(["rider_unknown@bb.ch"])
+    expect(unmatchedRiders).toEqual(["99 (Rider Nowhere)"])
     const veh2 = payloads.find((p) => p.vehicleId === "veh-2")
     expect(veh2).toEqual({ vehicleId: "veh-2", orders: [] })
   })

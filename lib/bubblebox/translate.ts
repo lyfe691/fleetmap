@@ -1,6 +1,7 @@
-// Upstream shapes — the contract agreed with Bubble Box (spec: "Upstream
-// contract"). Field names may shift when their dedicated API lands; this
-// module is the only place that knows them.
+// Upstream shapes — Bubble Box's fleet API as shipped on staging 2026-07-22
+// (GET /api/v2/fleet/rider-routes; sample checked in at
+// docs/bubblebox-fleet-routes-example.json). This module is the only place
+// that knows their field names.
 export type BBPointOrder = {
   orderCode: string
   type: "pickup" | "delivery"
@@ -8,22 +9,29 @@ export type BBPointOrder = {
 
 export type BBRoutePoint = {
   type: string // pickup | delivery | collective | startPoint | endPoint
-  status: string // processing | done | … (full enum pending)
-  arrivalTime: string
-  fulfilledAt?: string | null
-  // Their backend serializes decimals as strings ("47.32452290") — accept both.
-  latitude: number | string
-  longitude: number | string
+  // Order-lifecycle status projected onto the point (processing | done |
+  // picked_up | ready_for_delivery | loaded_for_delivery). Stop completion is
+  // keyed on actualFulfillmentTime instead — set exactly when the rider
+  // fulfilled the point, whatever the status string says.
+  status: string
+  arrivalTime?: string | null // absent on startPoint
+  actualFulfillmentTime?: string | null
+  // Their backend serializes decimals as strings ("47.32452290") — accept
+  // both. A few points arrive with null coordinates (geocoding gaps).
+  latitude: number | string | null
+  longitude: number | string | null
   orders: BBPointOrder[]
 }
 
 export type BBRoute = {
-  riderRef: string
-  date: string
+  rider: { id: number; fullName: string }
+  dueDate: string // datetime at Zurich midnight — the date part is the day
   type: "morning" | "evening"
   routePoints: BBRoutePoint[]
 }
 
+// Slim status tier — not shipped yet (the full endpoint is cheap enough to
+// poll); kept for the isShort/status endpoint Dmytro floated.
 export type BBStatusEntry = {
   orderCode: string
   type: "pickup" | "delivery"
@@ -51,12 +59,6 @@ export type SyncPayload = { vehicleId: string; orders: SyncOrder[] }
 
 const DEPOT_TYPES = new Set(["startPoint", "endPoint"])
 
-// Anything not "done" (including statuses we haven't seen yet) renders as a
-// pending stop — wrong-but-safe until the full upstream enum is known.
-function mapStatus(upstream: string): "planned" | "completed" {
-  return upstream === "done" ? "completed" : "planned"
-}
-
 function statusKey(orderCode: string, type: "pickup" | "delivery"): string {
   return `${orderCode}:${type}`
 }
@@ -65,23 +67,29 @@ function statusKey(orderCode: string, type: "pickup" | "delivery"): string {
  * Pure translation: rider routes (+ optional fresher status entries) → one
  * PUT payload per mapped vehicle. Every vehicle in riderToVehicle gets a
  * payload — an empty orders list is how a van's synced stops are cleared when
- * its routes vanish. Riders with no matching vehicle are reported, not
- * silently dropped.
+ * its routes vanish. Riders with no matching vehicle and points unusable as
+ * stops (no coordinates or no arrival time) are reported, not silently
+ * dropped. riderToVehicle is keyed on the rider id as text — what
+ * vehicles.rider_ref holds.
  */
 export function buildSyncPayloads(
   routes: BBRoute[],
   statuses: BBStatusEntry[] | null,
   riderToVehicle: Map<string, string>
-): { payloads: SyncPayload[]; unmatchedRiders: string[] } {
+): {
+  payloads: SyncPayload[]
+  unmatchedRiders: string[]
+  droppedOrderCodes: string[]
+} {
   const overrides = new Map<string, BBStatusEntry>()
   for (const s of statuses ?? []) overrides.set(statusKey(s.orderCode, s.type), s)
 
   const routesByVehicle = new Map<string, BBRoute[]>()
   const unmatched = new Set<string>()
   for (const r of routes) {
-    const vehicleId = riderToVehicle.get(r.riderRef)
+    const vehicleId = riderToVehicle.get(String(r.rider.id))
     if (!vehicleId) {
-      unmatched.add(r.riderRef)
+      unmatched.add(`${r.rider.id} (${r.rider.fullName})`)
       continue
     }
     const list = routesByVehicle.get(vehicleId) ?? []
@@ -90,26 +98,34 @@ export function buildSyncPayloads(
   }
 
   const payloads: SyncPayload[] = []
+  const dropped: string[] = []
   for (const vehicleId of riderToVehicle.values()) {
     const vehicleRoutes = routesByVehicle.get(vehicleId) ?? []
 
-    const points = vehicleRoutes
-      .flatMap((r) =>
-        r.routePoints
-          .filter((p) => !DEPOT_TYPES.has(p.type) && p.orders.length > 0)
-          .map((p) => ({ point: p, date: r.date }))
-      )
-      .sort(
-        (a, b) => Date.parse(a.point.arrivalTime) - Date.parse(b.point.arrivalTime)
-      )
+    const points: { point: BBRoutePoint; date: string }[] = []
+    for (const r of vehicleRoutes) {
+      for (const point of r.routePoints) {
+        if (DEPOT_TYPES.has(point.type) || point.orders.length === 0) continue
+        if (point.latitude == null || point.longitude == null || !point.arrivalTime) {
+          for (const po of point.orders) dropped.push(po.orderCode)
+          continue
+        }
+        points.push({ point, date: r.dueDate.slice(0, 10) })
+      }
+    }
+    points.sort(
+      (a, b) =>
+        Date.parse(a.point.arrivalTime ?? "") - Date.parse(b.point.arrivalTime ?? "")
+    )
 
     const orders = new Map<string, SyncOrder>()
     let seq = 0
     for (const { point, date } of points) {
       for (const po of point.orders) {
         const override = overrides.get(statusKey(po.orderCode, po.type))
-        const status = mapStatus(override?.status ?? point.status)
-        const fulfilledAt = override?.fulfilledAt ?? point.fulfilledAt ?? null
+        const completedAt = override
+          ? (override.fulfilledAt ?? null)
+          : (point.actualFulfillmentTime ?? null)
 
         const order = orders.get(po.orderCode) ?? {
           external_ref: po.orderCode,
@@ -121,9 +137,9 @@ export function buildSyncPayloads(
           seq: ++seq,
           lat: Number(point.latitude),
           lng: Number(point.longitude),
-          status,
-          eta_at: point.arrivalTime,
-          completed_at: status === "completed" ? fulfilledAt : null,
+          status: completedAt ? "completed" : "planned",
+          eta_at: point.arrivalTime ?? "",
+          completed_at: completedAt,
         })
         orders.set(po.orderCode, order)
       }
@@ -132,5 +148,9 @@ export function buildSyncPayloads(
     payloads.push({ vehicleId, orders: [...orders.values()] })
   }
 
-  return { payloads, unmatchedRiders: [...unmatched] }
+  return {
+    payloads,
+    unmatchedRiders: [...unmatched],
+    droppedOrderCodes: dropped,
+  }
 }

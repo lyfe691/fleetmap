@@ -8,16 +8,14 @@
  * VPS, so it never sees the Supabase secret key. Vehicles are read via
  * PostgREST as the dispatcher (select policy 0007).
  *
- * Until the dedicated Bubble Box API exists, BB_FIXTURE_FILE feeds the
- * structure fetch from a local JSON (BBRoute[]); statuses are null in
- * fixture mode.
+ * Bubble Box side: BB_API_URL + BB_API_USERNAME/BB_API_PASSWORD mint a 24 h
+ * token (re-minted on 401) for GET /api/v2/fleet/rider-routes. There is no
+ * slim status endpoint yet, so the full routes endpoint is fetched every tick
+ * — it is the only status source. BB_FIXTURE_FILE feeds the fetch from a
+ * local JSON (BBRoute[]) instead.
  */
 import { readFileSync } from "node:fs"
-import {
-  buildSyncPayloads,
-  type BBRoute,
-  type BBStatusEntry,
-} from "../lib/bubblebox/translate"
+import { buildSyncPayloads, type BBRoute } from "../lib/bubblebox/translate"
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
 const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
@@ -31,12 +29,16 @@ if (!SUPABASE_URL || !SUPABASE_KEY || !INGEST_SECRET) {
 
 const API = process.env.FLEETMAP_API_URL ?? "http://localhost:3000"
 const BB_API_URL = process.env.BB_API_URL
+const BB_USERNAME = process.env.BB_API_USERNAME
+const BB_PASSWORD = process.env.BB_API_PASSWORD
 const FIXTURE = process.env.BB_FIXTURE_FILE
 const SYNC_MS = Number(process.env.BB_SYNC_INTERVAL_MS ?? 60_000)
-const STRUCTURE_MS = Number(process.env.BB_STRUCTURE_INTERVAL_MS ?? 900_000)
 
-if (!BB_API_URL && !FIXTURE) {
-  throw new Error("Set BB_API_URL (real feed) or BB_FIXTURE_FILE (dev).")
+if (!FIXTURE && !(BB_API_URL && BB_USERNAME && BB_PASSWORD)) {
+  throw new Error(
+    "Set BB_API_URL + BB_API_USERNAME + BB_API_PASSWORD (real feed) " +
+      "or BB_FIXTURE_FILE (dev)."
+  )
 }
 
 // Their day boundary is local Swiss time, not UTC.
@@ -162,44 +164,57 @@ async function writeHeartbeat(
 }
 
 // --- Bubble Box side ---------------------------------------------------------
-// Final wiring (URLs, token endpoint, field names) lands when their dedicated
-// API ships — see the spec's open item. Fixture mode covers everything else.
+
+let bbToken: string | null = null
+
+async function mintBBToken(): Promise<string> {
+  const res = await fetch(`${BB_API_URL}/api/v2/fleet/authentication-token`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username: BB_USERNAME, password: BB_PASSWORD }),
+  })
+  if (!res.ok) throw new Error(`BB token denied (${res.status})`)
+  const body = (await res.json()) as { data?: { loginToken?: string } }
+  if (!body.data?.loginToken) {
+    throw new Error("BB token response missing data.loginToken")
+  }
+  return body.data.loginToken
+}
 
 async function fetchStructure(date: string): Promise<BBRoute[]> {
   if (FIXTURE) {
     return JSON.parse(readFileSync(FIXTURE, "utf8")) as BBRoute[]
   }
-  throw new Error(`BB routes endpoint not wired yet (date=${date})`)
-}
-
-async function fetchStatuses(date: string): Promise<BBStatusEntry[] | null> {
-  if (FIXTURE) return null
-  throw new Error(`BB status endpoint not wired yet (date=${date})`)
+  // Explicit bounds on both ends — their no-param default also means today,
+  // but resolved in their server's idea of it.
+  const url =
+    `${BB_API_URL}/api/v2/fleet/rider-routes` +
+    `?dueDate[notEarlier]=${date}&dueDate[notLater]=${date}`
+  bbToken ??= await mintBBToken()
+  let res = await fetch(url, { headers: { accessToken: bbToken } })
+  if (res.status === 401) {
+    bbToken = await mintBBToken()
+    res = await fetch(url, { headers: { accessToken: bbToken } })
+  }
+  if (!res.ok) throw new Error(`BB routes fetch failed (${res.status})`)
+  return (await res.json()) as BBRoute[]
 }
 
 // --- Loop --------------------------------------------------------------------
 
-let structure: BBRoute[] = []
-let structureAt = 0
-
 async function tick(): Promise<void> {
-  const today = zurichToday()
-  // Fixture mode re-reads every tick — the file is both structure and status
-  // source, and edits should show up on the next tick, not in 15 minutes.
-  if (FIXTURE || Date.now() - structureAt >= STRUCTURE_MS || structure.length === 0) {
-    structure = await fetchStructure(today)
-    structureAt = Date.now()
-  }
-  const statuses = await fetchStatuses(today)
-
+  const structure = await fetchStructure(zurichToday())
   const riderMap = await withToken(fetchRiderMap)
-  const { payloads, unmatchedRiders } = buildSyncPayloads(
+  const { payloads, unmatchedRiders, droppedOrderCodes } = buildSyncPayloads(
     structure,
-    statuses,
+    null,
     riderMap
   )
   if (unmatchedRiders.length > 0) {
     log("warn", "unmatched_riders", { riders: unmatchedRiders })
+  }
+  if (droppedOrderCodes.length > 0) {
+    log("warn", "dropped_stops", { orderCodes: droppedOrderCodes })
   }
 
   for (const p of payloads) {

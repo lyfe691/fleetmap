@@ -186,6 +186,34 @@ shared Supabase before the worker's heartbeat writes stop warning.)
   simply gets dropped during the `/dispatch` retirement (the sync never writes
   it; only the dormant form and dev seeds do).
 
+## Post-handoff additions (2026-07-22) — the API shipped and is wired
+
+- **Dmytro delivered** the fleet API on staging and it was wired the same
+  day. The contract as built is documented in the spec's "Shipped API"
+  section (+ real sample: `docs/bubblebox-fleet-routes-example.json`) — it
+  superseded parts of "The agreed upstream contract" above: there is **no
+  slim status endpoint** (the full endpoint is polled every tick; `isShort`
+  is his future idea), auth is a custom `accessToken` header (24 h token
+  from `BB_API_USERNAME`/`BB_API_PASSWORD` — `BB_API_CREDENTIALS` and
+  `BB_STRUCTURE_INTERVAL_MS` no longer exist), `vehicles.rider_ref` holds
+  the **numeric `rider.id` as text**, and stop completion is keyed on
+  `actualFulfillmentTime` presence, not the status string (the enum —
+  `processing/done/picked_up/ready_for_delivery/loaded_for_delivery` — is
+  the order lifecycle projected onto points).
+- **E2E-proven against staging** with the local stack: real orders landed on
+  a mapped van, stop ids stayed stable across ticks (diff-apply intact),
+  old fixture orders were garbage-collected, heartbeat + `/api/health`
+  fresh; a year of staging routes through the translator produced 643
+  stops with the completed⟺completed_at invariant exact and only the 4
+  known null-coordinate points dropped (reported via the `dropped_stops`
+  warn log).
+- **One trap above is now stale:** since M17 the Supabase project is no
+  longer shared — dev runs the local CLI stack, prod self-hosts on the VPS.
+  Local testing can't touch prod. (Staging BB creds live in the gitignored
+  dev `.env`.)
+- **Remaining:** prod rollout (BB env on the VPS, `rider_ref` per real van,
+  ship images), prove it live, then the retirements in step 3 above.
+
 ## Working with Yanis (learned the hard way — saves you a round trip)
 
 - He defers engineering calls but wants a **decisive recommendation**, not an

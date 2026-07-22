@@ -20,10 +20,10 @@ phone / browser ──HTTPS──> Caddy (:443) ──> Next app (:3000) ──>
 - **OSRM** — routing engine, Switzerland extract, internal-only.
 - **sync** — Bubble Box route sync worker, internal-only (no port). Polls
   their API and mirrors rider routes into orders/stops via
-  `PUT /api/ingest/vehicle-routes`. Needs `BB_API_URL` + `BB_API_CREDENTIALS`
-  in `/opt/fleetmap/.env` (empty = the service exits on boot; that's fine
-  until Bubble Box ships their API). Map each van once:
-  `update vehicles set rider_ref = '<their rider id>' where id = …`.
+  `PUT /api/ingest/vehicle-routes`. Needs `BB_API_URL` + `BB_API_USERNAME` +
+  `BB_API_PASSWORD` in `/opt/fleetmap/.env` (empty = the service exits on
+  boot until they're set). Map each van once:
+  `update vehicles set rider_ref = '<numeric rider id>' where id = …`.
 - **Supabase stack** (`supabase-docker/`) — the official self-hosted compose,
   vendored into the repo (pinned, trimmed). Runs `db` (Postgres 17 +
   pg_cron), `kong` (API gateway), `auth`, `rest` (PostgREST), `realtime`,
@@ -248,7 +248,7 @@ nano .env
 | `DASHBOARD_EMAIL` / `DASHBOARD_PASSWORD` / `DASHBOARD_DISPLAY_CODE` | the TV gate identity + code |
 | `DISPATCHER_EMAIL` / `DISPATCHER_PASSWORD` / `DISPATCHER_INGEST_SECRET` | dispatcher identity + ingest secret |
 | `GEOFENCE_ARRIVE_RADIUS_M` / `GEOFENCE_DEPART_RADIUS_M` | keep defaults (60 / 120) |
-| `BB_API_URL` / `BB_API_CREDENTIALS` | Bubble Box route sync — empty until their API ships |
+| `BB_API_URL` / `BB_API_USERNAME` / `BB_API_PASSWORD` | Bubble Box fleet API base + the fleet user that mints its 24 h token |
 
 This file is read for both the build (`NEXT_PUBLIC_*` gets baked into the
 client bundle — see §7) and the runtime (everything else, via `env_file` in

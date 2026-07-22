@@ -1,0 +1,156 @@
+[
+  {
+    "rider": {
+      "id": 6,
+      "fullName": "Rider Zurich City 1"
+    },
+    "dueDate": "2026-07-22T00:00:00+02:00",
+    "type": "morning",
+    "routePoints": [
+      {
+        "type": "startPoint",
+        "status": "processing",
+        "departureTime": "2026-07-22T07:37:07+02:00",
+        "arrivalTime": null,
+        "actualFulfillmentTime": null,
+        "latitude": "47.41180020",
+        "longitude": "8.61455480",
+        "orders": []
+      },
+      {
+        "type": "endPoint",
+        "status": "processing",
+        "departureTime": null,
+        "arrivalTime": "2026-07-22T08:51:27+02:00",
+        "actualFulfillmentTime": null,
+        "latitude": "47.41180020",
+        "longitude": "8.61455480",
+        "orders": []
+      },
+      {
+        "type": "collective",
+        "status": "processing",
+        "departureTime": "2026-07-22T08:05:00+02:00",
+        "arrivalTime": "2026-07-22T08:00:00+02:00",
+        "actualFulfillmentTime": null,
+        "latitude": "47.36002830",
+        "longitude": "8.51679420",
+        "orders": [
+          {
+            "orderCode": "MXX-E9Y",
+            "type": "delivery"
+          },
+          {
+            "orderCode": "A1F-XXU",
+            "type": "pickup"
+          }
+        ]
+      },
+      {
+        "type": "pickup",
+        "status": "processing",
+        "departureTime": "2026-07-22T08:22:11+02:00",
+        "arrivalTime": "2026-07-22T08:17:11+02:00",
+        "actualFulfillmentTime": null,
+        "latitude": "47.32452290",
+        "longitude": "8.50659590",
+        "orders": [
+          {
+            "orderCode": "0AH-QBR",
+            "type": "delivery"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "rider": {
+      "id": 6,
+      "fullName": "Rider Zurich City 1"
+    },
+    "dueDate": "2026-07-22T00:00:00+02:00",
+    "type": "evening",
+    "routePoints": [
+      {
+        "type": "startPoint",
+        "status": "processing",
+        "departureTime": "2026-07-22T17:29:41+02:00",
+        "arrivalTime": null,
+        "actualFulfillmentTime": null,
+        "latitude": "47.41180020",
+        "longitude": "8.61455480",
+        "orders": []
+      },
+      {
+        "type": "endPoint",
+        "status": "processing",
+        "departureTime": null,
+        "arrivalTime": "2026-07-22T18:34:16+02:00",
+        "actualFulfillmentTime": null,
+        "latitude": "47.41180020",
+        "longitude": "8.61455480",
+        "orders": []
+      }
+    ]
+  },
+  {
+    "rider": {
+      "id": 9,
+      "fullName": "Rider Zurich City 2 (Morgen Mo/Mi/Fr; Abend Di/Do)"
+    },
+    "dueDate": "2026-07-22T00:00:00+02:00",
+    "type": "morning",
+    "routePoints": [
+      {
+        "type": "startPoint",
+        "status": "processing",
+        "departureTime": "2026-07-22T07:49:34+02:00",
+        "arrivalTime": null,
+        "actualFulfillmentTime": null,
+        "latitude": "47.41180020",
+        "longitude": "8.61455480",
+        "orders": []
+      },
+      {
+        "type": "endPoint",
+        "status": "processing",
+        "departureTime": null,
+        "arrivalTime": "2026-07-22T08:17:38+02:00",
+        "actualFulfillmentTime": null,
+        "latitude": "47.41180020",
+        "longitude": "8.61455480",
+        "orders": []
+      }
+    ]
+  },
+  {
+    "rider": {
+      "id": 25,
+      "fullName": "Rider Zurich City 2 (Morgen Di/Do; Abend Mo/Mi/Fr)"
+    },
+    "dueDate": "2026-07-22T00:00:00+02:00",
+    "type": "evening",
+    "routePoints": [
+      {
+        "type": "startPoint",
+        "status": "processing",
+        "departureTime": "2026-07-22T00:00:00+02:00",
+        "arrivalTime": null,
+        "actualFulfillmentTime": null,
+        "latitude": "47.41180020",
+        "longitude": "8.61455480",
+        "orders": []
+      },
+      {
+        "type": "endPoint",
+        "status": "processing",
+        "departureTime": null,
+        "arrivalTime": "2026-07-22T23:59:59+02:00",
+        "actualFulfillmentTime": null,
+        "latitude": "47.41180020",
+        "longitude": "8.61455480",
+        "orders": []
+      }
+    ]
+  }
+]

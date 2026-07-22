@@ -1,6 +1,6 @@
 # Bubble Box route sync — orders arrive by pull
 
-**Date:** 2026-07-08 · **Status:** implemented in fixture mode — real endpoint wiring pending Bubble Box
+**Date:** 2026-07-08 · **Status:** wired against the shipped staging API (2026-07-22) — see "Shipped API" for the contract as built
 
 ## Why
 
@@ -127,6 +127,48 @@ riders for a date (no per-rider enumeration on our side). If any of this is
 inconvenient for him, the example's shape works too — the worker just does
 more joining.
 
+## Shipped API (2026-07-22) — the contract as built
+
+Dmytro shipped the dedicated fleet API on staging (`https://upgrade.bubblebox.ch`)
+close to the proposed shape: plain JSON array, coordinates on the point, orders
+slimmed to `{orderCode, type}`, **no customer PII in the payload at all**.
+Sample response: `docs/bubblebox-fleet-routes-example.json`. Deltas vs the
+proposal, all reflected in `lib/bubblebox/translate.ts`:
+
+```
+POST /api/v2/fleet/authentication-token   { username, password }
+  → { data: { loginToken }, status }     RS256 JWT, 24 h expiry,
+                                          role ROLE_FLEET_OPERATOR
+GET  /api/v2/fleet/rider-routes?dueDate[notEarlier]=D&dueDate[notLater]=D
+  header accessToken: <loginToken>        (custom header, not Authorization)
+  → [ { rider: { id, fullName }, dueDate, type, routePoints: [...] } ]
+```
+
+- `riderRef` became `rider: { id, fullName }` — `vehicles.rider_ref` holds the
+  numeric id as text.
+- `date` became `dueDate`, a datetime at Zurich midnight; the date part is the
+  business day.
+- `fulfilledAt` became `actualFulfillmentTime`, and it is the completion
+  signal: the status enum (`processing | done | picked_up |
+  ready_for_delivery | loaded_for_delivery`) is the *order* lifecycle
+  projected onto points — `picked_up` on a fulfilled pickup point, pipeline
+  states on unfulfilled delivery points. A stop is completed iff
+  `actualFulfillmentTime` is set (verified across a year of staging data:
+  exactly the fulfilled points carry it).
+- A few points arrive with null coordinates (geocoding gaps upstream) —
+  translated stops are dropped and reported, never sent to ingest.
+- `startPoint` carries no `arrivalTime` (depots are filtered anyway).
+- **No slim status endpoint yet** — the two-tier split collapsed to polling
+  the full endpoint every tick (a year of routes is ~330 KB / 0.6 s, one day
+  a few KB, so size is a non-issue). The `BBStatusEntry` override path stays
+  in the translator for the `isShort`/status tier Dmytro floated.
+- Omitting the date params also means "today", but resolved server-side; the
+  worker passes both bounds explicitly with its Europe/Zurich date. Invalid
+  intervals are silently coerced to today on their side.
+- Upstream fetch/mapping failures silently omit that route from the response
+  (their choice, may become error-stub objects later) — indistinguishable
+  from a cleared route for us, converging on the next good tick.
+
 ## Translation — rider route → orders + stops
 
 Semantics established by Dmytro's rider-app example response
@@ -230,25 +272,24 @@ future migration.
 ## Config
 
 ```
-BB_API_URL                # Bubble Box API base
-BB_API_CREDENTIALS        # for their token endpoint — exact shape pending Dmytro
-BB_SYNC_INTERVAL_MS       # status poll, default 60000
-BB_STRUCTURE_INTERVAL_MS  # full-routes fetch, default 900000
+BB_API_URL                # Bubble Box API base (staging: https://upgrade.bubblebox.ch)
+BB_API_USERNAME           # fleet user for their token endpoint
+BB_API_PASSWORD           #   (24 h token, re-minted on 401)
+BB_SYNC_INTERVAL_MS       # poll cadence, default 60000
 FLEETMAP_API_URL          # ingest target (http://app:3000 in the stack; dev: localhost)
 DISPATCHER_INGEST_SECRET  # already exists
 ```
 
-## Open item — blocked on Dmytro
+`BB_STRUCTURE_INTERVAL_MS` is gone — with no slim status endpoint the full
+fetch happens every tick; it returns with the status tier.
 
-**The dedicated API's concrete details.** The shape is agreed in principle
-(three endpoints, two-tier fetch — above); what lands with Dmytro's
-implementation: final URLs and field names, token endpoint mechanics, the
-full status enum, and which `riderRef` he picks (that choice defines what
-`vehicles.rider_ref` holds).
+## Open item — resolved 2026-07-22
 
-This blocks nothing structural: worker, translator, RPC, endpoint, and
-migration are all buildable against the proposed shape with the fixture as
-test data — only the fetch wiring and final field names land with his API.
+The dedicated API shipped on staging; everything previously unknown (URLs,
+field names, token mechanics, status enum, rider identifier) is documented in
+"Shipped API" above and wired in the worker/translator. Still open upstream:
+the slim status tier (`isShort`), error-stub objects for skipped routes, and
+confirming `rider.id` stays stable long-term.
 
 ## Testing
 
