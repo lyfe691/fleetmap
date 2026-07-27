@@ -358,6 +358,33 @@ Consequences worth knowing:
 - Both slimmed images were re-verified with the full E2E above before shipping,
   not just rebuilt.
 
+### The prod happy path is proven too (2026-07-27)
+
+M20 shipped and the exchange answers on `https://fleet.ysz.life/api/driver-session`
+(401 invalid / 400 missing / 405 GET). Beyond the rejection paths, the full
+success path was exercised against **prod** using the dev stand-in key, which
+prod trusts until Dmytro's key replaces it:
+
+A throwaway `vehicles` row (`rider_ref = '999999'`, no `assigned_user_id`) was
+inserted straight on the box, a locally-signed rider token was POSTed to the
+public endpoint, and it returned `200` with `access_token` + `refresh_token`.
+The DB then showed `assigned_user_id` set, a new
+`rider-999999@driver.fleetmap.internal` user, and — after using that
+`access_token` as the Bearer for `POST /api/location` — the coordinates on the
+vehicle row plus one `vehicle_positions` record. Van, user, and position were
+deleted afterwards; prod is back to zero vehicles and the three original
+identities.
+
+So Caddy routing, RS256 verification, the `rider_ref` lookup, first-login
+auto-provisioning, the GoTrue magiclink mint, and prod RLS are all confirmed
+working together. The only untested variable left is Dmytro's actual key and
+the real rider payload shape, and swapping the key is an edit to
+`.env.driver-session` plus `up -d driver-session`.
+
+DB access for this used
+`docker compose -f supabase-docker/docker-compose.yml exec -T db psql -U postgres -d postgres -c "…"`
+on the VPS — no tunnel, and no prod secret leaves the box.
+
 **Everything else is blocked on two messages that were never sent** (deferred
 on 07-22, then Yanis was ill for five days): Dmytro owes go-live on the prod
 fleet API plus the RS256 public key and a rider-token payload sample; Roman
