@@ -139,6 +139,11 @@ shared Supabase before the worker's heartbeat writes stop warning.)
 
 **4. Independent of all this:** telematics integrate-or-drop decision
 (placeholder panels in `lib/console/assumed.ts`).
+> **Settled, and this item is dead** (2026-07-13, re-verified 2026-07-27):
+> dropped. The fabricated panels were deleted rather than faked, load is
+> derived from real stop data, distance is a real aggregate (0010). All that
+> remains in `assumed.ts` is the `"Depot"` label. Weight/temperature/fuel would
+> need hardware the fleet does not have. Do not resurrect this as a task.
 
 ## Invariants and traps (the section to actually memorize)
 
