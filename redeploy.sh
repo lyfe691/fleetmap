@@ -22,5 +22,11 @@ fi
 echo "==> up (no build)"
 $compose up -d --no-build
 
+# The Caddyfile is bind-mounted, so `up` leaves a running Caddy on its old
+# config and new routes 404 into the app. Reload it every time.
+echo "==> reload caddy config"
+$compose exec -T caddy caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile \
+  || $compose restart caddy
+
 echo "==> status"
 $compose ps

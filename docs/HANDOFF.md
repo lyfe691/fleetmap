@@ -276,6 +276,24 @@ Dmytro's prod credentials went into `.env`, and it would have looked like his
 API was the problem. If you are ever debugging a worker that seems to ignore
 its env, check that it started at all: `docker compose -f docker-compose.prod.yml logs sync`.
 
+### `redeploy.sh` never reloaded Caddy (found + fixed 2026-07-27)
+
+The M20 rollout loaded all three images and started every container cleanly,
+and `POST /api/driver-session` still 404'd. Cause: `caddy/Caddyfile` is
+bind-mounted, so `up -d --no-build` sees no change to the Caddy *container*
+and leaves it running its old config. Caddy does not watch the file. The new
+route did not exist, so the request fell through to the app and got Next's
+404 page.
+
+`redeploy.sh` now runs `caddy reload` (falling back to `restart caddy`) after
+every `up`. If you ever add a route and it 404s while the target container is
+plainly healthy, this is why — check `docker compose … exec caddy caddy
+version` era config, not the service.
+
+Note the shape this shares with the `pnpm exec` bug above: both were invisible
+because nothing in prod consumed the broken path yet. Assume the same of any
+other prod path that has never been exercised.
+
 ### Both workers are now proven *in the container*, not just locally
 
 The lesson from the above is that "E2E-proven" had only ever meant `pnpm
