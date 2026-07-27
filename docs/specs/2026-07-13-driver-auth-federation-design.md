@@ -395,3 +395,68 @@ alternatives stay rejected. What changed is the environment around it.
 Dmytro — the RS256 public key (or JWKS URL) and one example rider-token
 payload; confirmation the rider id in it equals `rider.id` from the routes
 API. Roman — nothing until the exchange exists.
+
+---
+
+## 2026-07-27 — Bubble Box counter-proposal: introspection, not signature verification
+
+Dmytro opened a three-way chat with Roman and Yanis and proposed a different
+verification mechanism. Accepted the same day. **The design below is superseded
+at the verification step only; everything downstream is unchanged.**
+
+**What he proposed:**
+
+1. On rider login, Roman's app receives a **dedicated fleet-scoped token** from
+   Bubble Box instead of login+password. It encodes the rider id and their
+   rights, and is valid for the fleet app only.
+2. Roman sends that token to `POST /api/driver-session` as before. We forward
+   it to a **new Bubble Box verification endpoint** which checks it against
+   their database and its rights, and returns the rider's details (id, name)
+   on success or `404` on unknown token / insufficient rights.
+
+**His rationale, assessed honestly:**
+
+- *"No real rider token in the fleet app"* — **correct and the real win.** Our
+  design received genuine BB rider tokens. A compromise of this box would have
+  handed an attacker credentials that work against Bubble Box itself. A
+  fleet-scoped token is useless anywhere else, and he gains immediate
+  revocation, which offline signature checking cannot provide at all.
+- *"No need to expose the BB public key"* — **not a real security property.**
+  Public keys are designed to be published; JWKS endpoints are public URLs and
+  nothing can be forged with one. This part of the rationale is mistaken, but
+  it costs nothing and the design is good on the first ground alone. Not worth
+  contesting; noted here so the reasoning is not inherited as fact.
+
+**Cost accepted:** the exchange now depends on Bubble Box being reachable at
+login. A rider cannot start tracking during a BB outage. In practice they
+cannot work during one either, and an established Supabase session refreshes
+on its own for the rest of the shift, so a mid-shift outage changes nothing.
+The larger cost is schedule: this moved Dmytro from "send a file" to "build,
+test and deploy an endpoint", which is now the critical path for the login
+change. **The order sync is deliberately not coupled to it.**
+
+**What this changes in this repo (pending his endpoint spec):**
+
+- `lib/driver-auth/verify.ts` + `verify.test.ts` — local RS256 verification is
+  replaced by an HTTP call. The rider trust boundary moves to his endpoint,
+  which checks rights.
+- `.env.driver-session` — `BB_DRIVER_JWT_PUBLIC_KEY_B64` gives way to the
+  verification endpoint URL + whatever credentials it takes.
+- `scripts/gen-driver-test-token.ts` + `.driver-auth-dev/` — obsolete. Local
+  testing needs a mock of his endpoint instead.
+- `docs/driver-session-api.md` — one change for Roman: *which* token he sends.
+  Deliberately not edited yet, so he receives one correction rather than two.
+
+**Unchanged, and already proven in prod on 2026-07-27:** the
+`POST /api/driver-session` contract and response shape, the `rider_ref`
+lookup, first-login auto-provisioning, the GoTrue session mint, and RLS. The
+trust boundary was isolated in a single module precisely so it could be
+swapped; this is that swap.
+
+**Open with Dmytro (asked 2026-07-27):** does the rider id in the response
+equal `rider.id` from the routes API (our `vehicles.rider_ref` mapping depends
+on it), and does the endpoint take the existing fleet `accessToken` header or
+its own credentials.
+
+**Dead asks:** the RS256 public key and the rider-token payload sample. Neither
+is needed under this design.

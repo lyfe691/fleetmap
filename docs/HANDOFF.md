@@ -375,11 +375,18 @@ vehicle row plus one `vehicle_positions` record. Van, user, and position were
 deleted afterwards; prod is back to zero vehicles and the three original
 identities.
 
-So Caddy routing, RS256 verification, the `rider_ref` lookup, first-login
+So Caddy routing, token verification, the `rider_ref` lookup, first-login
 auto-provisioning, the GoTrue magiclink mint, and prod RLS are all confirmed
-working together. The only untested variable left is Dmytro's actual key and
-the real rider payload shape, and swapping the key is an edit to
-`.env.driver-session` plus `up -d driver-session`.
+working together.
+
+**The verification step changed the same day.** Dmytro opened a three-way chat
+and proposed that Bubble Box issue Roman a fleet-scoped token and expose an
+endpoint we call to verify it, rather than us checking a real rider JWT against
+their public key. Accepted: it means a compromise here yields tokens useless
+outside the fleet app, and he gets revocation. Only `lib/driver-auth/verify.ts`
+is affected; everything proven above sits downstream of it and stands. Full
+reasoning, including which part of his rationale does not hold up, is in the
+spec's 2026-07-27 section. **The public key and rider-sample asks are dead.**
 
 DB access for this used
 `docker compose -f supabase-docker/docker-compose.yml exec -T db psql -U postgres -d postgres -c "…"`
@@ -387,9 +394,10 @@ on the VPS — no tunnel, and no prod secret leaves the box.
 
 **Everything else is blocked on two messages that were never sent** (deferred
 on 07-22, then Yanis was ill for five days): Dmytro owes go-live on the prod
-fleet API plus the RS256 public key and a rider-token payload sample; Roman
-owes one release against `docs/driver-session-api.md`, which now carries the
-three app constants inline so it stands alone.
+fleet API, and now also the token verification endpoint he proposed on 07-27;
+Roman owes one release against `docs/driver-session-api.md`, which carries the
+three app constants inline so it stands alone. Those two are separate tracks
+on purpose: orders going live does not wait on the login change.
 
 ## Working with Yanis (learned the hard way — saves you a round trip)
 
