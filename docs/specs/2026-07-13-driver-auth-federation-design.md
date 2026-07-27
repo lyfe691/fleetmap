@@ -453,10 +453,20 @@ lookup, first-login auto-provisioning, the GoTrue session mint, and RLS. The
 trust boundary was isolated in a single module precisely so it could be
 swapped; this is that swap.
 
-**Open with Dmytro (asked 2026-07-27):** does the rider id in the response
-equal `rider.id` from the routes API (our `vehicles.rider_ref` mapping depends
-on it), and does the endpoint take the existing fleet `accessToken` header or
-its own credentials.
+**Answered by Dmytro, 2026-07-27 — both the best case:**
+
+- **Rider id is identical** to the one from `/fleet/rider-routes`. So
+  `vehicles.rider_ref` needs no rework and the sync's mapping and the login's
+  mapping stay the same value.
+- **The endpoint is `/fleet/verify-token`, authenticated exactly like
+  `/fleet/rider-routes`**: the token from `/fleet/authentication-token` in the
+  header. No new credentials. `workers/bubblebox-sync.ts` already mints that
+  token, so the mint belongs in a shared module when driver-session starts
+  calling it (do it then, not before — it has no second consumer yet).
+
+**Still open:** the request and response shape (where the rider token sits in
+the request, what the success body contains). Asked; not building against a
+guess until it lands.
 
 **Dead asks:** the RS256 public key and the rider-token payload sample. Neither
 is needed under this design.
