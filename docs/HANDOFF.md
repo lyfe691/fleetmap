@@ -276,6 +276,35 @@ Dmytro's prod credentials went into `.env`, and it would have looked like his
 API was the problem. If you are ever debugging a worker that seems to ignore
 its env, check that it started at all: `docker compose -f docker-compose.prod.yml logs sync`.
 
+### Both workers are now proven *in the container*, not just locally
+
+The lesson from the above is that "E2E-proven" had only ever meant `pnpm
+<worker>` on a dev machine. Every prior proof ran outside Docker, which is
+exactly why a container-only failure survived three milestones. Re-run against
+the local Supabase stack on 2026-07-27, from the shipped images:
+
+**driver-session** — all four paths, plus the part that actually matters:
+- existing driver user (rider 6) → `200`, session minted
+- unassigned van (rider 77) → `200`, `driver_autoprovisioned` then minted
+- fleet token (`rider: null`) → `401` "token carries no rider identity"
+- rider with no van (99) → `403`
+- the returned `access_token` was then used as the Bearer for
+  `POST /api/location` → `200 {"ok":true}`. The minted session really does
+  satisfy the driver's RLS policies; that chain is no longer inferred.
+
+**sync** — fixture mode wrote 3 stops onto the mapped van (translate → PUT →
+`sync_vehicle_routes` → rows, all inside the container). Live mode against
+staging logged `mode":"live"` and two clean ticks, and the local heartbeat
+went to `fresh: true` with `last_error_at` untouched — so the 24 h token mint
+and the HTTPS fetch both work from inside the image, which fixture mode never
+exercises. The live tick also cleared the fixture van's stops, since staging
+has no route for rider 999: the documented "empty orders clears the vehicle"
+invariant, observed rather than assumed.
+
+Containers reach the host stack via
+`--add-host host.docker.internal:host-gateway` and
+`NEXT_PUBLIC_SUPABASE_URL=http://host.docker.internal:44321`.
+
 **Everything else is blocked on two messages that were never sent** (deferred
 on 07-22, then Yanis was ill for five days): Dmytro owes go-live on the prod
 fleet API plus the RS256 public key and a rider-token payload sample; Roman
