@@ -276,19 +276,30 @@ Dmytro's prod credentials went into `.env`, and it would have looked like his
 API was the problem. If you are ever debugging a worker that seems to ignore
 its env, check that it started at all: `docker compose -f docker-compose.prod.yml logs sync`.
 
-### `redeploy.sh` never reloaded Caddy (found + fixed 2026-07-27)
+### Caddy served stale config through a redeploy (found + fixed 2026-07-27)
 
 The M20 rollout loaded all three images and started every container cleanly,
-and `POST /api/driver-session` still 404'd. Cause: `caddy/Caddyfile` is
-bind-mounted, so `up -d --no-build` sees no change to the Caddy *container*
-and leaves it running its old config. Caddy does not watch the file. The new
-route did not exist, so the request fell through to the app and got Next's
-404 page.
+and `POST /api/driver-session` still returned Next's 404 page. Two causes
+stacked, and the first one masked the second:
 
-`redeploy.sh` now runs `caddy reload` (falling back to `restart caddy`) after
-every `up`. If you ever add a route and it 404s while the target container is
-plainly healthy, this is why — check `docker compose … exec caddy caddy
-version` era config, not the service.
+1. **`up -d --no-build` does not restart Caddy.** Its container spec was
+   unchanged, so compose left it running (`Up 15 hours` next to everything
+   else's `Started`). Caddy does not watch its config file, so the new route
+   simply did not exist.
+2. **The reload did not help either.** `caddy/Caddyfile` was bind-mounted as a
+   *single file*, which pins an inode. `git pull` replaces files rather than
+   editing in place, so the container's `/etc/caddy/Caddyfile` was still the
+   pre-pull content. `caddy reload --config /etc/caddy/Caddyfile` re-read the
+   old file and reported success.
+
+Fixed on both levels: `docker-compose.prod.yml` now mounts the *directory*
+(`./caddy:/etc/caddy:ro`), so replaced files are visible, and `redeploy.sh`
+reloads Caddy after every `up`. Changing the volume spec also makes the next
+`up` recreate the container by itself.
+
+Diagnostic if a route ever 404s while its target container is plainly healthy:
+`docker compose -f docker-compose.prod.yml exec -T caddy cat /etc/caddy/Caddyfile`.
+If that does not match the repo, the mount is stale, not the config.
 
 Note the shape this shares with the `pnpm exec` bug above: both were invisible
 because nothing in prod consumed the broken path yet. Assume the same of any
