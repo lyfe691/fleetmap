@@ -254,6 +254,28 @@ Which makes the deploy gap precise, and it is not just "ship an image":
    key makes it usable by drivers. Swapping it later is an env edit plus
    `up -d driver-session` — no rebuild, the key is not a build arg.
 
+### The worker containers never started (found + fixed 2026-07-27)
+
+Smoke-testing the new image before shipping caught a live bug in **both**
+worker services. `sync` and `driver-session` ran `CMD ["pnpm", "exec", "tsx", …]`,
+and `pnpm exec` re-runs a dependency-status check on every container start.
+That check reinstalls — but the worker stages copy only `package.json` +
+`tsconfig.json`, not `pnpm-workspace.yaml`, which is where the `allowBuilds`
+approvals live. So the install died with `ERR_PNPM_IGNORED_BUILDS` and the
+container exited 1 without ever reaching the code.
+
+Both now invoke `./node_modules/.bin/tsx` directly. No package manager in the
+runtime path, no deps check, instant boot. Proven: `driver-session` logs its
+startup line and answers 401/400/405 correctly; `sync` now reaches its own
+"Missing env" guard instead of a pnpm stack trace.
+
+**Why nobody noticed:** the deployed `sync` container is documented as
+"exits on boot until `BB_*` is set", so a crash-looping container looked
+exactly like expected behavior. It would have surfaced at go-live, the moment
+Dmytro's prod credentials went into `.env`, and it would have looked like his
+API was the problem. If you are ever debugging a worker that seems to ignore
+its env, check that it started at all: `docker compose -f docker-compose.prod.yml logs sync`.
+
 **Everything else is blocked on two messages that were never sent** (deferred
 on 07-22, then Yanis was ill for five days): Dmytro owes go-live on the prod
 fleet API plus the RS256 public key and a rider-token payload sample; Roman
