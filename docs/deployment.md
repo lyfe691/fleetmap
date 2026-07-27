@@ -24,6 +24,11 @@ phone / browser ──HTTPS──> Caddy (:443) ──> Next app (:3000) ──>
   `BB_API_PASSWORD` in `/opt/fleetmap/.env` (empty = the service exits on
   boot until they're set). Map each van once:
   `update vehicles set rider_ref = '<numeric rider id>' where id = …`.
+- **driver-session** — the Bubble Box token exchange, internal-only on `:3100`,
+  reached through the single Caddy route `/api/driver-session`. It is the only
+  sanctioned holder of the Supabase secret key outside `scripts/`, so its
+  secrets live in their own `.env.driver-session` (§6) and never enter the app
+  container. Contract: `docs/driver-session-api.md`.
 - **Supabase stack** (`supabase-docker/`) — the official self-hosted compose,
   vendored into the repo (pinned, trimmed). Runs `db` (Postgres 17 +
   pg_cron), `kong` (API gateway), `auth`, `rest` (PostgREST), `realtime`,
@@ -253,6 +258,38 @@ This file is read for both the build (`NEXT_PUBLIC_*` gets baked into the
 client bundle — see §7) and the runtime (everything else, via `env_file` in
 `docker-compose.prod.yml`).
 
+### `.env.driver-session` — a second, separate file
+
+The `driver-session` service deliberately does **not** read `.env`. It holds
+the Supabase secret key, and a separate file is what keeps that key out of the
+app container's environment.
+
+```bash
+cd /opt/fleetmap
+nano .env.driver-session
+chmod 600 .env.driver-session
+```
+
+| Var | Value |
+|---|---|
+| `SUPABASE_SECRET_KEY` | the `SERVICE_ROLE_KEY` from `supabase-docker/.env` (§4) |
+| `BB_DRIVER_JWT_PUBLIC_KEY_B64` | Dmytro's RS256 public key, PEM (SPKI), base64-encoded on one line |
+
+`NEXT_PUBLIC_SUPABASE_URL` is injected by compose from `.env` — don't repeat it
+here. Base64 the PEM with `base64 -w0 public.pem` on Linux, or
+`[Convert]::ToBase64String([IO.File]::ReadAllBytes("public.pem"))` in
+PowerShell.
+
+> **This file must exist before the first redeploy that carries the
+> `driver-session` service.** `env_file` is not optional in compose: if the
+> file is missing, `docker compose up` aborts the **entire** stack, not just
+> that one service. Create it first, redeploy second.
+
+Rotating the key later (e.g. when Dmytro's real key replaces a stand-in) is an
+edit plus
+`docker compose -f docker-compose.prod.yml up -d driver-session` — no rebuild,
+the key is runtime env, not a build arg.
+
 ---
 
 ## 7. Build & ship the app images (dev machine)
@@ -265,9 +302,14 @@ docker build --platform linux/amd64 -t fleetmap-app --target runner \
   --build-arg NEXT_PUBLIC_SUPABASE_URL=https://sb.fleet.ysz.life \
   --build-arg NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<ANON_KEY> .
 docker build --platform linux/amd64 -t fleetmap-sync --target sync .
-docker save fleetmap-app fleetmap-sync | gzip > fleetmap-images.tar.gz
+docker build --platform linux/amd64 -t fleetmap-driver-session --target driver-session .
+docker save fleetmap-app fleetmap-sync fleetmap-driver-session | gzip > fleetmap-images.tar.gz
 scp fleetmap-images.tar.gz root@fleet.ysz.life:/opt/fleetmap/
 ```
+
+All three tags must be in the tar. `redeploy.sh` runs `up -d --no-build`, so a
+service whose image is missing fails the whole `up` rather than silently
+building.
 
 `--platform linux/amd64` matters if you're building on Apple Silicon or
 another non-x86 dev machine — the VPS is x86_64.
@@ -350,20 +392,34 @@ A `200`/`307` over a valid TLS cert means the edge + app are live.
   Point an external uptime monitor (e.g. UptimeRobot, free tier) at this
   URL — it's the only alerting the stack has.
 
+- **Driver session exchange:** a garbage token proves the route reaches the
+  service and that verification is enforced:
+
+  ```bash
+  curl -s -o /dev/null -w "%{http_code}\n" -X POST https://fleet.ysz.life/api/driver-session \
+    -H 'Content-Type: application/json' -d '{"token":"not-a-jwt"}'
+  # expect: 401  (404 means Caddy never got the route — the box's git is behind)
+  ```
+
 That's the full chain confirmed: TLS → app → self-hosted Supabase → routing.
 
 ---
 
 ## 10. Hand the URL to the driver app
 
-`API_BASE_URL = https://fleet.ysz.life` (unchanged). Supabase URL + key are
-new — update §8 of `docs/driver-app-handoff.md` and send Roman:
+Send Roman **`docs/driver-session-api.md`** — it is the whole handoff in one
+file: the three app constants (`API_BASE_URL` unchanged, the new Supabase URL
++ publishable key) plus the `POST /api/driver-session` exchange that removes
+the drivers' second login. One release covers both.
 
-- `API_BASE_URL` (unchanged: `https://fleet.ysz.life`)
-- `NEXT_PUBLIC_SUPABASE_URL = https://sb.fleet.ysz.life` (new)
-- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` — the new `ANON_KEY` (new)
-- his login is unchanged — passwords survived the move (bcrypt hashes were
-  copied as-is)
+That supersedes the older "just re-point the two constants" instruction: with
+the exchange, driver passwords stop existing (new riders auto-provision on
+first login), so there is nothing left to migrate per driver.
+
+> **Timing:** his release only works once the `driver-session` service is
+> deployed **and** carries Dmytro's real signing key. Shipping the app against
+> a stand-in key would 401 every driver — strictly worse than two logins. Tell
+> him when the endpoint is live.
 
 > Note: `driver-<city>` test accounts are also driven by the fake-GPS
 > simulator. If you run `pnpm fake-gps` locally while Roman tests the same
@@ -424,6 +480,8 @@ down for a rollback.
 | Deploy docs/compose-only changes | `./redeploy.sh` on the VPS (git pull is enough — nothing to load) |
 | App logs | `docker compose -f docker-compose.prod.yml logs -f app` |
 | Sync worker logs | `docker compose -f docker-compose.prod.yml logs -f sync` |
+| Driver-session logs | `docker compose -f docker-compose.prod.yml logs -f driver-session` |
+| Swap the BB signing key | edit `.env.driver-session`, then `docker compose -f docker-compose.prod.yml up -d driver-session` |
 | Supabase logs | `docker compose -f supabase-docker/docker-compose.yml logs -f <service>` |
 | Restart app only | `docker compose -f docker-compose.prod.yml restart app` |
 | Stop app stack | `docker compose -f docker-compose.prod.yml down` |

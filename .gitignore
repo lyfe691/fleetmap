@@ -54,3 +54,6 @@ docs/driver-app-handoff.md
 
 # dev-only stand-in keypair for the driver-session exchange
 .driver-auth-dev/
+
+# shipped prod images (built locally, scp'd to the VPS)
+fleetmap-images.tar.gz

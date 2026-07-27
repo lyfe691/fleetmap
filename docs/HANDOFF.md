@@ -222,6 +222,44 @@ shared Supabase before the worker's heartbeat writes stop warning.)
   (either order is safe; the old code's geofence no-ops against the new
   schema).
 
+## Post-handoff additions (2026-07-27) — prod state, verified by probe
+
+The 07-22 notes were written mid-flight and undersold what actually landed.
+Re-probed from outside on 2026-07-27, prod is:
+
+- **Running the M18+M19 build.** `/dispatch` and `PATCH /api/stops/:id` both
+  404 — the images built on 07-22 12:37 were shipped after all.
+- **At schema 0016.** `select address from stops` returns
+  `42703 column does not exist`.
+- **Healthy, orders dormant.** `/api/health` →
+  `{"ok":true,"supabase":"ok","osrm":"ok","sync":null}` — `sync: null` is the
+  worker never having run, which is correct while `BB_*` is unset.
+- **Missing only M20.** `POST /api/driver-session` 404s, so the box's git is
+  behind commit `113611a` and has neither the compose service nor the Caddy
+  route.
+
+Which makes the deploy gap precise, and it is not just "ship an image":
+
+1. The `fleetmap-images.tar.gz` in the repo root is **stale** — built 12:37,
+   three and a half hours before the M20 commit. Its index carries
+   `fleetmap-app` + `fleetmap-sync` only. The `driver-session` target needs a
+   third image (`docs/deployment.md` §7 now builds and saves all three; it
+   previously listed two).
+2. **`/opt/fleetmap/.env.driver-session` must exist before the redeploy that
+   pulls M20.** `env_file` is mandatory in compose — a missing file aborts the
+   whole `up`, not just that service. This is the one way the next deploy can
+   take prod down, and it is entirely avoidable.
+3. The service verifies against whatever key is in that file. A stand-in key
+   proves the container boots and the Caddy route resolves; only Dmytro's real
+   key makes it usable by drivers. Swapping it later is an env edit plus
+   `up -d driver-session` — no rebuild, the key is not a build arg.
+
+**Everything else is blocked on two messages that were never sent** (deferred
+on 07-22, then Yanis was ill for five days): Dmytro owes go-live on the prod
+fleet API plus the RS256 public key and a rider-token payload sample; Roman
+owes one release against `docs/driver-session-api.md`, which now carries the
+three app constants inline so it stands alone.
+
 ## Working with Yanis (learned the hard way — saves you a round trip)
 
 - He defers engineering calls but wants a **decisive recommendation**, not an

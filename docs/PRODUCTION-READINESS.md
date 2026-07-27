@@ -1,10 +1,13 @@
 # What's Missing — from demo to a real, in-use fleet tool
 
-> **Stale snapshot — read `docs/HANDOFF.md` for the current state (M13–M15 and
-> the 2026-07-13 console work); it is authoritative.** This began as an M12
-> snapshot (2026-07-01) and is kept for its tier/effort framing; the item
-> statuses below are corrected where they had drifted. Re-verify against
-> `git log` before trusting any of it.
+> **Stale snapshot — read `docs/HANDOFF.md` for the current state; it is
+> authoritative.** This began as an M12 snapshot (2026-07-01) and is kept for
+> its tier/effort framing. Everything after M15 happened elsewhere: the Bubble
+> Box API shipped and is wired (M18), `/dispatch` + the geofence were **deleted**
+> (M19), Supabase self-hosts on the VPS (M17), and drivers no longer hold
+> Fleetmap passwords (M20 token exchange). Any sentence below that treats
+> `/dispatch` or the geofence as live is history. Re-verify against `git log`
+> before trusting any of it.
 >
 > Use it as a working checklist. Each item: **what**, **why** (with code/spec
 > evidence), a coarse **effort**, and a **first step**. Effort is rough — these

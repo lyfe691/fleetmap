@@ -47,11 +47,25 @@ per request.
 | `400` | Malformed request | Bug — check the body shape |
 | `500` | Exchange failed server-side | Retry with backoff |
 
+## The three constants
+
+Fleetmap moved off managed Supabase onto its own server, so two of these are
+new. All three are safe to keep in the app bundle — the publishable key is the
+anon-role key that already ships publicly in the dashboard's JavaScript, and
+row-level security is the actual boundary.
+
+| Constant | Value |
+|---|---|
+| `API_BASE_URL` | `https://fleet.ysz.life` (unchanged) |
+| Supabase URL | `https://sb.fleet.ysz.life` (new) |
+| Supabase publishable key | `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzg0NTM4MjE0LCJleHAiOjIwOTk4OTgyMTR9.WNVIZcMYo01TVYVAoqUdiMaxgE43tE8apjxkasLg3oM` (new) |
+
 ## What changes in the app
 
 - Remove the Supabase email/password login UI + stored driver credentials.
-- Point the Supabase client at `https://sb.fleet.ysz.life` with the current
-  publishable key (the M17 re-point — same release).
+- Point the Supabase client at the URL + key above.
+- Call `POST /api/driver-session` once on start, feed the result into the
+  Supabase client.
 - `POST /api/location` and everything else stays byte-identical.
 
 No driver passwords exist anywhere in this flow: the first exchange for a new
