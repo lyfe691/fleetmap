@@ -305,6 +305,30 @@ Containers reach the host stack via
 `--add-host host.docker.internal:host-gateway` and
 `NEXT_PUBLIC_SUPABASE_URL=http://host.docker.internal:44321`.
 
+### The worker images went 1.74GB → ~327MB
+
+Both worker stages used to copy the entire `deps` `node_modules` — 1.1GB of
+it, including vitest, shadcn, `@react-three` and the whole frontend tree — to
+run a few hundred lines of server code. They are now esbuild-bundled to one
+self-contained `.mjs` each and run `node` on a bare `node:22-bookworm-slim`
+as the non-root `node` user. No pnpm, no `node_modules`, no TypeScript at
+runtime, which also makes the `pnpm exec` class of failure structurally
+impossible.
+
+`esbuild` is now an explicit devDependency (pinned to `0.28.1`, the version
+already in the tree). It was transitive before, so pnpm never linked it into
+the root `.bin` and the Docker build could not call it.
+
+Consequences worth knowing:
+
+- The shipped tar went from 374MB to **99MB**.
+- The sync image no longer carries `workers/dev-fixture.json`, so
+  `BB_FIXTURE_FILE` has nothing to point at in the prod image. To smoke-test
+  fixture mode against a built image, bake it into a throwaway layer:
+  `FROM fleetmap-sync` + `COPY workers/dev-fixture.json /app/dev-fixture.json`.
+- Both slimmed images were re-verified with the full E2E above before shipping,
+  not just rebuilt.
+
 **Everything else is blocked on two messages that were never sent** (deferred
 on 07-22, then Yanis was ill for five days): Dmytro owes go-live on the prod
 fleet API plus the RS256 public key and a rider-token payload sample; Roman

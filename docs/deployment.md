@@ -311,6 +311,11 @@ All three tags must be in the tar. `redeploy.sh` runs `up -d --no-build`, so a
 service whose image is missing fails the whole `up` rather than silently
 building.
 
+The two workers are esbuild-bundled to a single `.mjs` and run on a bare
+`node:22-bookworm-slim` as the non-root `node` user — no pnpm, no
+`node_modules`, no TypeScript at runtime. That is what keeps them at ~327MB
+instead of 1.74GB, and the whole tar under 100MB.
+
 `--platform linux/amd64` matters if you're building on Apple Silicon or
 another non-x86 dev machine — the VPS is x86_64.
 

@@ -29,26 +29,33 @@ ENV NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL \
     NEXT_TELEMETRY_DISABLED=1
 RUN pnpm build
 
-# --- sync: Bubble Box route sync worker (tsx; internal only, no port) ---
-FROM base AS sync
+# --- worker-build: bundle each worker to one self-contained ESM file ---
+FROM base AS worker-build
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY package.json tsconfig.json ./
 COPY workers ./workers
-COPY lib/bubblebox ./lib/bubblebox
-# tsx directly, never `pnpm exec`: pnpm re-runs a deps check on every start,
-# which reinstalls without pnpm-workspace.yaml's allowBuilds and exits 1.
-CMD ["./node_modules/.bin/tsx", "workers/bubblebox-sync.ts"]
+COPY lib ./lib
+RUN ./node_modules/.bin/esbuild \
+      workers/bubblebox-sync.ts workers/driver-session.ts \
+      --bundle --platform=node --target=node22 --format=esm \
+      --outdir=/workers --out-extension:.js=.mjs \
+      --banner:js="import{createRequire}from'module';const require=createRequire(import.meta.url);"
 
-# --- driver-session: BB token → Supabase session exchange (tsx; internal, one Caddy route) ---
-FROM base AS driver-session
+# --- worker-base: node only. No pnpm, no node_modules, no TypeScript at runtime ---
+FROM node:22-bookworm-slim AS worker-base
 WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
-COPY package.json tsconfig.json ./
-COPY workers ./workers
-COPY lib/driver-auth ./lib/driver-auth
-COPY lib/bubblebox ./lib/bubblebox
-CMD ["./node_modules/.bin/tsx", "workers/driver-session.ts"]
+USER node
+
+# --- sync: Bubble Box route sync worker (internal only, no port) ---
+FROM worker-base AS sync
+COPY --from=worker-build /workers/bubblebox-sync.mjs ./
+CMD ["node", "bubblebox-sync.mjs"]
+
+# --- driver-session: BB token → Supabase session exchange (internal, one Caddy route) ---
+FROM worker-base AS driver-session
+COPY --from=worker-build /workers/driver-session.mjs ./
+CMD ["node", "driver-session.mjs"]
 
 # --- runner: copy only what the standalone server needs ---
 FROM base AS runner
