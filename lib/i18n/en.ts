@@ -71,8 +71,6 @@ export const en = {
   "status.waiting": "Waiting",
   "status.stale": "Stale",
   "status.late": "Behind schedule",
-  "placeholder.telematics": "Placeholder data — pending a vehicle telematics feed.",
-  "placeholder.orders": "Placeholder data — pending the orders/deliveries model.",
   "tracking.locateOnMap": "Locate on Map",
   "tracking.routeProgress": "Route Progress",
   "tracking.liveLocation": "Live Location",

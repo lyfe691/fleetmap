@@ -73,8 +73,6 @@ export const deCH: Record<TranslationKey, string> = {
   "status.waiting": "Wartend",
   "status.stale": "Veraltet",
   "status.late": "Im Verzug",
-  "placeholder.telematics": "Platzhalterdaten — warte auf Telematikdaten.",
-  "placeholder.orders": "Platzhalterdaten — warte auf Auftrags-/Lieferungsmodell.",
   "tracking.locateOnMap": "Auf Karte zeigen",
   "tracking.routeProgress": "Routenfortschritt",
   "tracking.liveLocation": "Live-Standort",
