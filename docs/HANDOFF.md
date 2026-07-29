@@ -438,11 +438,61 @@ Probed against staging on 2026-07-29 with the credentials in the dev `.env`:
 | `verify-rider-token`, valid `accessToken`, **no body at all** | `403`, identical |
 | `verify-rider-token`, deliberately wrong `accessToken` | `401 "An authentication exception occurred."` |
 
-The identical 403 with no body proves the request never reaches his handler —
-it is denied by Symfony's access-control layer, and the 401/403 split shows
-authentication succeeding while authorization fails. Our account
-(`ROLE_USER`, `ROLE_FLEET_OPERATOR`) needs a grant for this endpoint, or we
-need a different user. **Asked; that is the open item.**
+**Do not stop at that table.** It is consistent with a second, innocent reading:
+a controller doing `verify($request->get("riderAuthToken"))` and throwing
+`AccessDeniedException` would emit the same `403` for a junk token, a foreign
+JWT, and a missing field alike. Under that reading nothing is broken and we
+simply never held a valid rider token. Our account being `ROLE_FLEET_OPERATOR`,
+a literal match for his "fleet app rights or higher", made that reading more
+plausible, not less.
+
+The test that separates them is **malformed JSON**, because security voters run
+before body deserialization:
+
+| Request | Result |
+|---|---|
+| Malformed JSON → `verify-rider-token` (valid `accessToken`) | `403 "Zugriff verweigert."` |
+| Malformed JSON → `authentication-token` (no auth, controller runs) | `400 {"data":"","status":"failure"}` |
+| `POST` → a nonexistent `/fleet` path | `404` CMS "SEO Redirect not found" |
+| `POST` → `/fleet/rider-routes` (GET-only, we are authorized) | `404`, same CMS shape |
+
+Their stack returns `400` when a controller genuinely fails to parse a body. On
+`verify-rider-token` broken JSON never gets that far, so the controller does not
+run. The two 404 controls show that an unmatched route looks nothing like this,
+so the route exists and matches for POST.
+
+One reading still survived that: a **custom voter or authenticator that reads
+`riderAuthToken` itself**. That also runs before deserialization and would also
+403 every malformed body, and it would mean nothing is wrong on his side. It is
+ruled out by timing, with all payloads pre-built and the requests interleaved:
+
+| Body sent to `verify-rider-token` (valid `accessToken`) | Status | min |
+|---|---|---|
+| malformed JSON, 6 bytes | 403 | 141.7ms |
+| valid JSON, token `"x"`, 22 bytes | 403 | 140.9ms |
+| valid JSON, junk of JWT size, 557 bytes | 403 | 152.9ms |
+| valid JSON, well-formed RS256 JWT, 556 bytes | 403 | 143.5ms |
+
+A well-formed JWT costs the server no more than six bytes of garbage, so no
+signature work happens and nothing reads the body. Combined with the 3×3 matrix
+below, the denial is on our principal:
+
+| | `rider-routes` | `verify-rider-token` |
+|---|---|---|
+| valid `accessToken` | **200** | **403** |
+| no `accessToken` | 403 | 403 |
+| invalid `accessToken` | 401 | 401 |
+
+`403` is simply their anonymous-denied shape (it appears on both routes). What
+matters is the top row: same credential, same second, and the only variable is
+the route. Our account needs a grant for this endpoint, or we need a different
+user, or the endpoint is not enabled for this environment yet. Every surviving
+explanation is resolved on his side. **Asked; that is the open item.**
+
+> **Trap, if you re-run this.** The first timing attempt generated a fresh
+> RSA-2048 keypair *inside* the timed block, so it measured local CPU and showed
+> a fake 136ms gap that argued for exactly the wrong conclusion. Pre-build every
+> payload before timing anything against their API.
 
 Also still unknown: **what a 200 looks like.** No amount of probing reveals it
 while every call 403s, so where the rider id sits in the response is not
