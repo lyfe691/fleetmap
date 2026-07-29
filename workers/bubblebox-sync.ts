@@ -16,6 +16,7 @@
  */
 import { readFileSync } from "node:fs"
 import { buildSyncPayloads, type BBRoute } from "../lib/bubblebox/translate"
+import { createBubbleboxClient } from "../lib/bubblebox/client"
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
 const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
@@ -40,6 +41,15 @@ if (!FIXTURE && !(BB_API_URL && BB_USERNAME && BB_PASSWORD)) {
       "or BB_FIXTURE_FILE (dev)."
   )
 }
+
+const bb =
+  BB_API_URL && BB_USERNAME && BB_PASSWORD
+    ? createBubbleboxClient({
+        baseUrl: BB_API_URL,
+        username: BB_USERNAME,
+        password: BB_PASSWORD,
+      })
+    : null
 
 // Their day boundary is local Swiss time, not UTC.
 function zurichToday(): string {
@@ -163,41 +173,11 @@ async function writeHeartbeat(
   }
 }
 
-// --- Bubble Box side ---------------------------------------------------------
-
-let bbToken: string | null = null
-
-async function mintBBToken(): Promise<string> {
-  const res = await fetch(`${BB_API_URL}/api/v2/fleet/authentication-token`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username: BB_USERNAME, password: BB_PASSWORD }),
-  })
-  if (!res.ok) throw new Error(`BB token denied (${res.status})`)
-  const body = (await res.json()) as { data?: { loginToken?: string } }
-  if (!body.data?.loginToken) {
-    throw new Error("BB token response missing data.loginToken")
-  }
-  return body.data.loginToken
-}
-
 async function fetchStructure(date: string): Promise<BBRoute[]> {
   if (FIXTURE) {
     return JSON.parse(readFileSync(FIXTURE, "utf8")) as BBRoute[]
   }
-  // Explicit bounds on both ends — their no-param default also means today,
-  // but resolved in their server's idea of it.
-  const url =
-    `${BB_API_URL}/api/v2/fleet/rider-routes` +
-    `?dueDate[notEarlier]=${date}&dueDate[notLater]=${date}`
-  bbToken ??= await mintBBToken()
-  let res = await fetch(url, { headers: { accessToken: bbToken } })
-  if (res.status === 401) {
-    bbToken = await mintBBToken()
-    res = await fetch(url, { headers: { accessToken: bbToken } })
-  }
-  if (!res.ok) throw new Error(`BB routes fetch failed (${res.status})`)
-  return (await res.json()) as BBRoute[]
+  return bb!.fetchRiderRoutes(date)
 }
 
 // --- Loop --------------------------------------------------------------------
