@@ -404,6 +404,98 @@ Roman owes one release against `docs/driver-session-api.md`, which carries the
 three app constants inline so it stands alone. Those two are separate tracks
 on purpose: orders going live does not wait on the login change.
 
+## Post-handoff additions (2026-07-29) — Bubble Box shipped verification, and it 403s
+
+Both counterparties moved on 2026-07-28/29. Neither track is finished, and the
+reasons are now precise rather than "waiting".
+
+### The verification endpoint exists, with a different name and a new token
+
+Dmytro shipped it. The contract as he described it, corrected by probing:
+
+- **`POST https://upgrade.bubblebox.ch/api/v2/fleet/verify-rider-token`.** Not
+  `/fleet/verify-token` — that name 404s. Update any note that still says it.
+- **Header `accessToken`**, the same 24 h fleet token
+  `/fleet/authentication-token` mints and the sync already uses. Confirmed:
+  sending `Authorization: Bearer` instead fails with
+  `401 "Unable to find key \"username\" in the token payload."`.
+- **Body `{ "riderAuthToken": "<rider JWT>" }`.**
+- The rider app now hands riders a **`fleetAuthToken`** at login, purpose-built
+  for us. Same token, two names: Roman's app holds `fleetAuthToken`, we forward
+  it as `riderAuthToken`. It is **rider-scoped and cannot log into the rider
+  app**, which is the blast-radius improvement the 07-27 redesign was for.
+- **It lives 2 minutes.** See the consequences below; this is the detail most
+  likely to cause a production surprise.
+
+### It is blocked: our fleet account is not authorized for it
+
+Probed against staging on 2026-07-29 with the credentials in the dev `.env`:
+
+| Request | Result |
+|---|---|
+| `/fleet/rider-routes`, same token, same moment | `200` with real routes |
+| `verify-rider-token`, valid `accessToken`, junk rider token | `403 {"message":"Zugriff verweigert."}` |
+| `verify-rider-token`, valid `accessToken`, **no body at all** | `403`, identical |
+| `verify-rider-token`, deliberately wrong `accessToken` | `401 "An authentication exception occurred."` |
+
+The identical 403 with no body proves the request never reaches his handler —
+it is denied by Symfony's access-control layer, and the 401/403 split shows
+authentication succeeding while authorization fails. Our account
+(`ROLE_USER`, `ROLE_FLEET_OPERATOR`) needs a grant for this endpoint, or we
+need a different user. **Asked; that is the open item.**
+
+Also still unknown: **what a 200 looks like.** No amount of probing reveals it
+while every call 403s, so where the rider id sits in the response is not
+established. Do not guess it. Two designs are viable once a real 200 is seen —
+read the id from the response body, or read `admin.rider.id` out of the token
+we just had verified — and the choice should be made against a real payload,
+not a plausible one.
+
+### The 2-minute lifetime changes the client contract
+
+`docs/driver-session-api.md:33-39` is now wrong and must be corrected when the
+swap lands. It tells Roman that BB tokens live 24 h and to re-exchange whenever
+Supabase refresh ultimately fails. With a 2-minute token he will not have a
+live one weeks later. The real shape:
+
+- Exchange **immediately** after the BB login, not lazily when tracking starts.
+- Keep the Supabase session alive by refresh; never re-exchange with the old
+  `fleetAuthToken`.
+- If refresh ultimately fails, the driver needs a **new BB login** — unless the
+  rider app can mint a fresh `fleetAuthToken` on demand, which is asked and
+  unanswered.
+
+### CORS was ours, and it was blocking Roman
+
+He reported a CORS error calling `/api/driver-session` from the rider app.
+Reproduced against prod: `OPTIONS` hit the blanket `405 {"error":"POST only"}`
+with no CORS headers, so the browser blocked the call before the POST was sent.
+The `401` carried no headers either, so even past preflight he could not read
+the status.
+
+Fixed in `workers/driver-session.ts` (cbbd790): `OPTIONS` → 204, `GET` → a
+liveness 200, and `CORS_HEADERS` on **every** response including rejections.
+Origin is `*` deliberately — the credential is in the request body, never a
+cookie, so there is no ambient authority for a hostile origin to ride on, and
+an allowlist would break his local development for no real gain. Only
+`Content-Type` is allowed; if his client ever sends another header it needs
+adding.
+
+**Note the trap this shares with the two in the 07-27 section:** the endpoint's
+browser path had never been exercised, so nothing revealed that a preflight
+would 405. Same shape as the `pnpm exec` and stale-Caddy bugs — untested prod
+paths fail silently until someone finally uses them.
+
+### Where that leaves the two tracks
+
+- **Login:** blocked on Dmytro granting our account access to
+  `verify-rider-token` and describing a success response. Everything downstream
+  of `lib/driver-auth/verify.ts` is built, tested and deployed. Roman must not
+  ship until the swap is live — until then the service verifies RS256 against
+  the dev stand-in key and will 401 every real `fleetAuthToken`.
+- **Orders:** unchanged and still first in line. Prod BB credentials plus one
+  `vehicles` row per rider, then watch `/api/health`.
+
 ## Working with Yanis (learned the hard way — saves you a round trip)
 
 - He defers engineering calls but wants a **decisive recommendation**, not an
