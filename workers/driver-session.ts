@@ -152,10 +152,34 @@ const deps: ExchangeDeps = {
   log,
 }
 
+// The rider app calls this from a browser context, so every response —
+// including the rejections — has to carry these or the browser reports a
+// generic CORS failure instead of the status we actually sent. Origin is
+// unrestricted deliberately: the credential travels in the request body,
+// never in a cookie, so there is nothing for a hostile origin to ride on.
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
+  "Access-Control-Max-Age": "86400",
+}
+
 const server = createServer((req, res) => {
   const respond = (status: number, body: Record<string, unknown>) => {
-    res.writeHead(status, { "Content-Type": "application/json" })
+    res.writeHead(status, {
+      "Content-Type": "application/json",
+      ...CORS_HEADERS,
+    })
     res.end(JSON.stringify(body))
+  }
+
+  if (req.method === "OPTIONS") {
+    res.writeHead(204, CORS_HEADERS)
+    return res.end()
+  }
+
+  if (req.method === "GET") {
+    return respond(200, { ok: true })
   }
 
   if (req.method !== "POST") {
