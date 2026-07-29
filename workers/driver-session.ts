@@ -24,6 +24,7 @@ import {
   TokenInvalidError,
   verifyRiderToken,
 } from "../lib/driver-auth/verify"
+import { exchangeRiderToken, type ExchangeDeps } from "../lib/driver-auth/exchange"
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
 const SECRET_KEY = process.env.SUPABASE_SECRET_KEY
@@ -134,51 +135,21 @@ async function mintSession(email: string) {
   return verified.session
 }
 
-async function exchange(token: string): Promise<
-  | { status: 200; body: Record<string, unknown> }
-  | { status: 401 | 403; body: { error: string } }
-> {
-  let riderId: string
-  try {
-    ;({ riderId } = await verifyRiderToken(token, publicKeyPem))
-  } catch (err) {
-    if (err instanceof TokenInvalidError || err instanceof NotARiderTokenError) {
-      log("warn", "token_rejected", { reason: err.message })
-      return { status: 401, body: { error: "invalid token" } }
-    }
-    throw err
-  }
-
-  const vehicle = await findVehicle(riderId)
-  if (!vehicle) {
-    log("warn", "unmapped_rider", { rider: riderId })
-    return { status: 403, body: { error: "no vehicle mapped for this rider" } }
-  }
-
-  let email: string
-  if (vehicle.assigned_user_id) {
-    const { data, error } = await admin.auth.admin.getUserById(
-      vehicle.assigned_user_id
-    )
+const deps: ExchangeDeps = {
+  verifyToken: (token) => verifyRiderToken(token, publicKeyPem),
+  isTokenRejection: (err) =>
+    err instanceof TokenInvalidError || err instanceof NotARiderTokenError,
+  findVehicle,
+  emailForUser: async (userId) => {
+    const { data, error } = await admin.auth.admin.getUserById(userId)
     if (error) throw new Error(`user lookup failed: ${error.message}`)
     if (!data.user.email) throw new Error("assigned driver user has no email")
-    email = data.user.email
-  } else {
-    ;({ email } = await ensureDriverUser(vehicle.id, riderId))
-    log("info", "driver_autoprovisioned", { rider: riderId })
-  }
-
-  const session = await mintSession(email)
-  log("info", "session_minted", { rider: riderId })
-  return {
-    status: 200,
-    body: {
-      access_token: session.access_token,
-      refresh_token: session.refresh_token,
-      expires_in: session.expires_in,
-      expires_at: session.expires_at,
-    },
-  }
+    return data.user.email
+  },
+  provisionDriver: async (vehicleId, riderId) =>
+    (await ensureDriverUser(vehicleId, riderId)).email,
+  mintSession,
+  log,
 }
 
 const server = createServer((req, res) => {
@@ -208,7 +179,7 @@ const server = createServer((req, res) => {
     if (typeof token !== "string" || token.length === 0) {
       return respond(400, { error: "token (string) is required" })
     }
-    exchange(token)
+    exchangeRiderToken(token, deps)
       .then((r) => respond(r.status, r.body))
       .catch((err) => {
         log("error", "exchange_failed", {
