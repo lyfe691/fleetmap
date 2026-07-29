@@ -523,8 +523,12 @@ with no CORS headers, so the browser blocked the call before the POST was sent.
 The `401` carried no headers either, so even past preflight he could not read
 the status.
 
-Fixed in `workers/driver-session.ts` (cbbd790): `OPTIONS` → 204, `GET` → a
-liveness 200, and `CORS_HEADERS` on **every** response including rejections.
+Fixed in `workers/driver-session.ts` (cbbd790), **deployed and verified in prod
+on 2026-07-29**: `OPTIONS` 405 → **204** with all four headers, a rejected
+`POST` still 401 but now carrying them, `GET` → `200 {"ok":true}`,
+`/api/health` still `{"ok":true,"supabase":"ok","osrm":"ok","sync":null}`, and
+the dashboard unaffected. The change is `OPTIONS` → 204, `GET` → a liveness
+200, and `CORS_HEADERS` on **every** response including rejections.
 Origin is `*` deliberately — the credential is in the request body, never a
 cookie, so there is no ambient authority for a hostile origin to ride on, and
 an allowlist would break his local development for no real gain. Only
