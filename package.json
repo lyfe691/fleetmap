@@ -17,7 +17,7 @@
     "seed-stops": "tsx --env-file=.env scripts/seed-stops.ts",
     "bb-sync": "tsx --env-file=.env workers/bubblebox-sync.ts",
     "driver-session": "tsx --env-file=.env workers/driver-session.ts",
-    "driver-test-token": "tsx scripts/gen-driver-test-token.ts",
+    "verify-live-token": "tsx --env-file=.env scripts/verify-live-token.ts",
     "test": "vitest run",
     "test:watch": "vitest"
   },

@@ -494,6 +494,47 @@ explanation is resolved on his side. **Asked; that is the open item.**
 > a fake 136ms gap that argued for exactly the wrong conclusion. Pre-build every
 > payload before timing anything against their API.
 
+### That conclusion was WRONG (corrected 2026-07-29, same day)
+
+Dmytro demonstrated the endpoint working from Postman and returning `200`. The
+"authorization gap" reading above does not survive it. Keep the section for the
+reasoning trail, but **the answer is: we simply never held a valid
+`riderAuthToken`**, and a 403 is how the endpoint reports one it cannot verify,
+including an expired one.
+
+Where the reasoning broke, because it is worth not repeating:
+
+- **The timing test had no power.** RSA-2048 *verification* costs about 0.1ms.
+  The test was built to detect that inside ~140ms of network jitter over 12
+  samples. It could never have seen the effect it claimed to rule out. A null
+  result from an underpowered test is not evidence of absence.
+- **The 400-vs-403 argument assumed shared error handling.** `/fleet/
+  authentication-token` returning 400 on malformed JSON says nothing about how
+  a *different* controller handles a missing field. One that reads the field,
+  fails to verify a null, and throws `AccessDeniedException` produces exactly
+  the 403 we saw.
+- Every observation collected is fully explained by "the rider token was always
+  invalid". None of it ever required an authorization gap.
+
+**Still not strictly proven either way:** his Postman run used *his* accessToken,
+not the sync account's. The decisive test is one fresh `riderAuthToken` sent
+with **our** accessToken. If that returns 200, the account was never the issue.
+
+### The success shape, which is what we were actually blocked on
+
+```json
+{ "id": 6, "fullName": "Rider Zurich City 1" }
+```
+
+Top-level `id`, an integer, and `6` is the same rider id `/fleet/rider-routes`
+reports for that rider. So `vehicles.rider_ref` is untouched, as he said on
+07-27. `fullName` is not stored (the sync stores no PII and this changes
+nothing about that).
+
+**Getting a token to test with:** only the rider app issues them, and they live
+2 minutes. `scripts/verify-live-token.ts` exists to beat that clock — paste the
+token, it runs the BB call and the prod exchange in one shot.
+
 Also still unknown: **what a 200 looks like.** No amount of probing reveals it
 while every call 403s, so where the rider id sits in the response is not
 established. Do not guess it. Two designs are viable once a real 200 is seen —

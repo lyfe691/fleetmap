@@ -10,36 +10,39 @@
  * scripts/ (CLAUDE.md security conventions): internal-only in the prod
  * stack, fronted by a single Caddy route — never part of the Next app image.
  *
- * Flow: verify the BB RS256 token (rider tokens only — fleet/staff tokens
- * verify against the same key but are rejected) → map rider id to
- * vehicles.rider_ref → use the assigned driver user, or auto-provision one
- * on first login (no password, RLS principal only) → mint a Supabase
- * session and return it. The app then talks to POST /api/location exactly
- * as a password-authenticated driver would.
+ * Flow: hand the rider token to Bubble Box's /fleet/verify-rider-token for
+ * verification → map the rider id it returns to vehicles.rider_ref → use the
+ * assigned driver user, or auto-provision one on first login (no password,
+ * RLS principal only) → mint a Supabase session and return it. The app then
+ * talks to POST /api/location exactly as a password-authenticated driver
+ * would.
  */
 import { createServer } from "node:http"
 import { createClient } from "@supabase/supabase-js"
-import {
-  NotARiderTokenError,
-  TokenInvalidError,
-  verifyRiderToken,
-} from "../lib/driver-auth/verify"
+import { TokenInvalidError, verifyRiderToken } from "../lib/driver-auth/verify"
 import { exchangeRiderToken, type ExchangeDeps } from "../lib/driver-auth/exchange"
+import { createBubbleboxClient } from "../lib/bubblebox/client"
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
 const SECRET_KEY = process.env.SUPABASE_SECRET_KEY
-const PUBLIC_KEY_B64 = process.env.BB_DRIVER_JWT_PUBLIC_KEY_B64
+const BB_API_URL = process.env.BB_API_URL
+const BB_USERNAME = process.env.BB_API_USERNAME
+const BB_PASSWORD = process.env.BB_API_PASSWORD
 const PORT = Number(process.env.DRIVER_SESSION_PORT ?? 3100)
 const MAX_BODY_BYTES = 16_384
 
-if (!SUPABASE_URL || !SECRET_KEY || !PUBLIC_KEY_B64) {
+if (!SUPABASE_URL || !SECRET_KEY || !BB_API_URL || !BB_USERNAME || !BB_PASSWORD) {
   throw new Error(
     "Missing env. Need NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SECRET_KEY, " +
-      "BB_DRIVER_JWT_PUBLIC_KEY_B64 (base64-encoded PEM)."
+      "BB_API_URL, BB_API_USERNAME, BB_API_PASSWORD."
   )
 }
 
-const publicKeyPem = Buffer.from(PUBLIC_KEY_B64, "base64").toString("utf8")
+const bb = createBubbleboxClient({
+  baseUrl: BB_API_URL,
+  username: BB_USERNAME,
+  password: BB_PASSWORD,
+})
 
 // Admin client: service-key PostgREST + auth admin. Never let a user session
 // attach to this client — verifyOtp runs on a throwaway client instead, or
@@ -136,9 +139,8 @@ async function mintSession(email: string) {
 }
 
 const deps: ExchangeDeps = {
-  verifyToken: (token) => verifyRiderToken(token, publicKeyPem),
-  isTokenRejection: (err) =>
-    err instanceof TokenInvalidError || err instanceof NotARiderTokenError,
+  verifyToken: (token) => verifyRiderToken(token, bb),
+  isTokenRejection: (err) => err instanceof TokenInvalidError,
   findVehicle,
   emailForUser: async (userId) => {
     const { data, error } = await admin.auth.admin.getUserById(userId)

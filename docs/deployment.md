@@ -273,12 +273,26 @@ chmod 600 .env.driver-session
 | Var | Value |
 |---|---|
 | `SUPABASE_SECRET_KEY` | the `SERVICE_ROLE_KEY` from `supabase-docker/.env` (§4) |
-| `BB_DRIVER_JWT_PUBLIC_KEY_B64` | Dmytro's RS256 public key, PEM (SPKI), base64-encoded on one line |
+| `BB_API_URL` | Bubble Box fleet API base, e.g. `https://upgrade.bubblebox.ch` |
+| `BB_API_USERNAME` | the fleet API user (same credential the sync uses) |
+| `BB_API_PASSWORD` | its password |
 
 `NEXT_PUBLIC_SUPABASE_URL` is injected by compose from `.env` — don't repeat it
-here. Base64 the PEM with `base64 -w0 public.pem` on Linux, or
-`[Convert]::ToBase64String([IO.File]::ReadAllBytes("public.pem"))` in
-PowerShell.
+here.
+
+> **Ordering matters on the next deploy.** Since 2026-07-29 the exchange
+> verifies tokens by calling Bubble Box's `/fleet/verify-rider-token` instead
+> of checking an RS256 signature locally, so `BB_DRIVER_JWT_PUBLIC_KEY_B64` is
+> gone and the three `BB_API_*` vars replace it. **Write this file before
+> loading the new image.** The old key left in place is harmless, but with no
+> `BB_API_*` the container throws `Missing env` at boot and crash-loops — and
+> a crash-looping worker is exactly the failure this project has already
+> missed twice. Check it started: `docker compose -f docker-compose.prod.yml
+> logs --tail=20 driver-session`.
+>
+> The `BB_API_*` values may point at staging while Bubble Box's production
+> fleet API is not live yet. Riders can then only log in if their token was
+> issued by the same environment this verifies against.
 
 > **This file must exist before the first redeploy that carries the
 > `driver-session` service.** `env_file` is not optional in compose: if the

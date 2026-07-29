@@ -5,13 +5,13 @@
 login for a Supabase session, then use that session for GPS exactly as today.
 Drivers only ever log in to Bubble Box.
 
-> **Status, 2026-07-29 — do not release against this yet.** The endpoint is
-> live and the request/response shape below is final, but it still verifies
-> tokens against a placeholder key, so a **real `fleetAuthToken` gets a 401**.
-> That is expected and is not a bug in the caller. Switching it over to Bubble
-> Box's `verify-rider-token` endpoint is blocked on one thing from Dmytro; you
-> will be told the moment it accepts real tokens. Everything else here is
-> already correct, so the app can be built against it now.
+> **Status, 2026-07-29.** Verification now goes through Bubble Box's
+> `/fleet/verify-rider-token`, so the contract below is complete and the app
+> can be built against it. It has **not yet been exercised with a real
+> `fleetAuthToken`** — only the rider app can issue one, and they live 2
+> minutes. If you can trigger a login and send the token straight over, that is
+> the one thing needed to call this proven. Until it is confirmed working and
+> deployed, treat a release as premature.
 
 ## The call
 

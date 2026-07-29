@@ -1,98 +1,81 @@
-import { beforeAll, describe, expect, it } from "vitest"
-import { exportSPKI, generateKeyPair, SignJWT } from "jose"
-import {
-  NotARiderTokenError,
-  TokenInvalidError,
-  verifyRiderToken,
-} from "./verify"
+import { describe, expect, it } from "vitest"
+import { TokenInvalidError, verifyRiderToken } from "./verify"
 
-// Stand-in for Bubble Box's keypair until Dmytro hands over the real public
-// key — the token payload mirrors their observed Lexik-style shape.
-let privateKey: CryptoKey
-let publicKeyPem: string
+type Call = { path: string; init?: RequestInit }
 
-async function sign(
-  payload: Record<string, unknown>,
-  opts: { key?: CryptoKey; expiresIn?: string } = {}
-): Promise<string> {
-  return new SignJWT(payload)
-    .setProtectedHeader({ typ: "JWT", alg: "RS256" })
-    .setIssuedAt()
-    .setExpirationTime(opts.expiresIn ?? "24h")
-    .sign(opts.key ?? privateKey)
+function fakeClient(responder: () => Promise<Response> | Response) {
+  const calls: Call[] = []
+  return {
+    calls,
+    client: {
+      authedFetch: async (path: string, init?: RequestInit) => {
+        calls.push({ path, init })
+        return responder()
+      },
+    },
+  }
 }
 
-const riderPayload = (id: unknown) => ({
-  admin: {
-    uuid: "9c2e1f00-0000-0000-0000-000000000000",
-    username: "rider_zurichcity1@bb.ch",
-    fullName: "Rider Zurich City 1",
-    roles: ["ROLE_USER"],
-    assignedLaundry: null,
-    rider: id === null ? null : { id, fullName: "Rider Zurich City 1" },
-  },
-})
-
-beforeAll(async () => {
-  const pair = await generateKeyPair("RS256")
-  privateKey = pair.privateKey as CryptoKey
-  publicKeyPem = await exportSPKI(pair.publicKey)
-})
+const ok = (body: unknown) => new Response(JSON.stringify(body), { status: 200 })
 
 describe("verifyRiderToken", () => {
-  it("accepts a valid rider token and returns the rider id as text", async () => {
-    const token = await sign(riderPayload(6))
-    await expect(verifyRiderToken(token, publicKeyPem)).resolves.toEqual({
-      riderId: "6",
+  it("returns the rider id from a 200 as text", async () => {
+    const { client } = fakeClient(() =>
+      ok({ id: 6, fullName: "Rider Zurich City 1" })
+    )
+    expect(await verifyRiderToken("t", client)).toEqual({ riderId: "6" })
+  })
+
+  it("posts the token as riderAuthToken to the verify path", async () => {
+    const { client, calls } = fakeClient(() => ok({ id: 6 }))
+    await verifyRiderToken("the-rider-token", client)
+    expect(calls).toHaveLength(1)
+    expect(calls[0].path).toBe("/api/v2/fleet/verify-rider-token")
+    expect(calls[0].init?.method).toBe("POST")
+    expect(JSON.parse(String(calls[0].init?.body))).toEqual({
+      riderAuthToken: "the-rider-token",
     })
   })
 
-  it("rejects a non-rider token (rider is null, e.g. fleet/staff logins)", async () => {
-    const token = await sign(riderPayload(null))
-    await expect(verifyRiderToken(token, publicKeyPem)).rejects.toBeInstanceOf(
-      NotARiderTokenError
+  it("treats 403 as an invalid token (expiry is the common case)", async () => {
+    const { client } = fakeClient(() => new Response("{}", { status: 403 }))
+    await expect(verifyRiderToken("t", client)).rejects.toBeInstanceOf(
+      TokenInvalidError
     )
   })
 
-  it("rejects a token without the expected payload shape", async () => {
-    const token = await sign({ some: "thing" })
-    await expect(verifyRiderToken(token, publicKeyPem)).rejects.toBeInstanceOf(
-      NotARiderTokenError
-    )
+  it("does not treat 401 as an invalid token (that is our fleet credential failing)", async () => {
+    const { client } = fakeClient(() => new Response("{}", { status: 401 }))
+    const err = await verifyRiderToken("t", client).catch((e) => e)
+    expect(err).toBeInstanceOf(Error)
+    expect(err).not.toBeInstanceOf(TokenInvalidError)
+    expect(String(err.message)).toMatch(/401/)
   })
 
-  it("rejects a rider object without a usable id", async () => {
-    const token = await sign(riderPayload("not-a-number"))
-    await expect(verifyRiderToken(token, publicKeyPem)).rejects.toBeInstanceOf(
-      NotARiderTokenError
-    )
+  it("does not treat a 500 from bubble box as an invalid token", async () => {
+    const { client } = fakeClient(() => new Response("{}", { status: 500 }))
+    const err = await verifyRiderToken("t", client).catch((e) => e)
+    expect(err).not.toBeInstanceOf(TokenInvalidError)
   })
 
-  it("rejects a token signed by a different key", async () => {
-    const other = await generateKeyPair("RS256")
-    const token = await sign(riderPayload(6), {
-      key: other.privateKey as CryptoKey,
+  it("does not treat a transport failure as an invalid token", async () => {
+    const { client } = fakeClient(() => {
+      throw new Error("ECONNREFUSED")
     })
-    await expect(verifyRiderToken(token, publicKeyPem)).rejects.toBeInstanceOf(
-      TokenInvalidError
-    )
+    const err = await verifyRiderToken("t", client).catch((e) => e)
+    expect(err).not.toBeInstanceOf(TokenInvalidError)
+    expect(String(err.message)).toMatch(/ECONNREFUSED/)
   })
 
-  it("rejects an expired token", async () => {
-    const token = await sign(riderPayload(6), { expiresIn: "-1h" })
-    await expect(verifyRiderToken(token, publicKeyPem)).rejects.toBeInstanceOf(
-      TokenInvalidError
-    )
+  it("rejects a 200 carrying no id (contract break, not a bad token)", async () => {
+    const { client } = fakeClient(() => ok({ fullName: "no id here" }))
+    const err = await verifyRiderToken("t", client).catch((e) => e)
+    expect(err).not.toBeInstanceOf(TokenInvalidError)
+    expect(String(err.message)).toMatch(/no integer id/)
   })
 
-  it("rejects tokens with a non-RS256 algorithm (no HS256 downgrade)", async () => {
-    const hsToken = await new SignJWT(riderPayload(6))
-      .setProtectedHeader({ typ: "JWT", alg: "HS256" })
-      .setIssuedAt()
-      .setExpirationTime("24h")
-      .sign(new TextEncoder().encode("shared-secret"))
-    await expect(verifyRiderToken(hsToken, publicKeyPem)).rejects.toBeInstanceOf(
-      TokenInvalidError
-    )
+  it("rejects a non-integer id", async () => {
+    const { client } = fakeClient(() => ok({ id: "6" }))
+    await expect(verifyRiderToken("t", client)).rejects.toThrow(/no integer id/)
   })
 })
