@@ -470,3 +470,34 @@ guess until it lands.
 
 **Dead asks:** the RS256 public key and the rider-token payload sample. Neither
 is needed under this design.
+
+### Shipped, 2026-07-29 — corrects the two points above
+
+Dmytro delivered it. What he built differs from the 07-27 note in one way that
+matters, and adds a constraint nobody anticipated:
+
+- **The endpoint is `POST /api/v2/fleet/verify-rider-token`**, not
+  `/fleet/verify-token` (that name 404s). Header `accessToken`, exactly as
+  predicted. Body `{ "riderAuthToken": "<rider JWT>" }`, which closes the
+  request half of "still open".
+- **The rider app now issues a purpose-built `fleetAuthToken`** at rider login,
+  rider-scoped and useless for logging into the rider app itself. That is the
+  blast-radius win this redesign was for. Same token, two names: Roman's app
+  holds `fleetAuthToken`, we forward it as `riderAuthToken`.
+- **It lives 2 minutes.** This is the unanticipated constraint. It forces the
+  exchange to happen immediately at login and makes re-exchange impossible
+  later, so the Supabase refresh token becomes the only thing keeping a driver
+  signed in. `docs/driver-session-api.md` was corrected for this.
+- **The response shape is still undocumented**, so the second half of "still
+  open" stands. Either read the rider id from the response or from the token
+  that was just verified — decide against a real 200, not a plausible one.
+
+**Blocked:** our fleet account gets `403 Zugriff verweigert.` from the new
+endpoint while the same `accessToken` returns 200 from `/fleet/rider-routes` in
+the same run. Established as an authorization gap rather than a payload
+problem, with the evidence and the ruled-out alternatives in `docs/HANDOFF.md`,
+"2026-07-29". Asked.
+
+**The shared-module note above is now discharged:** `lib/bubblebox/client.ts`
+exists (022), and `lib/driver-auth/exchange.ts` (023) put a nine-branch
+regression net under the swap before it happens.
