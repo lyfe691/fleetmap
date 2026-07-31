@@ -120,7 +120,7 @@ describe("createBubbleboxClient", () => {
     const hangingFetch: typeof fetch = async (_input, init) =>
       new Promise<Response>((_resolve, reject) => {
         const signal = init?.signal
-        expect(signal).toBeInstanceOf(AbortSignal)
+        if (!signal) return
         signal?.addEventListener(
           "abort",
           () => reject(signal.reason ?? new Error("aborted")),
@@ -136,7 +136,9 @@ describe("createBubbleboxClient", () => {
       timeoutMs: 10,
     })
 
-    await expect(client.fetchRiderRoutes("2026-07-31")).rejects.toBeDefined()
+    await expect(client.fetchRiderRoutes("2026-07-31")).rejects.toMatchObject({
+      name: "TimeoutError",
+    })
   }, 250)
 
   it("two clients built from the same config do not share a token (each mints its own)", async () => {
