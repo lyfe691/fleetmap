@@ -428,29 +428,386 @@ A `200`/`307` over a valid TLS cert means the edge + app are live.
   ```bash
   curl -s -w ' HTTP:%{http_code}\n' https://fleet.ysz.life/api/driver-session
   # expect: {"ok":true} HTTP:200
+  ```
 
-  curl -s -o /dev/null -w "%{http_code}\n" -X OPTIONS \
+  Exercise an actual browser preflight from PowerShell. A status-only
+  `OPTIONS` is insufficient: the request must carry the browser headers, and
+  the response must allow this origin, method, and header.
+
+  ```powershell
+  $preflightLines = curl.exe -sS -D - -o NUL -X OPTIONS `
+    -H 'Origin: https://rider-proof.invalid' `
+    -H 'Access-Control-Request-Method: POST' `
+    -H 'Access-Control-Request-Headers: content-type' `
     https://fleet.ysz.life/api/driver-session
-  # expect: 204
+  if ($LASTEXITCODE -ne 0) { throw 'driver-session preflight request failed' }
 
+  $preflight = $preflightLines -join "`n"
+  $required = @(
+    '(?im)^HTTP/\S+\s+204(?:\s|$)',
+    '(?im)^Access-Control-Allow-Origin:\s*\*\s*$',
+    '(?im)^Access-Control-Allow-Methods:.*\bPOST\b',
+    '(?im)^Access-Control-Allow-Headers:.*\bContent-Type\b'
+  )
+  foreach ($pattern in $required) {
+    if ($preflight -notmatch $pattern) {
+      throw "driver-session preflight failed assertion: $pattern"
+    }
+  }
+  'PASS preflight: 204, origin *, method POST, header Content-Type'
+  ```
+
+  Then confirm an invalid token reaches verification:
+
+  ```bash
   curl -s -o /dev/null -w "%{http_code}\n" -X POST https://fleet.ysz.life/api/driver-session \
     -H 'Content-Type: application/json' -d '{"token":"not-a-jwt"}'
   # expect: 401  (404 means Caddy never got the route — the box's git is behind)
   ```
 
-  A real token is the readiness proof. Run the diagnostic from the local repo,
-  where `.env` contains the fleet credentials, and pass the token over stdin so
-  it never appears in a command argument or process listing:
+The checks above confirm liveness, CORS, and rejection behavior. They do not
+prove a real rider exchange or authenticated GPS write.
 
-  ```powershell
-  Get-Clipboard | pnpm verify-live-token https://fleet.ysz.life/api/driver-session
-  ```
+### Human-gated real-token proof and cleanup
 
-  The tool redacts session/token response bodies. A valid exchange may
-  auto-provision a Supabase driver and assign a matching unassigned vehicle,
-  so use a controlled rider mapping and plan cleanup before running it.
+This controlled proof mutates production: it creates one temporary vehicle,
+may auto-provision one Auth user, writes one GPS point, then removes all three.
+It requires no migration. Use a rider you control who will stay logged out
+except for this proof.
 
-That's the full chain confirmed: TLS → app → self-hosted Supabase → routing.
+Keep one VPS shell open from preflight through cleanup. The read-only preflight
+must show that both the rider mapping and deterministic Auth email are absent;
+that before-state is what distinguishes proof-created state from pre-existing
+state. If either exists, or if the shell/before-state is lost, **stop**. Never
+repurpose or delete the existing state.
+
+#### 1. Preflight and temporary mapping (VPS)
+
+Set the approved numeric rider id. The script generates all cleanup keys,
+requires typed approval, pauses route sync, and inserts one offline vehicle.
+
+```bash
+set -euo pipefail
+cd /opt/fleetmap
+app() { docker compose -f docker-compose.prod.yml "$@"; }
+db() { docker compose -f supabase-docker/docker-compose.yml "$@"; }
+
+PROOF_RIDER_REF='<approved numeric production rider id>'
+case "$PROOF_RIDER_REF" in
+  ''|*[!0-9]*) echo 'STOP: rider id must be numeric' >&2; exit 2 ;;
+esac
+PROOF_VEHICLE_ID="$(tr -d '\r\n' < /proc/sys/kernel/random/uuid)"
+PROOF_LABEL="driver-session-proof-${PROOF_VEHICLE_ID}"
+PROOF_USER_EMAIL="rider-${PROOF_RIDER_REF}@driver.fleetmap.internal"
+
+db exec -T db psql -X -v ON_ERROR_STOP=1 -U postgres -d postgres \
+  -v rider_ref="$PROOF_RIDER_REF" -v vehicle_id="$PROOF_VEHICLE_ID" \
+  -v proof_label="$PROOF_LABEL" -v proof_email="$PROOF_USER_EMAIL" <<'SQL'
+\set QUIET 1
+select exists (
+  select 1 from public.vehicles where rider_ref = :'rider_ref'
+) as mapping_exists \gset
+select exists (
+  select 1 from auth.users where email = :'proof_email'
+) as user_exists \gset
+select exists (
+  select 1 from public.vehicles
+  where id = :'vehicle_id'::uuid or label = :'proof_label'
+) as vehicle_collision \gset
+\set QUIET 0
+\if :mapping_exists
+  \echo 'STOP: rider mapping is pre-existing'
+  \quit 20
+\endif
+\if :user_exists
+  \echo 'STOP: deterministic Auth user is pre-existing'
+  \quit 21
+\endif
+\if :vehicle_collision
+  \echo 'STOP: generated vehicle key collided; rerun preflight'
+  \quit 22
+\endif
+select :'rider_ref' as rider_ref, :'vehicle_id' as proof_vehicle_id,
+       :'proof_label' as proof_label, :'proof_email' as proof_email;
+SQL
+
+printf 'Type the proof vehicle UUID to approve this production mutation: '
+read -r APPROVED_ID
+[ "$APPROVED_ID" = "$PROOF_VEHICLE_ID" ] || {
+  echo 'STOP: approval did not match' >&2
+  exit 23
+}
+
+SYNC_WAS_RUNNING=0
+if [ -n "$(app ps --status running -q sync)" ]; then
+  SYNC_WAS_RUNNING=1
+  app stop sync
+fi
+CLEANUP_COMPLETE=0
+finish_proof() {
+  if [ "${SYNC_WAS_RUNNING:-0}" = 1 ]; then
+    if [ "${CLEANUP_COMPLETE:-0}" = 1 ]; then
+      app up -d --no-build sync
+    else
+      echo 'STOP: cleanup incomplete; sync remains stopped' >&2
+    fi
+  fi
+}
+trap finish_proof EXIT
+
+db exec -T db psql -X -v ON_ERROR_STOP=1 -U postgres -d postgres \
+  -v rider_ref="$PROOF_RIDER_REF" -v vehicle_id="$PROOF_VEHICLE_ID" \
+  -v proof_label="$PROOF_LABEL" <<'SQL'
+insert into public.vehicles (id, label, status, rider_ref)
+values (:'vehicle_id'::uuid, :'proof_label', 'offline', :'rider_ref');
+SQL
+printf 'Proof rider: %s\nProof email: %s\n' \
+  "$PROOF_RIDER_REF" "$PROOF_USER_EMAIL"
+```
+
+Pausing `sync` prevents a route tick from attaching real stops. Leave this
+shell open. Its exit trap restarts sync only after guarded cleanup succeeds.
+
+#### 2. Exchange and authenticated GPS write (local PowerShell)
+
+Run this from the local repo with its production Bubble Box credentials. Enter
+the exact rider id printed above and paste that rider's fresh `fleetAuthToken`
+only at the masked prompt. Tokens and session JSON remain on process stdin or
+in memory—not argv, command history, a file, or output. The existing verifier
+must confirm the rider id before the mutating exchange; the exchanged JWT email
+claim is checked again before the GPS call.
+
+```powershell
+$ErrorActionPreference = 'Stop'
+Add-Type -AssemblyName System.Net.Http
+
+$proofRider = Read-Host 'Exact proof rider id printed by VPS'
+if ($proofRider -notmatch '^\d+$') { throw 'proof rider id must be numeric' }
+$expectedEmail = "rider-$proofRider@driver.fleetmap.internal"
+$lat = [double](Read-Host 'Approved proof latitude')
+$lng = [double](Read-Host 'Approved proof longitude')
+if ([double]::IsNaN($lat) -or [double]::IsInfinity($lat) -or
+    $lat -lt -90 -or $lat -gt 90) { throw 'invalid latitude' }
+if ([double]::IsNaN($lng) -or [double]::IsInfinity($lng) -or
+    $lng -lt -180 -or $lng -gt 180) { throw 'invalid longitude' }
+
+$secureToken = Read-Host 'Paste fresh fleetAuthToken' -AsSecureString
+$tokenPtr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureToken)
+try {
+  $fleetToken = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($tokenPtr)
+} finally {
+  [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($tokenPtr)
+}
+if ([string]::IsNullOrWhiteSpace($fleetToken)) { throw 'token is empty' }
+
+$verifyOutput = $fleetToken | pnpm verify-live-token 2>&1
+$verifyExit = $LASTEXITCODE
+$verifyText = $verifyOutput -join "`n"
+$riderPattern = "(?m)\brider id $([regex]::Escape($proofRider))\s*$"
+if ($verifyExit -ne 0 -or $verifyText -notmatch $riderPattern) {
+  throw 'STOP: Bubble Box did not verify the approved proof rider'
+}
+$verifyOutput = $verifyText = $null
+
+$http = [Net.Http.HttpClient]::new()
+$exchangeResponse = $exchangeContent = $locationRequest = $locationResponse = $null
+try {
+  $exchangeJson = @{ token = $fleetToken } | ConvertTo-Json -Compress
+  $exchangeContent = [Net.Http.StringContent]::new(
+    $exchangeJson, [Text.Encoding]::UTF8, 'application/json'
+  )
+  $exchangeResponse = $http.PostAsync(
+    'https://fleet.ysz.life/api/driver-session', $exchangeContent
+  ).GetAwaiter().GetResult()
+  $exchangeStatus = [int]$exchangeResponse.StatusCode
+  $exchangeText = $exchangeResponse.Content.ReadAsStringAsync(
+  ).GetAwaiter().GetResult()
+  if ($exchangeStatus -ne 200) {
+    throw "driver-session returned HTTP $exchangeStatus"
+  }
+  try { $session = $exchangeText | ConvertFrom-Json }
+  catch { throw 'driver-session returned invalid JSON' }
+  if ([string]::IsNullOrWhiteSpace([string]$session.access_token) -or
+      [string]::IsNullOrWhiteSpace([string]$session.refresh_token)) {
+    throw 'driver-session omitted a session field'
+  }
+
+  $jwtParts = ([string]$session.access_token).Split('.')
+  if ($jwtParts.Count -ne 3) { throw 'access token is not a JWT' }
+  $payload = $jwtParts[1].Replace('-', '+').Replace('_', '/')
+  switch ($payload.Length % 4) {
+    2 { $payload += '==' }
+    3 { $payload += '=' }
+    1 { throw 'JWT payload encoding is invalid' }
+  }
+  try {
+    $claims = [Text.Encoding]::UTF8.GetString(
+      [Convert]::FromBase64String($payload)
+    ) | ConvertFrom-Json
+  } catch { throw 'JWT claims could not be decoded' }
+  if ([string]$claims.email -cne $expectedEmail) {
+    throw 'STOP: session does not belong to the approved proof rider'
+  }
+
+  $recordedAt = [DateTimeOffset]::UtcNow.ToString('o')
+  $locationJson = @{
+    lat = $lat; lng = $lng; heading = $null; speed = 0
+    accuracy = 1; recorded_at = $recordedAt
+  } | ConvertTo-Json -Compress
+  $locationRequest = [Net.Http.HttpRequestMessage]::new(
+    [Net.Http.HttpMethod]::Post, 'https://fleet.ysz.life/api/location'
+  )
+  $locationRequest.Headers.Authorization =
+    [Net.Http.Headers.AuthenticationHeaderValue]::new(
+      'Bearer', [string]$session.access_token
+    )
+  $locationRequest.Content = [Net.Http.StringContent]::new(
+    $locationJson, [Text.Encoding]::UTF8, 'application/json'
+  )
+  $locationResponse = $http.SendAsync(
+    $locationRequest
+  ).GetAwaiter().GetResult()
+  $locationStatus = [int]$locationResponse.StatusCode
+  $locationText = $locationResponse.Content.ReadAsStringAsync(
+  ).GetAwaiter().GetResult()
+  try { $locationBody = $locationText | ConvertFrom-Json }
+  catch { throw "location returned invalid JSON (HTTP $locationStatus)" }
+  if ($locationStatus -ne 200 -or $locationBody.ok -ne $true) {
+    throw "authenticated location proof failed (HTTP $locationStatus)"
+  }
+  [pscustomobject]@{
+    Exchange = 'HTTP 200; session present (redacted)'
+    Location = 'HTTP 200; {"ok":true}'
+    RecordedAt = $recordedAt
+  }
+} finally {
+  if ($locationResponse) { $locationResponse.Dispose() }
+  if ($locationRequest) { $locationRequest.Dispose() }
+  if ($exchangeResponse) { $exchangeResponse.Dispose() }
+  if ($exchangeContent) { $exchangeContent.Dispose() }
+  $http.Dispose()
+  $claims = $session = $exchangeText = $exchangeJson = $null
+  $locationBody = $locationText = $locationJson = $null
+  $fleetToken = $secureToken = $null
+}
+```
+
+Only the redacted `Exchange`, fixed `Location`, and timestamp fields should
+print. If any step fails, do not claim the proof passed, but still run cleanup.
+
+#### 3. Guarded cleanup (same VPS shell)
+
+The cleanup accepts no operator-supplied user id. It derives the possible
+proof-created user from the deterministic email that preflight proved absent,
+then atomically checks exact vehicle provenance, assignment, other assignments,
+and route stops before deleting anything. If it raises, **stop and inspect;
+never broaden the predicates**.
+
+```bash
+db exec -T db psql -X -v ON_ERROR_STOP=1 -U postgres -d postgres \
+  -v rider_ref="$PROOF_RIDER_REF" -v vehicle_id="$PROOF_VEHICLE_ID" \
+  -v proof_label="$PROOF_LABEL" -v proof_email="$PROOF_USER_EMAIL" <<'SQL'
+select set_config('fleetmap.proof_rider_ref', :'rider_ref', false);
+select set_config('fleetmap.proof_vehicle_id', :'vehicle_id', false);
+select set_config('fleetmap.proof_label', :'proof_label', false);
+select set_config('fleetmap.proof_email', :'proof_email', false);
+
+do $cleanup$
+declare
+  proof_user_id uuid;
+  vehicle_user_id uuid;
+begin
+  select assigned_user_id into vehicle_user_id
+  from public.vehicles
+  where id = current_setting('fleetmap.proof_vehicle_id')::uuid
+    and label = current_setting('fleetmap.proof_label')
+    and rider_ref = current_setting('fleetmap.proof_rider_ref')
+  for update;
+  if not found then
+    raise exception 'STOP: exact proof vehicle check failed';
+  end if;
+
+  if (
+    select count(*) from auth.users
+    where email = current_setting('fleetmap.proof_email')
+  ) > 1 then
+    raise exception 'STOP: proof email is not unique';
+  end if;
+  select id into proof_user_id from auth.users
+  where email = current_setting('fleetmap.proof_email');
+
+  if vehicle_user_id is not null
+     and (proof_user_id is null or vehicle_user_id <> proof_user_id) then
+    raise exception 'STOP: vehicle assignment is not the proof user';
+  end if;
+  if proof_user_id is not null and exists (
+    select 1 from public.vehicles
+    where assigned_user_id = proof_user_id
+      and id <> current_setting('fleetmap.proof_vehicle_id')::uuid
+  ) then
+    raise exception 'STOP: proof user is assigned elsewhere';
+  end if;
+  if exists (
+    select 1 from public.stops
+    where vehicle_id = current_setting('fleetmap.proof_vehicle_id')::uuid
+  ) then
+    raise exception 'STOP: route stops reference proof vehicle';
+  end if;
+
+  delete from public.vehicles
+  where id = current_setting('fleetmap.proof_vehicle_id')::uuid
+    and label = current_setting('fleetmap.proof_label')
+    and rider_ref = current_setting('fleetmap.proof_rider_ref');
+  if not found then raise exception 'STOP: vehicle delete predicate changed'; end if;
+
+  if proof_user_id is not null then
+    delete from auth.users
+    where id = proof_user_id
+      and email = current_setting('fleetmap.proof_email');
+    if not found then raise exception 'STOP: user delete predicate changed'; end if;
+  end if;
+end
+$cleanup$;
+
+\set QUIET 1
+select not exists (
+  select 1 from public.vehicles where id = :'vehicle_id'::uuid
+) as vehicle_removed \gset
+select not exists (
+  select 1 from public.vehicle_positions where vehicle_id = :'vehicle_id'::uuid
+) as positions_removed \gset
+select not exists (
+  select 1 from auth.users where email = :'proof_email'
+) as user_removed \gset
+\set QUIET 0
+\if :vehicle_removed
+\else
+  \echo 'STOP: proof vehicle remains'
+  \quit 31
+\endif
+\if :positions_removed
+\else
+  \echo 'STOP: proof positions remain'
+  \quit 32
+\endif
+\if :user_removed
+\else
+  \echo 'STOP: proof user remains'
+  \quit 33
+\endif
+\echo 'PASS cleanup: vehicle, positions, and proof-created Auth user removed'
+SQL
+
+CLEANUP_COMPLETE=1
+finish_proof
+SYNC_WAS_RUNNING=0
+trap - EXIT
+```
+
+The vehicle delete cascades only to its `vehicle_positions`. The Auth user
+delete is allowed only because the same-shell preflight proved the exact email
+was absent; Auth-internal dependent rows cascade from that user. A rejected
+guard or foreign key rolls back the entire `DO`, and sync remains stopped.
 
 ---
 
@@ -559,14 +916,17 @@ go-live does not need to wait for the rider-session release.
   `vehicles` row per production rider and set `rider_ref` to that environment's
   rider id; staging ids must not be copied into production. Investigate any two
   rider ids that appear to represent one physical van before mapping them.
-- Run the safe-stdin real-token proof above against an explicitly approved
-  rider/vehicle, verify `POST /api/location`, and remove any proof-only identity
-  or assignment afterward.
+- Run the complete human-gated proof in §9. Its preflight must prove the rider
+  mapping and deterministic Auth email are absent; its in-memory exchange must
+  verify authenticated `POST /api/location`; and its guarded cleanup must
+  remove the exact proof vehicle, positions, and proof-created Auth user before
+  `sync` resumes.
 - After the first proven live day, retire the old managed-cloud Supabase
   project once its rollback value is no longer needed.
-- For local demo cleanup, clear the proof mapping with
-  `update vehicles set rider_ref = null where label = 'Test Van';`, then run
-  `pnpm seed-stops` if the demo fleet should be restored.
+- Separately, for the old **local demo** `Test Van` only, first select
+  `id, rider_ref, assigned_user_id` and stop if `assigned_user_id` is non-null.
+  Clearing that local rider mapping and running `pnpm seed-stops` is demo
+  restoration, not a substitute for the production proof cleanup in §9.
 - The old one-off `purge-prod-demo.ps1` and `probe-prod-driver.ps1` proof
   scripts are already absent from this repository. Keep credentials and token
   fixtures out of replacement scripts.
