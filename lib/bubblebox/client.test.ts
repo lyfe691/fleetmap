@@ -116,6 +116,29 @@ describe("createBubbleboxClient", () => {
     )
   })
 
+  it("aborts a stalled token mint after the configured deadline", async () => {
+    const hangingFetch: typeof fetch = async (_input, init) =>
+      new Promise<Response>((_resolve, reject) => {
+        const signal = init?.signal
+        expect(signal).toBeInstanceOf(AbortSignal)
+        signal?.addEventListener(
+          "abort",
+          () => reject(signal.reason ?? new Error("aborted")),
+          { once: true }
+        )
+      })
+
+    const client = createBubbleboxClient({
+      baseUrl: "https://bb.test",
+      username: "u",
+      password: "p",
+      fetchImpl: hangingFetch,
+      timeoutMs: 10,
+    })
+
+    await expect(client.fetchRiderRoutes("2026-07-31")).rejects.toBeDefined()
+  }, 250)
+
   it("two clients built from the same config do not share a token (each mints its own)", async () => {
     const { fn, calls } = fakeFetch([
       tokenOk("t1"),

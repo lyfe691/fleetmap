@@ -6,6 +6,8 @@ export type BubbleboxConfig = {
   password: string
   /** Injected for tests; defaults to global fetch. */
   fetchImpl?: typeof fetch
+  /** Maximum duration for each Bubble Box network attempt. */
+  timeoutMs?: number
 }
 
 export type BubbleboxClient = {
@@ -18,14 +20,28 @@ export type BubbleboxClient = {
 
 export function createBubbleboxClient(config: BubbleboxConfig): BubbleboxClient {
   const { baseUrl, username, password, fetchImpl = fetch } = config
+  const timeoutMs = config.timeoutMs ?? 10_000
   let token: string | null = null
 
+  function withDeadline(init: RequestInit = {}): RequestInit {
+    const timeoutSignal = AbortSignal.timeout(timeoutMs)
+    return {
+      ...init,
+      signal: init.signal
+        ? AbortSignal.any([init.signal, timeoutSignal])
+        : timeoutSignal,
+    }
+  }
+
   async function mintToken(): Promise<string> {
-    const res = await fetchImpl(`${baseUrl}/api/v2/fleet/authentication-token`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password }),
-    })
+    const res = await fetchImpl(
+      `${baseUrl}/api/v2/fleet/authentication-token`,
+      withDeadline({
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      })
+    )
     if (!res.ok) throw new Error(`BB token denied (${res.status})`)
     const body = (await res.json()) as { data?: { loginToken?: string } }
     if (!body.data?.loginToken) {
@@ -37,11 +53,14 @@ export function createBubbleboxClient(config: BubbleboxConfig): BubbleboxClient 
   async function authedFetch(path: string, init: RequestInit = {}): Promise<Response> {
     token ??= await mintToken()
     const headers = { ...init.headers, accessToken: token }
-    let res = await fetchImpl(`${baseUrl}${path}`, { ...init, headers })
+    let res = await fetchImpl(
+      `${baseUrl}${path}`,
+      withDeadline({ ...init, headers })
+    )
     if (res.status === 401) {
       token = await mintToken()
       res = await fetchImpl(`${baseUrl}${path}`, {
-        ...init,
+        ...withDeadline(init),
         headers: { ...init.headers, accessToken: token },
       })
     }
