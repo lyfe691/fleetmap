@@ -99,10 +99,8 @@ function handlePost(
     void Promise.resolve()
       .then(() => deps.exchangeToken(token))
       .then((result) => respond(result.status, result.body))
-      .catch((err) => {
-        deps.log("error", "exchange_failed", {
-          error: err instanceof Error ? err.message : String(err),
-        })
+      .catch(() => {
+        deps.log("error", "exchange_failed")
         respond(500, { error: "exchange failed" })
       })
   })

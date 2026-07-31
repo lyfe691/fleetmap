@@ -197,17 +197,25 @@ describe("createDriverSessionHandler", () => {
   })
 
   it("hides thrown exchange errors without logging the submitted token", async () => {
+    const submittedToken = "submitted-token-sentinel"
+    const accessToken = "access-token-sentinel"
+    const refreshToken = "refresh-token-sentinel"
     const testServer = await startServer(() => {
-      throw new Error("upstream unavailable")
+      throw new Error(
+        `exchange failed for ${submittedToken}: access=${accessToken} refresh=${refreshToken}`
+      )
     })
     try {
       const response = await fetch(testServer.baseUrl, {
         method: "POST",
-        body: JSON.stringify({ token: "secret-token" }),
+        body: JSON.stringify({ token: submittedToken }),
       })
       expect(response.status).toBe(500)
       expect(await response.json()).toEqual({ error: "exchange failed" })
-      expect(JSON.stringify(testServer.logs)).not.toContain("secret-token")
+      const serializedLogs = JSON.stringify(testServer.logs)
+      expect(serializedLogs).not.toContain(submittedToken)
+      expect(serializedLogs).not.toContain(accessToken)
+      expect(serializedLogs).not.toContain(refreshToken)
     } finally {
       await testServer.close()
     }
