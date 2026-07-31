@@ -1,10 +1,13 @@
-# Production stack for the VPS: Caddy (TLS) -> Next app -> OSRM (internal).
-# Supabase stays managed/cloud — not in this stack.
+# Production FleetMap stack: Caddy (TLS) -> Next app -> OSRM (internal),
+# deployed beside the self-hosted Supabase stack on the same VPS.
 #
-#   docker compose -f docker-compose.prod.yml up -d --build
+# Build the three FleetMap images locally, ship/load their release archive, then:
+#   docker compose -f docker-compose.prod.yml up -d --no-build
 #
-# Reads .env in this directory for both build args (NEXT_PUBLIC_*) and runtime
-# env. Build the OSRM dataset once before first `up` (see docs/deployment.md).
+# The build blocks remain as local metadata; production consumes the explicit
+# image tags below and never builds on the VPS. Reads .env in this directory for
+# build args (NEXT_PUBLIC_*) and runtime env. Build the OSRM dataset once before
+# first `up` (see docs/deployment.md).
 
 services:
   caddy:
@@ -26,6 +29,7 @@ services:
       - fleetmap-edge
 
   app:
+    image: fleetmap-app:latest
     build:
       context: .
       args:
@@ -36,12 +40,14 @@ services:
     env_file: .env       # server-only secrets read at runtime (DASHBOARD_*, DISPATCHER_*, OSRM_URL)
     environment:
       OSRM_URL: http://osrm:5000   # reach OSRM by service name inside the stack
+      DRIVER_SESSION_URL: http://driver-session:3100
     expose:
       - "3000"           # internal only — Caddy is the public edge
     depends_on:
       - osrm
 
   sync:
+    image: fleetmap-sync:latest
     build:
       context: .
       target: sync
@@ -53,6 +59,7 @@ services:
       - app
 
   driver-session:
+    image: fleetmap-driver-session:latest
     build:
       context: .
       target: driver-session

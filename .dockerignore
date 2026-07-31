@@ -11,3 +11,7 @@ osrm
 caddy
 docs
 **/*.test.ts
+.driver-auth-dev
+*.pem
+fleetmap-images*.tar
+fleetmap-images*.tar.gz

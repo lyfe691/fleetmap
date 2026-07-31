@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server"
+import { summarizeHealth } from "@/lib/health"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 
 const OSRM_URL = process.env.OSRM_URL ?? "http://localhost:5000"
+const DRIVER_SESSION_URL = process.env.DRIVER_SESSION_URL
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
 const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
 
@@ -61,33 +63,37 @@ export async function GET() {
   // Auth (GoTrue) and PostgREST are separate services — probing auth alone
   // would report green through a database-path outage, which is what every
   // real feature (ingest, dashboard reads, sync) actually depends on.
-  const [authOk, rest, osrmOk] = await Promise.all([
+  const [authOk, rest, osrmOk, driverSessionOk] = await Promise.all([
     SUPABASE_URL && SUPABASE_KEY
       ? probe(`${SUPABASE_URL}/auth/v1/health`, { apikey: SUPABASE_KEY })
       : Promise.resolve(false),
     readSyncState(),
     probe(`${OSRM_URL}/nearest/v1/driving/8.54,47.38`),
+    DRIVER_SESSION_URL ? probe(DRIVER_SESSION_URL) : Promise.resolve(null),
   ])
   const supabaseOk = authOk && rest.ok
   const sync = rest.state
+  const health = summarizeHealth({
+    supabaseOk,
+    osrmOk,
+    driverSessionOk,
+  })
 
   // Sync is informational, not gating: a missing row means the worker has
   // never run (expected until the Bubble Box endpoints are wired).
-  const ok = supabaseOk && osrmOk
   return NextResponse.json(
     {
-      ok,
-      supabase: supabaseOk ? "ok" : "down",
-      osrm: osrmOk ? "ok" : "down",
+      ...health,
       sync: sync?.last_success_at
         ? {
             last_success_at: sync.last_success_at,
-            fresh: Date.now() - Date.parse(sync.last_success_at) < SYNC_STALE_MS,
+            fresh:
+              Date.now() - Date.parse(sync.last_success_at) < SYNC_STALE_MS,
             last_error: sync.last_error,
             last_error_at: sync.last_error_at,
           }
         : null,
     },
-    { status: ok ? 200 : 503 }
+    { status: health.ok ? 200 : 503 }
   )
 }

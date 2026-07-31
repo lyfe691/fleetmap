@@ -64,8 +64,8 @@ clean, 120/120 tests, `pnpm build` clean.
 |------|-------|----------|--------|------------|--------|
 | 022 | Extract the Bubble Box API client out of the sync worker | P1 | M | — | DONE (2f7a57a, committed straight to main rather than an `advisor/` branch — executed in-tree beside parallel work. Reviewed: 3-file diff in scope, tsc clean, build clean, 129 tests (9 new). Token state confirmed in a per-client closure, exactly one re-mint on 401 with no recursion, `accessToken` header casing intact, all three error strings byte-identical. The worker's `bb!` is safe: the startup guard already forces fixture-or-credentials. Known limit: `authedFetch` spreads `init.headers`, so callers must pass a plain object, not a `Headers` instance) |
 | 023 | Make the driver-login exchange testable by extracting it from the worker | P1 | M | — | DONE (3c8fb89, committed straight to main. Reviewed: 3-file diff in scope, tsc clean, 138 tests (9 new), `verify.test.ts`'s original 7 untouched. The `throw err` re-throw survived the move intact and is now pinned by test 3; the 200 body still carries exactly four fields. `lib/driver-auth/verify.ts` deliberately untouched — the Bubble Box verification swap is the next change on top of this) |
-| 024 | Make the health endpoint cover the driver-login service | P1 | S | — | PARTIAL — step 1 (the worker's liveness `GET`) landed in cbbd790, folded into the CORS fix because it is the same method-dispatch block. Remaining: the health-endpoint half (`lib/health.ts` + the probe + `DRIVER_SESSION_URL` in compose, `.env.example`, `docs/deployment.md`) |
-| 025 | Correct the production compose file's stale and dangerous header | P2 | S | — | TODO |
+| 024 | Make the health endpoint cover the driver-login service | P1 | S | — | DONE (2026-07-31 driver-session cutover; see git history) |
+| 025 | Correct the production compose file's stale and dangerous header | P2 | S | — | DONE (2026-07-31 driver-session cutover; see git history) |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (one-line reason) | REJECTED (one-line rationale)
 
@@ -132,13 +132,8 @@ Status values: TODO | IN PROGRESS | DONE | BLOCKED (one-line reason) | REJECTED 
 - **Neither 022 nor 023 implements `/fleet/verify-token`.** Its request and
   response shape is unknown as of this audit. Both plans list it as an explicit
   STOP condition.
-- **Update 2026-07-29:** Bubble Box shipped it, as
-  `POST /api/v2/fleet/verify-rider-token` (not `/fleet/verify-token`, which
-  404s). 022 and 023 landed the same day and the swap sits on top of them, but
-  it is **blocked**: our fleet account gets `403 Zugriff verweigert.` from the
-  new endpoint while the same token still returns 200 on `/fleet/rider-routes`,
-  and the success-response shape has not been documented. See
-  `docs/HANDOFF.md`, "2026-07-29".
+- **2026-07-31 cutover:** The verification swap and deployment follow-through
+  are covered by `docs/specs/2026-07-31-driver-session-cutover-design.md`.
 
 ## Follow-up observed during execution
 
