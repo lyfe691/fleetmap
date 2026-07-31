@@ -6,20 +6,36 @@
  * (lib/bubblebox/client + lib/driver-auth/verify) against the token, and
  * optionally puts it through a running driver-session too.
  *
- *   pnpm verify-live-token <riderAuthToken>
- *   pnpm verify-live-token <riderAuthToken> https://fleet.ysz.life/api/driver-session
- *   pnpm verify-live-token <riderAuthToken> http://localhost:3100
+ *   Get-Clipboard | pnpm verify-live-token
+ *   Get-Clipboard | pnpm verify-live-token https://fleet.ysz.life/api/driver-session
+ *   Get-Clipboard | pnpm verify-live-token http://localhost:3100
  *
  * Reads BB_API_URL / BB_API_USERNAME / BB_API_PASSWORD from .env.
  */
+import { readFile } from "node:fs/promises"
+
 import { createBubbleboxClient } from "../lib/bubblebox/client"
+import { summarizeExchangeBody } from "../lib/driver-auth/diagnostic"
 import { TokenInvalidError, verifyRiderToken } from "../lib/driver-auth/verify"
 
-const token = process.argv[2]
-const exchangeUrl = process.argv[3]
+async function readStdin(): Promise<string> {
+  if (process.platform !== "win32") {
+    return readFile("/dev/stdin", "utf8")
+  }
+
+  process.stdin.setEncoding("utf8")
+  let text = ""
+  for await (const chunk of process.stdin) {
+    text += chunk
+  }
+  return text
+}
+
+const token = (await readStdin()).trim()
+const exchangeUrl = process.argv[2]
 
 if (!token) {
-  console.error("usage: pnpm verify-live-token <riderAuthToken> [driverSessionUrl]")
+  console.error("usage: Get-Clipboard | pnpm verify-live-token [driverSessionUrl]")
   process.exit(1)
 }
 
@@ -56,27 +72,27 @@ const bb = createBubbleboxClient({
   password: BB_API_PASSWORD,
 })
 
-console.log(`\n[1] verify-rider-token, using OUR fleet account (${BB_API_USERNAME})`)
+console.log("\n[1] verify-rider-token using the configured fleet account")
 const t0 = Date.now()
 try {
   const { riderId } = await verifyRiderToken(token, bb)
   console.log(`    OK in ${Date.now() - t0}ms — rider id ${riderId}`)
   console.log("    => our fleet account IS authorized for this endpoint")
 } catch (err) {
-  const msg = err instanceof Error ? err.message : String(err)
-  console.log(`    FAILED in ${Date.now() - t0}ms — ${msg}`)
+  console.log(`    FAILED in ${Date.now() - t0}ms`)
   if (err instanceof TokenInvalidError) {
     console.log(
       "    => 403. Either the token is expired/invalid, or our account is not\n" +
         "       authorized. If the token still had life left above, it is the account."
     )
   } else {
-    console.log("    => not a token rejection. Our side or theirs is broken, see above.")
+    console.log("    => verification failed outside the invalid-token case.")
   }
+  process.exit(1)
 }
 
 if (!exchangeUrl) {
-  console.log("\n[2] skipped (pass a driver-session URL as the second argument)")
+  console.log("\n[2] skipped (pass a driver-session URL as the first argument)")
   process.exit(0)
 }
 
@@ -89,11 +105,14 @@ const res = await fetch(exchangeUrl, {
 })
 const body = await res.text()
 console.log(`    ${res.status} in ${Date.now() - t1}ms`)
-console.log(`    ${body.slice(0, 400)}`)
+console.log("   ", summarizeExchangeBody(res.status, body))
 if (res.ok) {
   console.log("    => session minted. The whole chain works.")
 } else if (res.status === 403) {
   console.log("    => verified, but no vehicle has this rider_ref yet (ops task).")
 } else if (res.status === 401) {
   console.log("    => the token was rejected. See [1] for which side said no.")
+}
+if (!res.ok) {
+  process.exit(1)
 }
