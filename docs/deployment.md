@@ -516,16 +516,13 @@ select exists (
 ) as vehicle_collision \gset
 \set QUIET 0
 \if :mapping_exists
-  \echo 'STOP: rider mapping is pre-existing'
-  \quit 20
+  do $$ begin raise exception 'STOP: rider mapping is pre-existing'; end $$;
 \endif
 \if :user_exists
-  \echo 'STOP: deterministic Auth user is pre-existing'
-  \quit 21
+  do $$ begin raise exception 'STOP: deterministic Auth user is pre-existing'; end $$;
 \endif
 \if :vehicle_collision
-  \echo 'STOP: generated vehicle key collided; rerun preflight'
-  \quit 22
+  do $$ begin raise exception 'STOP: generated vehicle key collided; rerun preflight'; end $$;
 \endif
 select :'rider_ref' as rider_ref, :'vehicle_id' as proof_vehicle_id,
        :'proof_label' as proof_label, :'proof_email' as proof_email;
@@ -782,18 +779,15 @@ select not exists (
 \set QUIET 0
 \if :vehicle_removed
 \else
-  \echo 'STOP: proof vehicle remains'
-  \quit 31
+  do $$ begin raise exception 'STOP: proof vehicle remains'; end $$;
 \endif
 \if :positions_removed
 \else
-  \echo 'STOP: proof positions remain'
-  \quit 32
+  do $$ begin raise exception 'STOP: proof positions remain'; end $$;
 \endif
 \if :user_removed
 \else
-  \echo 'STOP: proof user remains'
-  \quit 33
+  do $$ begin raise exception 'STOP: proof user remains'; end $$;
 \endif
 \echo 'PASS cleanup: vehicle, positions, and proof-created Auth user removed'
 SQL
