@@ -27,6 +27,7 @@
 
 # brainstorming visual companion
 /.superpowers
+/.worktrees/
 
 # debug
 npm-debug.log*
