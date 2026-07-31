@@ -1,5 +1,41 @@
 # Fleetmap handoff — where things stand and what's next
 
+## Authoritative current state — 2026-07-31
+
+The Bubble Box verification cutover is code-complete locally. Roman's app
+persists its normal rider `loginToken`, sends it as `accessToken` to
+`GET /api/v2/riders/fleet-auth-token`, reads the short-lived
+`data.fleetAuthToken`, and sends that value to Fleetmap's unchanged public
+`{ token }` request. Fleetmap
+privately sends it to `POST /api/v2/fleet/verify-rider-token` as
+`{ riderAuthToken }`, authenticated by the server's cached fleet-service
+`loginToken` in the `accessToken` header, then returns the Supabase
+`access_token` and `refresh_token`.
+
+Production already has the 2026-07-29 CORS/liveness image. It does **not** yet
+have the verification-swap artifact or the new `driver_session` health
+aggregation image. The next deploy is the three explicit `:latest` images
+built on the dev machine; the VPS must never build. Create
+`.env.driver-session` first with `SUPABASE_SECRET_KEY`, `BB_API_URL`,
+`BB_API_USERNAME`, and `BB_API_PASSWORD`. This cutover has no database
+migration.
+
+The only missing end-to-end evidence is a fresh real rider token. Roman's
+supplied legacy rider-login path returned `404`, and Bubble Box's documented
+current login rejected the supplied fixture with `401` on 2026-07-31. That
+upstream fixture issue blocks the real-token proof, not local code or artifact
+readiness. The proof can auto-provision a Supabase identity and assign an
+unassigned matching vehicle, so use a controlled rider mapping and clean it up
+afterward. Once proven, Roman can release the client flow in
+`docs/driver-session-api.md`: persist Supabase with `setSession`, try Supabase
+refresh first on cold start, and reacquire a new `fleetAuthToken` without an
+interactive login while the rider `loginToken` remains valid.
+
+Everything below this section is chronological investigation/history. It is
+useful for rationale and incident lessons, but any older status or operational
+instruction is superseded by this section, `docs/deployment.md`, and
+`docs/driver-session-api.md`.
+
 **Written:** 2026-07-11, by the agent that designed and built M15 (Bubble Box
 route sync). Read this before anything else if you're picking the project up —
 it's the connective tissue that isn't obvious from the code or the git log.
@@ -404,7 +440,7 @@ Roman owes one release against `docs/driver-session-api.md`, which carries the
 three app constants inline so it stands alone. Those two are separate tracks
 on purpose: orders going live does not wait on the login change.
 
-## Post-handoff additions (2026-07-29) — Bubble Box shipped verification, and it 403s
+## Historical investigation (2026-07-29) — verification shipped, fixture calls returned 403
 
 Both counterparties moved on 2026-07-28/29. Neither track is finished, and the
 reasons are now precise rather than "waiting".
@@ -427,7 +463,7 @@ Dmytro shipped it. The contract as he described it, corrected by probing:
 - **It lives 2 minutes.** See the consequences below; this is the detail most
   likely to cause a production surprise.
 
-### It is blocked: our fleet account is not authorized for it
+### Historical rejected interpretation: our fleet account is not authorized
 
 Probed against staging on 2026-07-29 with the credentials in the dev `.env`:
 
@@ -531,30 +567,24 @@ reports for that rider. So `vehicles.rider_ref` is untouched, as he said on
 07-27. `fullName` is not stored (the sync stores no PII and this changes
 nothing about that).
 
-**Getting a token to test with:** only the rider app issues them, and they live
-2 minutes. `scripts/verify-live-token.ts` exists to beat that clock — paste the
-token, it runs the BB call and the prod exchange in one shot.
-
-Also still unknown: **what a 200 looks like.** No amount of probing reveals it
-while every call 403s, so where the rider id sits in the response is not
-established. Do not guess it. Two designs are viable once a real 200 is seen —
-read the id from the response body, or read `admin.rider.id` out of the token
-we just had verified — and the choice should be made against a real payload,
-not a plausible one.
+**Getting a token to test with (current correction):** the rider app can request
+one on demand from `GET /api/v2/riders/fleet-auth-token`, using its persisted
+rider `loginToken` as `accessToken`; the value is
+`data.fleetAuthToken`. Pipe it over stdin to `pnpm verify-live-token` so the
+credential never appears in a command argument. The documented success body is
+top-level `{ id, fullName }`; Fleetmap uses `id` and discards `fullName`.
 
 ### The 2-minute lifetime changes the client contract
 
-`docs/driver-session-api.md:33-39` is now wrong and must be corrected when the
-swap lands. It tells Roman that BB tokens live 24 h and to re-exchange whenever
-Supabase refresh ultimately fails. With a 2-minute token he will not have a
-live one weeks later. The real shape:
+The client contract is now corrected. The approximately two-minute token
+cannot be stored for later. The real shape is:
 
 - Exchange **immediately** after the BB login, not lazily when tracking starts.
 - Keep the Supabase session alive by refresh; never re-exchange with the old
   `fleetAuthToken`.
-- If refresh ultimately fails, the driver needs a **new BB login** — unless the
-  rider app can mint a fresh `fleetAuthToken` on demand, which is asked and
-  unanswered.
+- If refresh ultimately fails, use the still-valid rider `loginToken` to mint a
+  fresh `fleetAuthToken` on demand. Require interactive login only after that
+  rider token is no longer valid.
 
 ### CORS was ours, and it was blocking Roman
 
@@ -580,16 +610,6 @@ adding.
 browser path had never been exercised, so nothing revealed that a preflight
 would 405. Same shape as the `pnpm exec` and stale-Caddy bugs — untested prod
 paths fail silently until someone finally uses them.
-
-### Where that leaves the two tracks
-
-- **Login:** blocked on Dmytro granting our account access to
-  `verify-rider-token` and describing a success response. Everything downstream
-  of `lib/driver-auth/verify.ts` is built, tested and deployed. Roman must not
-  ship until the swap is live — until then the service verifies RS256 against
-  the dev stand-in key and will 401 every real `fleetAuthToken`.
-- **Orders:** unchanged and still first in line. Prod BB credentials plus one
-  `vehicles` row per rider, then watch `/api/health`.
 
 ## Working with Yanis (learned the hard way — saves you a round trip)
 

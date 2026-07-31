@@ -1,5 +1,9 @@
 # Plan 022: Extract the Bubble Box API client out of the sync worker
 
+> **HISTORICAL COMPLETED PLAN — DO NOT EXECUTE.** Implemented in `2f7a57a`.
+> Endpoint names and unknowns below record the 2026-07-28 planning state and
+> were superseded by the 2026-07-31 cutover design.
+
 > **Executor instructions**: Follow this plan step by step. Run every
 > verification command and confirm the expected result before moving to the
 > next step. If anything in the "STOP conditions" section occurs, stop and

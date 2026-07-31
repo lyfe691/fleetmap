@@ -1,12 +1,17 @@
 # Driver auth federation — kill the double-login
 
-**Date:** 2026-07-13 (rewritten after review) · **Status:** implemented
-2026-07-22 (M20) per the "2026-07-22 review" — `workers/driver-session.ts` +
-`lib/driver-auth/verify.ts`, E2E-proven locally against a stand-in keypair
-(existing-user path, auto-provision path, fleet-token and unmapped-rider
-rejections, RLS isolation). Live cutover still needs Bubble Box's real public
-key + a rider-token payload sample (Dmytro) and the app change
-(`docs/driver-session-api.md`, Roman).
+> **SUPERSEDED FOR CURRENT IMPLEMENTATION AND OPERATIONS.** This document
+> preserves the 2026-07-13/22 design history, including rejected local
+> signature verification and the later introspection discussion. The
+> authoritative design is
+> `docs/specs/2026-07-31-driver-session-cutover-design.md`; the authoritative
+> client and deployment instructions are `docs/driver-session-api.md` and
+> `docs/deployment.md`. Read the final 2026-07-31 addendum below for the
+> corrected outcome.
+
+**Date:** 2026-07-13 (rewritten after review) · **Historical status:**
+implemented 2026-07-22 and subsequently superseded at the verification
+boundary by Bubble Box server-side token verification.
 
 > **Reviewed 2026-07-22** (post M17 self-host, M18 real API, M19 retirements) —
 > the core design holds; see "2026-07-22 review" at the end for what today's
@@ -398,7 +403,7 @@ API. Roman — nothing until the exchange exists.
 
 ---
 
-## 2026-07-27 — Bubble Box counter-proposal: introspection, not signature verification
+## Historical 2026-07-27 counter-proposal: introspection, not signature verification
 
 Dmytro opened a three-way chat with Roman and Yanis and proposed a different
 verification mechanism. Accepted the same day. **The design below is superseded
@@ -471,33 +476,41 @@ guess until it lands.
 **Dead asks:** the RS256 public key and the rider-token payload sample. Neither
 is needed under this design.
 
-### Shipped, 2026-07-29 — corrects the two points above
+### Current addendum — 2026-07-31
 
-Dmytro delivered it. What he built differs from the 07-27 note in one way that
-matters, and adds a constraint nobody anticipated:
+The historical unknowns above are resolved:
 
-- **The endpoint is `POST /api/v2/fleet/verify-rider-token`**, not
-  `/fleet/verify-token` (that name 404s). Header `accessToken`, exactly as
-  predicted. Body `{ "riderAuthToken": "<rider JWT>" }`, which closes the
-  request half of "still open".
-- **The rider app now issues a purpose-built `fleetAuthToken`** at rider login,
-  rider-scoped and useless for logging into the rider app itself. That is the
-  blast-radius win this redesign was for. Same token, two names: Roman's app
-  holds `fleetAuthToken`, we forward it as `riderAuthToken`.
-- **It lives 2 minutes.** This is the unanticipated constraint. It forces the
-  exchange to happen immediately at login and makes re-exchange impossible
-  later, so the Supabase refresh token becomes the only thing keeping a driver
-  signed in. `docs/driver-session-api.md` was corrected for this.
-- **The response shape is still undocumented**, so the second half of "still
-  open" stands. Either read the rider id from the response or from the token
-  that was just verified — decide against a real 200, not a plausible one.
+- After normal rider authentication, the rider app owns a persisted rider
+  access token (`loginToken`). It requests a short-lived `fleetAuthToken` from
+  `GET /api/v2/riders/fleet-auth-token`, sending that rider token in the
+  `accessToken` header, and reads `data.fleetAuthToken`.
+- Roman immediately sends that value through the unchanged public Fleetmap
+  request `{ "token": "<fleetAuthToken>" }`.
+- Fleetmap mints and caches its separate fleet-service `loginToken` from
+  `POST /api/v2/fleet/authentication-token`. It sends that server-only value as
+  the `accessToken` header to
+  `POST /api/v2/fleet/verify-rider-token`, with the public request token
+  privately renamed to `{ "riderAuthToken": "<fleetAuthToken>" }`.
+- Verification succeeds with top-level `{ "id": integer, "fullName": string }`.
+  Fleetmap uses `id` for `vehicles.rider_ref` and discards `fullName`.
+- Fleetmap returns Supabase `access_token` and `refresh_token`. The app persists
+  them with `setSession`; a cold start restores and refreshes Supabase first.
+  After terminal refresh failure, the app uses its still-valid rider
+  `loginToken` to acquire a fresh `fleetAuthToken` without interactive login.
+  Interactive Bubble Box login is required only when the rider token can no
+  longer mint one.
 
-**Blocked:** our fleet account gets `403 Zugriff verweigert.` from the new
-endpoint while the same `accessToken` returns 200 from `/fleet/rider-routes` in
-the same run. Established as an authorization gap rather than a payload
-problem, with the evidence and the ruled-out alternatives in `docs/HANDOFF.md`,
-"2026-07-29". Asked.
+Implementation and deployment state:
 
-**The shared-module note above is now discharged:** `lib/bubblebox/client.ts`
-exists (022), and `lib/driver-auth/exchange.ts` (023) put a nine-branch
-regression net under the swap before it happens.
+- The server-side verification swap, hardened HTTP boundary, safe-stdin
+  diagnostic, Compose image tags, and `driver_session` health aggregation are
+  complete locally.
+- Production has the CORS/liveness image deployed, but not yet the
+  verification-swap artifact.
+- A real-token proof is blocked by the supplied test fixture, not by code:
+  Roman's legacy login path returned `404`, and the documented current login
+  returned `401` on 2026-07-31.
+- The release requires all three explicit `:latest` images built locally and
+  the four-variable `.env.driver-session`; the VPS must never build.
+- No database migration is required. A valid exchange may auto-provision and
+  assign a vehicle, so the proof must use a controlled rider mapping.

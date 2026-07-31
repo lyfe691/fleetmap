@@ -1,5 +1,9 @@
 # Plan 023: Make the driver-login exchange testable by extracting it from the worker
 
+> **HISTORICAL COMPLETED PLAN — DO NOT EXECUTE.** Implemented in `3c8fb89`.
+> Local-verification excerpts below record the pre-cutover implementation and
+> were superseded by the 2026-07-31 cutover design.
+
 > **Executor instructions**: Follow this plan step by step. Run every
 > verification command and confirm the expected result before moving to the
 > next step. If anything in the "STOP conditions" section occurs, stop and

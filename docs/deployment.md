@@ -281,11 +281,11 @@ chmod 600 .env.driver-session
 here.
 
 > **Ordering matters on the next deploy.** Since 2026-07-29 the exchange
-> verifies tokens by calling Bubble Box's `/fleet/verify-rider-token` instead
-> of checking an RS256 signature locally, so `BB_DRIVER_JWT_PUBLIC_KEY_B64` is
-> gone and the three `BB_API_*` vars replace it. **Write this file before
-> loading the new image.** The old key left in place is harmless, but with no
-> `BB_API_*` the container throws `Missing env` at boot and crash-loops — and
+> verifies tokens by calling Bubble Box's
+> `/api/v2/fleet/verify-rider-token`. The production CORS/liveness image does
+> not contain that verification swap yet. **Write all four variables above
+> before loading the cutover image.** With no `BB_API_*` values, the container
+> throws `Missing env` at boot and crash-loops — and
 > a crash-looping worker is exactly the failure this project has already
 > missed twice. Check it started: `docker compose -f docker-compose.prod.yml
 > logs --tail=20 driver-session`.
@@ -299,10 +299,9 @@ here.
 > file is missing, `docker compose up` aborts the **entire** stack, not just
 > that one service. Create it first, redeploy second.
 
-Rotating the key later (e.g. when Dmytro's real key replaces a stand-in) is an
-edit plus
-`docker compose -f docker-compose.prod.yml up -d driver-session` — no rebuild,
-the key is runtime env, not a build arg.
+Rotating the Bubble Box fleet credentials later is an edit plus
+`docker compose -f docker-compose.prod.yml up -d --no-build driver-session`.
+The credentials are runtime environment, not build arguments.
 
 ---
 
@@ -311,13 +310,22 @@ the key is runtime env, not a build arg.
 Images are built **locally**, never on the VPS (see "The one rule that
 matters" above):
 
+The 2026-07-31 driver-session cutover requires **no database migration**.
+
 ```bash
-docker build --platform linux/amd64 -t fleetmap-app --target runner \
+docker build --platform linux/amd64 -t fleetmap-app:latest --target runner \
   --build-arg NEXT_PUBLIC_SUPABASE_URL=https://sb.fleet.ysz.life \
   --build-arg NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<ANON_KEY> .
-docker build --platform linux/amd64 -t fleetmap-sync --target sync .
-docker build --platform linux/amd64 -t fleetmap-driver-session --target driver-session .
-docker save fleetmap-app fleetmap-sync fleetmap-driver-session | gzip > fleetmap-images.tar.gz
+docker build --platform linux/amd64 -t fleetmap-sync:latest --target sync .
+docker build --platform linux/amd64 -t fleetmap-driver-session:latest --target driver-session .
+docker save fleetmap-app:latest fleetmap-sync:latest fleetmap-driver-session:latest | gzip > fleetmap-images.tar.gz
+
+# Inspect before upload: all three tags must be present and linux/amd64.
+tar -xOzf fleetmap-images.tar.gz index.json
+docker image inspect fleetmap-app:latest fleetmap-sync:latest \
+  fleetmap-driver-session:latest \
+  --format '{{index .RepoTags 0}} {{.Os}}/{{.Architecture}} {{.Id}}'
+
 scp fleetmap-images.tar.gz root@fleet.ysz.life:/opt/fleetmap/
 ```
 
@@ -400,25 +408,47 @@ A `200`/`307` over a valid TLS cert means the edge + app are live.
   sits behind Kong's dashboard basic-auth (`DASHBOARD_USERNAME`/
   `DASHBOARD_PASSWORD` from `supabase-docker/.env`).
 
-- **Health:** one endpoint covers app + Supabase + OSRM + sync freshness:
+- **Health:** one endpoint covers app + Supabase + OSRM + driver-session
+  liveness + sync freshness:
 
   ```bash
   curl -s https://fleet.ysz.life/api/health
-  # {"ok":true,"supabase":"ok","osrm":"ok","sync":null}
-  # sync is null until the Bubble Box worker has run; 503 when supabase/osrm is down
+  # {"ok":true,"supabase":"ok","osrm":"ok","driver_session":"ok","sync":null}
+  # sync is null until the Bubble Box worker has run
+  # 503 when supabase/osrm/driver_session is down
   ```
 
   Point an external uptime monitor (e.g. UptimeRobot, free tier) at this
   URL — it's the only alerting the stack has.
 
 - **Driver session exchange:** a garbage token proves the route reaches the
-  service and that verification is enforced:
+  service and that Bubble Box verification is enforced. Check liveness and
+  browser preflight first:
 
   ```bash
+  curl -s -w ' HTTP:%{http_code}\n' https://fleet.ysz.life/api/driver-session
+  # expect: {"ok":true} HTTP:200
+
+  curl -s -o /dev/null -w "%{http_code}\n" -X OPTIONS \
+    https://fleet.ysz.life/api/driver-session
+  # expect: 204
+
   curl -s -o /dev/null -w "%{http_code}\n" -X POST https://fleet.ysz.life/api/driver-session \
     -H 'Content-Type: application/json' -d '{"token":"not-a-jwt"}'
   # expect: 401  (404 means Caddy never got the route — the box's git is behind)
   ```
+
+  A real token is the readiness proof. Run the diagnostic from the local repo,
+  where `.env` contains the fleet credentials, and pass the token over stdin so
+  it never appears in a command argument or process listing:
+
+  ```powershell
+  Get-Clipboard | pnpm verify-live-token https://fleet.ysz.life/api/driver-session
+  ```
+
+  The tool redacts session/token response bodies. A valid exchange may
+  auto-provision a Supabase driver and assign a matching unassigned vehicle,
+  so use a controlled rider mapping and plan cleanup before running it.
 
 That's the full chain confirmed: TLS → app → self-hosted Supabase → routing.
 
@@ -435,10 +465,10 @@ That supersedes the older "just re-point the two constants" instruction: with
 the exchange, driver passwords stop existing (new riders auto-provision on
 first login), so there is nothing left to migrate per driver.
 
-> **Timing:** his release only works once the `driver-session` service is
-> deployed **and** carries Dmytro's real signing key. Shipping the app against
-> a stand-in key would 401 every driver — strictly worse than two logins. Tell
-> him when the endpoint is live.
+> **Timing:** his release only works after the verification-swap image is
+> deployed and a fresh `fleetAuthToken` completes the controlled production
+> proof. Production currently has the CORS/liveness image, not that cutover
+> artifact. Tell him when the proof is complete.
 
 > Note: `driver-<city>` test accounts are also driven by the fake-GPS
 > simulator. If you run `pnpm fake-gps` locally while Roman tests the same
@@ -500,7 +530,7 @@ down for a rollback.
 | App logs | `docker compose -f docker-compose.prod.yml logs -f app` |
 | Sync worker logs | `docker compose -f docker-compose.prod.yml logs -f sync` |
 | Driver-session logs | `docker compose -f docker-compose.prod.yml logs -f driver-session` |
-| Swap the BB signing key | edit `.env.driver-session`, then `docker compose -f docker-compose.prod.yml up -d driver-session` |
+| Rotate Bubble Box credentials | edit `.env.driver-session`, then `docker compose -f docker-compose.prod.yml up -d --no-build driver-session` |
 | Supabase logs | `docker compose -f supabase-docker/docker-compose.yml logs -f <service>` |
 | Restart app only | `docker compose -f docker-compose.prod.yml restart app` |
 | Stop app stack | `docker compose -f docker-compose.prod.yml down` |
@@ -514,3 +544,29 @@ Everything has `restart: unless-stopped`, so both stacks come back on their
 own after a reboot. OSRM data, Caddy's certs, and the Supabase db volume
 persist across redeploys and reboots — nothing gets re-fetched, re-issued,
 or re-migrated on its own.
+
+---
+
+## Post-cutover manual checklist
+
+The orders and login tracks are independent. Bubble Box production fleet API
+go-live does not need to wait for the rider-session release.
+
+- Put the production `BB_API_URL`, `BB_API_USERNAME`, and `BB_API_PASSWORD` in
+  `/opt/fleetmap/.env` for `sync`, and in `.env.driver-session` for rider-token
+  verification. Restart only the affected service with `--no-build`.
+- Read rider ids from the production feed itself. Create one controlled
+  `vehicles` row per production rider and set `rider_ref` to that environment's
+  rider id; staging ids must not be copied into production. Investigate any two
+  rider ids that appear to represent one physical van before mapping them.
+- Run the safe-stdin real-token proof above against an explicitly approved
+  rider/vehicle, verify `POST /api/location`, and remove any proof-only identity
+  or assignment afterward.
+- After the first proven live day, retire the old managed-cloud Supabase
+  project once its rollback value is no longer needed.
+- For local demo cleanup, clear the proof mapping with
+  `update vehicles set rider_ref = null where label = 'Test Van';`, then run
+  `pnpm seed-stops` if the demo fleet should be restored.
+- The old one-off `purge-prod-demo.ps1` and `probe-prod-driver.ps1` proof
+  scripts are already absent from this repository. Keep credentials and token
+  fixtures out of replacement scripts.

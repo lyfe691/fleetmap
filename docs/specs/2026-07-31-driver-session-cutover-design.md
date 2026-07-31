@@ -48,27 +48,36 @@ path or account.
 
 ## Token boundaries
 
-Five credentials exist and must not be conflated:
+Exactly five tokens exist and must not be conflated:
 
-1. **Rider access token:** owned and persisted by the Bubble Box rider app.
-2. **`fleetAuthToken`:** minted by Bubble Box at rider login or on demand from
-   the rider access token. It is short-lived and used only to bootstrap or
-   reacquire a FleetMap session.
-3. **`riderAuthToken`:** the same `fleetAuthToken` under the field name used by
-   FleetMap's server-to-server Bubble Box verification request.
-4. **Fleet operator `accessToken`:** minted and cached only inside FleetMap's
-   driver-session service from `BB_API_USERNAME` and `BB_API_PASSWORD`.
-5. **Supabase access and refresh tokens:** returned to Roman's app by FleetMap.
-   These authorize GPS writes and keep the driver signed in.
+1. **Bubble Box rider access token (`loginToken`):** returned by rider
+   authentication, owned and persisted by the Bubble Box rider app.
+2. **Bubble Box `fleetAuthToken`:** fetched on demand from
+   `GET /api/v2/riders/fleet-auth-token`, with token 1 in the `accessToken`
+   header, and read from `data.fleetAuthToken`. It lives approximately two
+   minutes and only bootstraps or reacquires a FleetMap session.
+3. **Bubble Box fleet-service `loginToken`:** minted by
+   `POST /api/v2/fleet/authentication-token`, cached only inside FleetMap
+   (approximately 24-hour upstream lifetime), and sent as the private
+   verification request's `accessToken` header.
+4. **Supabase `access_token`:** returned to Roman's app by FleetMap and used
+   for authenticated GPS writes.
+5. **Supabase `refresh_token`:** returned with token 4, persisted by the app,
+   and used to keep the driver signed in.
 
-None of the first four values may be logged. Supabase session tokens may only
-appear in the HTTPS response to the rider app; diagnostic output must redact
-them.
+`riderAuthToken` is a private request field name, not a sixth token. FleetMap
+puts the exact value of token 2 in that field when it calls Bubble Box.
+
+None of the first three values may be logged. Supabase session tokens are
+handled only by the HTTPS response and the rider app's session persistence;
+diagnostic output must redact them.
 
 ## Request and data flow
 
-1. Roman's app completes Bubble Box login and receives or requests a fresh
-   `fleetAuthToken`.
+1. Roman's app completes Bubble Box login, persists the rider `loginToken`,
+   then uses it as `accessToken` on
+   `GET /api/v2/riders/fleet-auth-token` and reads
+   `data.fleetAuthToken`.
 2. The app immediately sends:
 
    ```http
@@ -81,9 +90,9 @@ them.
    The public field remains `token` for compatibility with the call Roman
    already wired and exercised through CORS. `riderAuthToken` is intentionally
    an internal upstream field name.
-3. The driver-session service mints or reuses its fleet-operator
-   `accessToken`, then forwards the submitted value to Bubble Box as
-   `{ riderAuthToken }`.
+3. The driver-session service mints or reuses its fleet-service `loginToken`,
+   sends it to Bubble Box as the private `accessToken` header, and forwards
+   the submitted value as `{ riderAuthToken }`.
 4. Bubble Box returns the rider id. FleetMap maps it through
    `vehicles.rider_ref`.
 5. FleetMap uses the assigned Supabase driver identity, or auto-provisions a
@@ -133,13 +142,15 @@ real-token smoke test remains the readiness proof for a cutover.
 
 ## Build and deployment safety
 
+- Production currently has the CORS/liveness driver-session image, not the
+  verification-swap artifact described here.
 - `.dockerignore` excludes the retired `.driver-auth-dev` keypair and
   `fleetmap-images.tar.gz`; neither enters Docker build context or cache.
 - No database migration is required for this cutover.
 - The VPS must have `/opt/fleetmap/.env.driver-session` with:
   `SUPABASE_SECRET_KEY`, `BB_API_URL`, `BB_API_USERNAME`, and
   `BB_API_PASSWORD`.
-- The previous `BB_DRIVER_JWT_PUBLIC_KEY_B64` is obsolete.
+- The previous local-signature verification variable is obsolete.
 - Build all three linux/amd64 tags locally and save them in
   `fleetmap-images.tar.gz`. The VPS must never build images.
 - `redeploy.sh` loads the archive and starts the stack with `--no-build`.

@@ -11,15 +11,16 @@ Real-time map of a delivery fleet. Each van's phone streams GPS to the backend; 
 | Map | MapLibre GL via `react-map-gl`; tiles from OpenFreeMap (free, keyless) |
 | Routing + ETA | OSRM, self-hosted (Docker, Switzerland extract) |
 | Orders | Sync worker polling the Bubble Box fleet API (their optimizer owns assignment, ordering, and status) |
-| Driver client | Bubblebox native rider app → `POST /api/location` |
-| Deployment | Docker on one VPS: Caddy (TLS) → Next → OSRM + sync, beside the self-hosted Supabase stack (see [`docs/deployment.md`](docs/deployment.md)) |
+| Driver client | Bubblebox native rider app → `POST /api/driver-session` → Supabase session → `POST /api/location` |
+| Deployment | Docker on one VPS: Caddy (TLS) → Next + internal driver-session service → OSRM + sync, beside the self-hosted Supabase stack (see [`docs/deployment.md`](docs/deployment.md)) |
 
 ## Architecture
 
-Two data flows, one stateless API:
+Three data flows, one stateless API:
 
 - **GPS (push):** phone → `POST /api/location` (authed, RLS-scoped per driver) → latest position onto the vehicle row + append to history → Supabase Realtime broadcasts the change → the dashboard moves that marker.
 - **Orders (pull):** `workers/bubblebox-sync.ts` polls the Bubble Box fleet API every 60 s and mirrors each rider's routes into orders/stops via a diff-applying RPC — stop rows keep their identity across ticks, so status flips are cheap updates, not churn. The dashboard calls `GET /api/route` (→ OSRM) for route lines and ETAs.
+- **Driver login (exchange):** the rider app acquires a short-lived Bubble Box `fleetAuthToken` and posts it to `POST /api/driver-session`. The internal service verifies it with Bubble Box and returns a persistent Supabase access/refresh session; no second driver password is stored.
 
 The API stays thin (ingest + OSRM proxy). Live fan-out is Supabase Realtime's job — no Redis, no custom WebSocket server.
 
@@ -59,6 +60,8 @@ For moving demo data: `pnpm fake-gps` once (provisions the city vans), then `pnp
 | `pnpm build` | Production build |
 | `pnpm typecheck` / `pnpm lint` / `pnpm test` | tsc, ESLint, vitest unit suite |
 | `pnpm bb-sync` | Bubble Box route sync worker (fixture mode via `BB_FIXTURE_FILE`) |
+| `pnpm driver-session` | Driver token exchange service (port 3100) |
+| `pnpm verify-live-token` | Safe-stdin diagnostic for a fresh Bubble Box rider token |
 | `pnpm fake-gps` | Dev-only: moving fake GPS feed (dev server must be running) |
 | `pnpm seed-stops` | Dev-only: seed a day of demo orders/stops |
 | `pnpm provision-{dashboard,dispatcher,driver}` | Create the Auth identities |
@@ -66,13 +69,14 @@ For moving demo data: `pnpm fake-gps` once (provisions the city vans), then `pnp
 
 ## Deployment
 
-Two compose stacks on one VPS: the app stack (`docker-compose.prod.yml` — Caddy → Next → OSRM + the sync worker) and the self-hosted Supabase stack (`supabase-docker/`). App images are **built locally and shipped as a tar** — the box never builds:
+Two compose stacks on one VPS: the app stack (`docker-compose.prod.yml` — Caddy → Next + driver-session → OSRM + sync) and the self-hosted Supabase stack (`supabase-docker/`). All three Fleetmap images are **built locally and shipped as a tar** — the box never builds:
 
 ```bash
-docker build --platform linux/amd64 -t fleetmap-app --target runner \
+docker build --platform linux/amd64 -t fleetmap-app:latest --target runner \
   --build-arg NEXT_PUBLIC_SUPABASE_URL=... --build-arg NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=... .
-docker build --platform linux/amd64 -t fleetmap-sync --target sync .
-docker save fleetmap-app fleetmap-sync | gzip > fleetmap-images.tar.gz
+docker build --platform linux/amd64 -t fleetmap-sync:latest --target sync .
+docker build --platform linux/amd64 -t fleetmap-driver-session:latest --target driver-session .
+docker save fleetmap-app:latest fleetmap-sync:latest fleetmap-driver-session:latest | gzip > fleetmap-images.tar.gz
 scp fleetmap-images.tar.gz root@<host>:/opt/fleetmap/
 ssh root@<host> "cd /opt/fleetmap && ./redeploy.sh"   # git pull + load tar + restart, no build
 ```
@@ -83,9 +87,10 @@ Full walkthrough — first-time setup, the OSRM dataset build, the Supabase self
 
 - [`CLAUDE.md`](CLAUDE.md) — working brief: stack decisions, conventions, layout, milestone log.
 - [`docs/deployment.md`](docs/deployment.md) — VPS deployment guide.
+- [`docs/driver-session-api.md`](docs/driver-session-api.md) — rider-app session exchange contract.
 - [`docs/specs/live-tracking-spec.md`](docs/specs/live-tracking-spec.md) — full design doc.
 - [`docs/specs/2026-07-08-bubblebox-route-sync-design.md`](docs/specs/2026-07-08-bubblebox-route-sync-design.md) — the order sync + the Bubble Box API contract as shipped.
 
 ## Status
 
-Feature-complete for V1 (M1–M19): live tracking, the monitoring console with route replay and schedule adherence, the Bubble Box order sync wired and proven against their real (staging) API, self-hosted Supabase, and the manual dispatch surface retired — orders flow exclusively from the Bubble Box optimizer. Remaining for go-live: Bubble Box's fleet API on their production server, the rider app pointing at the self-hosted Supabase, and per-van rider mapping. See `CLAUDE.md` for the milestone log.
+Feature-complete locally for V1 (M1–M20): live tracking, the monitoring console with route replay and schedule adherence, Bubble Box order sync, self-hosted Supabase, and passwordless driver-session exchange. Production has the CORS/liveness driver-session image, but the 2026-07-31 Bubble Box verification-swap artifact is still to ship. A real-token release proof is blocked only by the supplied rider login fixture returning `404` on its legacy path and `401` on the documented login; local code and artifact readiness are not blocked. The cutover needs no database migration. Remaining go-live work is the controlled rider mapping/proof, Bubble Box's production fleet credentials, the three-image deploy, and Roman's app release. See `CLAUDE.md` for the milestone log.
