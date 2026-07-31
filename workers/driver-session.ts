@@ -21,6 +21,7 @@ import { createServer } from "node:http"
 import { createClient } from "@supabase/supabase-js"
 import { TokenInvalidError, verifyRiderToken } from "../lib/driver-auth/verify"
 import { exchangeRiderToken, type ExchangeDeps } from "../lib/driver-auth/exchange"
+import { createDriverSessionHandler } from "../lib/driver-auth/http"
 import { createBubbleboxClient } from "../lib/bubblebox/client"
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -29,7 +30,6 @@ const BB_API_URL = process.env.BB_API_URL
 const BB_USERNAME = process.env.BB_API_USERNAME
 const BB_PASSWORD = process.env.BB_API_PASSWORD
 const PORT = Number(process.env.DRIVER_SESSION_PORT ?? 3100)
-const MAX_BODY_BYTES = 16_384
 
 if (!SUPABASE_URL || !SECRET_KEY || !BB_API_URL || !BB_USERNAME || !BB_PASSWORD) {
   throw new Error(
@@ -159,62 +159,12 @@ const deps: ExchangeDeps = {
 // generic CORS failure instead of the status we actually sent. Origin is
 // unrestricted deliberately: the credential travels in the request body,
 // never in a cookie, so there is nothing for a hostile origin to ride on.
-const CORS_HEADERS = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type",
-  "Access-Control-Max-Age": "86400",
-}
-
-const server = createServer((req, res) => {
-  const respond = (status: number, body: Record<string, unknown>) => {
-    res.writeHead(status, {
-      "Content-Type": "application/json",
-      ...CORS_HEADERS,
-    })
-    res.end(JSON.stringify(body))
-  }
-
-  if (req.method === "OPTIONS") {
-    res.writeHead(204, CORS_HEADERS)
-    return res.end()
-  }
-
-  if (req.method === "GET") {
-    return respond(200, { ok: true })
-  }
-
-  if (req.method !== "POST") {
-    return respond(405, { error: "POST only" })
-  }
-
-  let body = ""
-  let overflow = false
-  req.on("data", (chunk: Buffer) => {
-    body += chunk
-    if (body.length > MAX_BODY_BYTES) overflow = true
+const server = createServer(
+  createDriverSessionHandler({
+    exchangeToken: (token) => exchangeRiderToken(token, deps),
+    log,
   })
-  req.on("end", () => {
-    if (overflow) return respond(413, { error: "body too large" })
-    let token: unknown
-    try {
-      token = (JSON.parse(body) as { token?: unknown }).token
-    } catch {
-      return respond(400, { error: "invalid json body" })
-    }
-    if (typeof token !== "string" || token.length === 0) {
-      return respond(400, { error: "token (string) is required" })
-    }
-    exchangeRiderToken(token, deps)
-      .then((r) => respond(r.status, r.body))
-      .catch((err) => {
-        log("error", "exchange_failed", {
-          error: err instanceof Error ? err.message : String(err),
-        })
-        respond(500, { error: "exchange failed" })
-      })
-  })
-})
+)
 
 server.listen(PORT, () => {
   log("info", "startup", { port: PORT, supabase: SUPABASE_URL })
