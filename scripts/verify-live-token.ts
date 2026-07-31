@@ -1,5 +1,5 @@
 /**
- * Test a real Bubble Box riderAuthToken before it expires.
+ * Test a real Bubble Box fleetAuthToken before it expires.
  *
  * The token lives 2 minutes and only the rider app can issue one, so there is
  * no time to assemble a curl by hand. This runs the actual production path
@@ -12,17 +12,11 @@
  *
  * Reads BB_API_URL / BB_API_USERNAME / BB_API_PASSWORD from .env.
  */
-import { readFile } from "node:fs/promises"
-
 import { createBubbleboxClient } from "../lib/bubblebox/client"
 import { summarizeExchangeBody } from "../lib/driver-auth/diagnostic"
 import { TokenInvalidError, verifyRiderToken } from "../lib/driver-auth/verify"
 
 async function readStdin(): Promise<string> {
-  if (process.platform !== "win32") {
-    return readFile("/dev/stdin", "utf8")
-  }
-
   process.stdin.setEncoding("utf8")
   let text = ""
   for await (const chunk of process.stdin) {
@@ -35,13 +29,17 @@ const token = (await readStdin()).trim()
 const exchangeUrl = process.argv[2]
 
 if (!token) {
-  console.error("usage: Get-Clipboard | pnpm verify-live-token [driverSessionUrl]")
+  console.error(
+    "usage: Get-Clipboard | pnpm verify-live-token [driverSessionUrl]"
+  )
   process.exit(1)
 }
 
 const { BB_API_URL, BB_API_USERNAME, BB_API_PASSWORD } = process.env
 if (!BB_API_URL || !BB_API_USERNAME || !BB_API_PASSWORD) {
-  console.error("Missing BB_API_URL / BB_API_USERNAME / BB_API_PASSWORD in .env")
+  console.error(
+    "Missing BB_API_URL / BB_API_USERNAME / BB_API_PASSWORD in .env"
+  )
   process.exit(1)
 }
 
@@ -61,7 +59,9 @@ const left = secondsLeft(token)
 if (left === null) {
   console.log("token: could not read exp (not a readable JWT payload)")
 } else if (left <= 0) {
-  console.log(`token: ALREADY EXPIRED ${-left}s ago — expect 403, get a fresh one`)
+  console.log(
+    `token: ALREADY EXPIRED ${-left}s ago — expect 403, get a fresh one`
+  )
 } else {
   console.log(`token: ${left}s of life left`)
 }
@@ -82,8 +82,8 @@ try {
   console.log(`    FAILED in ${Date.now() - t0}ms`)
   if (err instanceof TokenInvalidError) {
     console.log(
-      "    => 403. Either the token is expired/invalid, or our account is not\n" +
-        "       authorized. If the token still had life left above, it is the account."
+      "    => 403. The fleetAuthToken may be invalid, expired, or from the\n" +
+        "       wrong Bubble Box environment."
     )
   } else {
     console.log("    => verification failed outside the invalid-token case.")
@@ -105,14 +105,22 @@ const res = await fetch(exchangeUrl, {
 })
 const body = await res.text()
 console.log(`    ${res.status} in ${Date.now() - t1}ms`)
-console.log("   ", summarizeExchangeBody(res.status, body))
-if (res.ok) {
+const summary = summarizeExchangeBody(res.status, body)
+console.log("   ", summary)
+const sessionMinted =
+  res.status === 200 &&
+  "session" in summary &&
+  summary.session.access_token === "present" &&
+  summary.session.refresh_token === "present"
+if (sessionMinted) {
   console.log("    => session minted. The whole chain works.")
 } else if (res.status === 403) {
-  console.log("    => verified, but no vehicle has this rider_ref yet (ops task).")
+  console.log(
+    "    => verified, but no vehicle has this rider_ref yet (ops task)."
+  )
 } else if (res.status === 401) {
   console.log("    => the token was rejected. See [1] for which side said no.")
 }
-if (!res.ok) {
+if (!sessionMinted) {
   process.exit(1)
 }

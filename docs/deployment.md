@@ -299,9 +299,42 @@ here.
 > file is missing, `docker compose up` aborts the **entire** stack, not just
 > that one service. Create it first, redeploy second.
 
-Rotating the Bubble Box fleet credentials later is an edit plus
-`docker compose -f docker-compose.prod.yml up -d --no-build driver-session`.
-The credentials are runtime environment, not build arguments.
+To rotate the Bubble Box fleet credentials, update the same
+`BB_API_URL`, `BB_API_USERNAME`, and `BB_API_PASSWORD` values in both
+`/opt/fleetmap/.env` (used by `sync`) and
+`/opt/fleetmap/.env.driver-session` (used by `driver-session`). Then
+force-recreate both consumers from the already-loaded images:
+
+```bash
+set -euo pipefail
+cd /opt/fleetmap
+chmod 600 .env .env.driver-session
+docker compose -f docker-compose.prod.yml up -d --no-build --force-recreate \
+  sync driver-session
+docker compose -f docker-compose.prod.yml ps sync driver-session
+docker compose -f docker-compose.prod.yml logs --tail=50 sync driver-session
+for service in sync driver-session; do
+  test -n "$(docker compose -f docker-compose.prod.yml \
+    ps --status running -q "$service")" || {
+    echo "STOP: $service is not running" >&2
+    exit 1
+  }
+done
+health="$(curl -fsS https://fleet.ysz.life/api/health)"
+printf '%s\n' "$health"
+printf '%s\n' "$health" | grep -q '"driver_session":"ok"' || {
+  echo 'STOP: driver_session health is not ok' >&2
+  exit 1
+}
+```
+
+Stop and inspect if either container is not running, either log reports
+credential/authentication failure, or health does not report
+`"driver_session":"ok"`. The credentials are runtime environment, not build
+arguments. Before declaring the rotation complete, wait for a post-recreate
+`sync` log with `"event":"tick"`; `"event":"tick_failed"` is a failure.
+Driver-session health is liveness only, so validate its rotated Bubble Box
+credentials with the controlled token proof in §9.
 
 ---
 
@@ -565,28 +598,39 @@ printf 'Proof rider: %s\nProof email: %s\n' \
 Pausing `sync` prevents a route tick from attaching real stops. Leave this
 shell open. Its exit trap restarts sync only after guarded cleanup succeeds.
 
-#### 2. Exchange and authenticated GPS write (local PowerShell)
+#### 2. Exchange, forced refresh, and authenticated GPS write (local PowerShell)
 
-Run this from the local repo with its production Bubble Box credentials. Enter
-the exact rider id printed above and paste that rider's fresh `fleetAuthToken`
-only at the masked prompt. Tokens and session JSON remain on process stdin or
-in memory—not argv, command history, a file, or output. The existing verifier
-must confirm the rider id before the mutating exchange; the exchanged JWT email
-claim is checked again before the GPS call.
+Run this from the local repo with its production public Supabase values and
+Bubble Box fleet credentials in `.env`. Enter the exact rider id printed above
+and paste that rider's fresh `fleetAuthToken` only at the masked prompt. The
+token goes to the helper on stdin. The exchanged and refreshed Supabase tokens
+remain in that process's memory; they never enter argv, a file, logs, or
+output.
+
+The focused helper preserves the proof guard and exercises the complete client
+lifecycle. It verifies the `fleetAuthToken` directly with Bubble Box and
+requires the approved rider id, exchanges it for a session, calls Supabase
+`setSession`, explicitly calls `refreshSession`, validates the refreshed user
+with `getUser`, and sends the GPS request with the refreshed access token.
 
 ```powershell
 $ErrorActionPreference = 'Stop'
-Add-Type -AssemblyName System.Net.Http
 
 $proofRider = Read-Host 'Exact proof rider id printed by VPS'
 if ($proofRider -notmatch '^\d+$') { throw 'proof rider id must be numeric' }
-$expectedEmail = "rider-$proofRider@driver.fleetmap.internal"
-$lat = [double](Read-Host 'Approved proof latitude')
-$lng = [double](Read-Host 'Approved proof longitude')
-if ([double]::IsNaN($lat) -or [double]::IsInfinity($lat) -or
+
+$latText = Read-Host 'Approved proof latitude (decimal point)'
+$lngText = Read-Host 'Approved proof longitude (decimal point)'
+$lat = 0.0
+$lng = 0.0
+$culture = [Globalization.CultureInfo]::InvariantCulture
+$style = [Globalization.NumberStyles]::Float
+if (-not [double]::TryParse($latText, $style, $culture, [ref]$lat) -or
     $lat -lt -90 -or $lat -gt 90) { throw 'invalid latitude' }
-if ([double]::IsNaN($lng) -or [double]::IsInfinity($lng) -or
+if (-not [double]::TryParse($lngText, $style, $culture, [ref]$lng) -or
     $lng -lt -180 -or $lng -gt 180) { throw 'invalid longitude' }
+$latArg = $lat.ToString('R', $culture)
+$lngArg = $lng.ToString('R', $culture)
 
 $secureToken = Read-Host 'Paste fresh fleetAuthToken' -AsSecureString
 $tokenPtr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureToken)
@@ -597,100 +641,31 @@ try {
 }
 if ([string]::IsNullOrWhiteSpace($fleetToken)) { throw 'token is empty' }
 
-$verifyOutput = $fleetToken | pnpm verify-live-token 2>&1
-$verifyExit = $LASTEXITCODE
-$verifyText = $verifyOutput -join "`n"
-$riderPattern = "(?m)\brider id $([regex]::Escape($proofRider))\s*$"
-if ($verifyExit -ne 0 -or $verifyText -notmatch $riderPattern) {
-  throw 'STOP: Bubble Box did not verify the approved proof rider'
-}
-$verifyOutput = $verifyText = $null
-
-$http = [Net.Http.HttpClient]::new()
-$exchangeResponse = $exchangeContent = $locationRequest = $locationResponse = $null
+$env:DRIVER_SESSION_PROOF_URL =
+  'https://fleet.ysz.life/api/driver-session'
+$env:DRIVER_SESSION_LOCATION_URL =
+  'https://fleet.ysz.life/api/location'
 try {
-  $exchangeJson = @{ token = $fleetToken } | ConvertTo-Json -Compress
-  $exchangeContent = [Net.Http.StringContent]::new(
-    $exchangeJson, [Text.Encoding]::UTF8, 'application/json'
-  )
-  $exchangeResponse = $http.PostAsync(
-    'https://fleet.ysz.life/api/driver-session', $exchangeContent
-  ).GetAwaiter().GetResult()
-  $exchangeStatus = [int]$exchangeResponse.StatusCode
-  $exchangeText = $exchangeResponse.Content.ReadAsStringAsync(
-  ).GetAwaiter().GetResult()
-  if ($exchangeStatus -ne 200) {
-    throw "driver-session returned HTTP $exchangeStatus"
+  $proofOutput = $fleetToken |
+    pnpm --silent prove-driver-session $proofRider $latArg $lngArg 2>&1
+  $proofExit = $LASTEXITCODE
+  $proofText = $proofOutput -join "`n"
+  if ($proofExit -ne 0 -or
+      $proofText -notmatch
+        '(?m)^PASS: refreshed session and authenticated GPS write$' -or
+      $proofText -notmatch '(?m)^recorded_at: \d{4}-\d{2}-\d{2}T') {
+    throw 'STOP: driver-session production proof failed'
   }
-  try { $session = $exchangeText | ConvertFrom-Json }
-  catch { throw 'driver-session returned invalid JSON' }
-  if ([string]::IsNullOrWhiteSpace([string]$session.access_token) -or
-      [string]::IsNullOrWhiteSpace([string]$session.refresh_token)) {
-    throw 'driver-session omitted a session field'
-  }
-
-  $jwtParts = ([string]$session.access_token).Split('.')
-  if ($jwtParts.Count -ne 3) { throw 'access token is not a JWT' }
-  $payload = $jwtParts[1].Replace('-', '+').Replace('_', '/')
-  switch ($payload.Length % 4) {
-    2 { $payload += '==' }
-    3 { $payload += '=' }
-    1 { throw 'JWT payload encoding is invalid' }
-  }
-  try {
-    $claims = [Text.Encoding]::UTF8.GetString(
-      [Convert]::FromBase64String($payload)
-    ) | ConvertFrom-Json
-  } catch { throw 'JWT claims could not be decoded' }
-  if ([string]$claims.email -cne $expectedEmail) {
-    throw 'STOP: session does not belong to the approved proof rider'
-  }
-
-  $recordedAt = [DateTimeOffset]::UtcNow.ToString('o')
-  $locationJson = @{
-    lat = $lat; lng = $lng; heading = $null; speed = 0
-    accuracy = 1; recorded_at = $recordedAt
-  } | ConvertTo-Json -Compress
-  $locationRequest = [Net.Http.HttpRequestMessage]::new(
-    [Net.Http.HttpMethod]::Post, 'https://fleet.ysz.life/api/location'
-  )
-  $locationRequest.Headers.Authorization =
-    [Net.Http.Headers.AuthenticationHeaderValue]::new(
-      'Bearer', [string]$session.access_token
-    )
-  $locationRequest.Content = [Net.Http.StringContent]::new(
-    $locationJson, [Text.Encoding]::UTF8, 'application/json'
-  )
-  $locationResponse = $http.SendAsync(
-    $locationRequest
-  ).GetAwaiter().GetResult()
-  $locationStatus = [int]$locationResponse.StatusCode
-  $locationText = $locationResponse.Content.ReadAsStringAsync(
-  ).GetAwaiter().GetResult()
-  try { $locationBody = $locationText | ConvertFrom-Json }
-  catch { throw "location returned invalid JSON (HTTP $locationStatus)" }
-  if ($locationStatus -ne 200 -or $locationBody.ok -ne $true) {
-    throw "authenticated location proof failed (HTTP $locationStatus)"
-  }
-  [pscustomobject]@{
-    Exchange = 'HTTP 200; session present (redacted)'
-    Location = 'HTTP 200; {"ok":true}'
-    RecordedAt = $recordedAt
-  }
+  $proofOutput
 } finally {
-  if ($locationResponse) { $locationResponse.Dispose() }
-  if ($locationRequest) { $locationRequest.Dispose() }
-  if ($exchangeResponse) { $exchangeResponse.Dispose() }
-  if ($exchangeContent) { $exchangeContent.Dispose() }
-  $http.Dispose()
-  $claims = $session = $exchangeText = $exchangeJson = $null
-  $locationBody = $locationText = $locationJson = $null
-  $fleetToken = $secureToken = $null
+  Remove-Item Env:DRIVER_SESSION_PROOF_URL -ErrorAction SilentlyContinue
+  Remove-Item Env:DRIVER_SESSION_LOCATION_URL -ErrorAction SilentlyContinue
+  $proofOutput = $proofText = $fleetToken = $secureToken = $null
 }
 ```
 
-Only the redacted `Exchange`, fixed `Location`, and timestamp fields should
-print. If any step fails, do not claim the proof passed, but still run cleanup.
+Only the fixed pass line and `recorded_at` timestamp should print. If any step
+fails, do not claim the proof passed, but still run cleanup.
 
 #### 3. Guarded cleanup (same VPS shell)
 
@@ -857,6 +832,40 @@ Offsite copies aren't set up yet — can come later on the company box.
 
 ## Rollback
 
+### Image rollback for this cutover
+
+Immediately before loading a new archive, preserve the currently running tags
+outside the deployment directory:
+
+```bash
+set -euo pipefail
+install -d -m 700 /opt/fleetmap-rollbacks
+docker save fleetmap-app:latest fleetmap-sync:latest \
+  fleetmap-driver-session:latest \
+  | gzip > /opt/fleetmap-rollbacks/fleetmap-images-before-cutover.tar.gz
+test -s /opt/fleetmap-rollbacks/fleetmap-images-before-cutover.tar.gz
+```
+
+If startup or health fails after the load, restore those tags and recreate
+only their consumers without building:
+
+```bash
+set -euo pipefail
+cd /opt/fleetmap
+docker load \
+  < /opt/fleetmap-rollbacks/fleetmap-images-before-cutover.tar.gz
+docker compose -f docker-compose.prod.yml up -d --no-build --force-recreate \
+  app sync driver-session
+docker compose -f docker-compose.prod.yml ps app sync driver-session
+docker compose -f docker-compose.prod.yml logs --tail=50 \
+  app sync driver-session
+curl -fsS https://fleet.ysz.life/api/health
+```
+
+Keep the archive until the cutover and controlled proof have both passed.
+
+### Supabase-project rollback
+
 The managed cloud Supabase project is kept alive, untouched, as the
 rollback path until it's formally retired. To roll back:
 
@@ -881,7 +890,7 @@ down for a rollback.
 | App logs | `docker compose -f docker-compose.prod.yml logs -f app` |
 | Sync worker logs | `docker compose -f docker-compose.prod.yml logs -f sync` |
 | Driver-session logs | `docker compose -f docker-compose.prod.yml logs -f driver-session` |
-| Rotate Bubble Box credentials | edit `.env.driver-session`, then `docker compose -f docker-compose.prod.yml up -d --no-build driver-session` |
+| Rotate Bubble Box credentials | update `/opt/fleetmap/.env` and `/opt/fleetmap/.env.driver-session`; run `docker compose -f docker-compose.prod.yml up -d --no-build --force-recreate sync driver-session`; then check `ps`, `logs --tail=50 sync driver-session`, and `/api/health` |
 | Supabase logs | `docker compose -f supabase-docker/docker-compose.yml logs -f <service>` |
 | Restart app only | `docker compose -f docker-compose.prod.yml restart app` |
 | Stop app stack | `docker compose -f docker-compose.prod.yml down` |
@@ -904,8 +913,10 @@ The orders and login tracks are independent. Bubble Box production fleet API
 go-live does not need to wait for the rider-session release.
 
 - Put the production `BB_API_URL`, `BB_API_USERNAME`, and `BB_API_PASSWORD` in
-  `/opt/fleetmap/.env` for `sync`, and in `.env.driver-session` for rider-token
-  verification. Restart only the affected service with `--no-build`.
+  both `/opt/fleetmap/.env` for `sync` and
+  `/opt/fleetmap/.env.driver-session` for rider-token verification.
+  Force-recreate both services with `--no-build --force-recreate`, then
+  verify their status, recent logs, and `/api/health` as described in §6.
 - Read rider ids from the production feed itself. Create one controlled
   `vehicles` row per production rider and set `rider_ref` to that environment's
   rider id; staging ids must not be copied into production. Investigate any two
