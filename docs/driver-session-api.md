@@ -122,6 +122,12 @@ pathname, origin, content type, requested CORS header names, and final status.
 They never contain the token, body, credentials, authorization values, cookies,
 user agent, client IP, query string, or response body.
 
+That strict allowlist applies specifically to the new `request_received`,
+`request_completed`, and `request_aborted` lifecycle events. Existing exchange
+outcome events retain their operational rider and reason fields so that, for
+example, `unmapped_rider` remains actionable. They still never log a token,
+request body, or credentials.
+
 ## The three app constants
 
 Fleetmap moved off managed Supabase onto its own server. All three constants

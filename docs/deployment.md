@@ -376,6 +376,127 @@ another non-x86 dev machine — the VPS is x86_64.
 
 ---
 
+### Driver-session diagnostic rollout and rollback
+
+Use this procedure only to deploy the request-lifecycle diagnostics. It builds
+and uploads **only** `fleetmap-driver-session:latest`; it does not run
+`./redeploy.sh`, does not change the app or sync image, and never builds on the
+VPS. Keep the VPS shell open through the verification so the exact rollback
+path remains available. None of these commands prints `.env` contents or
+tokens.
+
+On the dev machine, build, package, and checksum the driver-session image:
+
+```bash
+set -euo pipefail
+DIAGNOSTIC_TAR=fleetmap-driver-session-diagnostics.tar.gz
+docker build --platform linux/amd64 -t fleetmap-driver-session:latest \
+  --target driver-session .
+docker image inspect fleetmap-driver-session:latest \
+  --format '{{index .RepoTags 0}} {{.Os}}/{{.Architecture}} {{.Id}}'
+docker save fleetmap-driver-session:latest | gzip > "$DIAGNOSTIC_TAR"
+sha256sum "$DIAGNOSTIC_TAR" > "$DIAGNOSTIC_TAR.sha256"
+test -s "$DIAGNOSTIC_TAR"
+sha256sum -c "$DIAGNOSTIC_TAR.sha256"
+
+ssh root@fleet.ysz.life \
+  'install -d -m 700 /opt/fleetmap/diagnostics-incoming /opt/fleetmap-rollbacks'
+scp "$DIAGNOSTIC_TAR" "$DIAGNOSTIC_TAR.sha256" \
+  root@fleet.ysz.life:/opt/fleetmap/diagnostics-incoming/
+```
+
+On the VPS, verify the upload, save the image currently tagged for
+`driver-session` before replacing it, then load and recreate **only** that
+service:
+
+```bash
+set -euo pipefail
+cd /opt/fleetmap
+INCOMING_DIR=/opt/fleetmap/diagnostics-incoming
+ROLLBACK_DIR=/opt/fleetmap-rollbacks
+DIAGNOSTIC_TAR="$INCOMING_DIR/fleetmap-driver-session-diagnostics.tar.gz"
+STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
+ROLLBACK_TAR="$ROLLBACK_DIR/fleetmap-driver-session-$STAMP.tar.gz"
+
+test -d /opt/fleetmap
+test -f docker-compose.prod.yml
+test -d "$INCOMING_DIR"
+test -d "$ROLLBACK_DIR"
+test -f "$DIAGNOSTIC_TAR"
+test -f "$DIAGNOSTIC_TAR.sha256"
+(cd "$INCOMING_DIR" && sha256sum -c "$(basename "$DIAGNOSTIC_TAR").sha256")
+docker image inspect fleetmap-driver-session:latest \
+  --format '{{index .RepoTags 0}} {{.Id}}'
+
+docker save fleetmap-driver-session:latest | gzip > "$ROLLBACK_TAR"
+sha256sum "$ROLLBACK_TAR" > "$ROLLBACK_TAR.sha256"
+test -s "$ROLLBACK_TAR"
+(cd "$ROLLBACK_DIR" && sha256sum -c "$(basename "$ROLLBACK_TAR").sha256")
+printf 'Rollback image saved at %s\n' "$ROLLBACK_TAR"
+
+docker load -i "$DIAGNOSTIC_TAR"
+docker image inspect fleetmap-driver-session:latest \
+  --format '{{index .RepoTags 0}} {{.Os}}/{{.Architecture}} {{.Id}}'
+docker compose -f docker-compose.prod.yml up -d --no-build --force-recreate driver-session
+```
+
+Verify startup, aggregate health, liveness, browser CORS, and malformed JSON
+without sending a real token:
+
+```bash
+set -euo pipefail
+cd /opt/fleetmap
+test -n "$(docker compose -f docker-compose.prod.yml \
+  ps --status running -q driver-session)"
+docker compose -f docker-compose.prod.yml logs --tail=50 driver-session
+
+health="$(curl -fsS https://fleet.ysz.life/api/health)"
+case "$health" in
+  *'"driver_session":"ok"'*) ;;
+  *) echo 'STOP: driver_session health is not ok' >&2; exit 1 ;;
+esac
+test "$(curl -fsS https://fleet.ysz.life/api/driver-session)" = '{"ok":true}'
+
+preflight="$(mktemp)"
+trap 'rm -f "$preflight"' EXIT
+curl -sS -D "$preflight" -o /dev/null -X OPTIONS \
+  -H 'Origin: https://rider-proof.invalid' \
+  -H 'Access-Control-Request-Method: POST' \
+  -H 'Access-Control-Request-Headers: content-type' \
+  https://fleet.ysz.life/api/driver-session
+grep -Eiq '^HTTP/.* 204' "$preflight"
+grep -Eiq '^Access-Control-Allow-Origin: \*[[:space:]]*$' "$preflight"
+grep -Eiq '^Access-Control-Allow-Methods:.*POST' "$preflight"
+grep -Eiq '^Access-Control-Allow-Headers:.*Content-Type' "$preflight"
+test "$(curl -sS -o /dev/null -w '%{http_code}' -X POST \
+  https://fleet.ysz.life/api/driver-session \
+  -H 'Content-Type: application/json' -d '{}')" = 400
+```
+
+If any check fails, do not use `./redeploy.sh`. In the same VPS shell, reload
+the saved image and recreate only `driver-session`; substitute the exact path
+printed by the rollout command if the shell was closed:
+
+```bash
+set -euo pipefail
+cd /opt/fleetmap
+# Use the exact path printed above, for example:
+ROLLBACK_TAR=/opt/fleetmap-rollbacks/fleetmap-driver-session-<timestamp>.tar.gz
+test -f "$ROLLBACK_TAR"
+test -f "$ROLLBACK_TAR.sha256"
+(cd "$(dirname "$ROLLBACK_TAR")" && sha256sum -c "$(basename "$ROLLBACK_TAR").sha256")
+docker load -i "$ROLLBACK_TAR"
+docker image inspect fleetmap-driver-session:latest \
+  --format '{{index .RepoTags 0}} {{.Id}}'
+docker compose -f docker-compose.prod.yml up -d --no-build --force-recreate driver-session
+test -n "$(docker compose -f docker-compose.prod.yml \
+  ps --status running -q driver-session)"
+curl -fsS https://fleet.ysz.life/api/health
+test "$(curl -fsS https://fleet.ysz.life/api/driver-session)" = '{"ok":true}'
+```
+
+---
+
 ## 8. First deploy
 
 ```bash
@@ -919,6 +1040,12 @@ public JSON contract was malformed. `token_rejected`, `unmapped_rider`, and
 
 No event means the exact worker route was not reached; it must not be
 interpreted as Bubble Box rejecting a token.
+
+The strict field allowlist applies specifically to the new `request_received`,
+`request_completed`, and `request_aborted` lifecycle events. Existing exchange
+outcome events retain their operational rider and reason fields, so
+`unmapped_rider` remains actionable. They still never log a token, request
+body, or credentials.
 
 ---
 

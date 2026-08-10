@@ -2,7 +2,7 @@
 
 ## Authoritative current state — 2026-08-10
 
-The Bubble Box verification cutover is code-complete locally. Roman's app
+The Bubble Box verification cutover is implemented and deployed. Roman's app
 persists its normal rider `loginToken`, sends it as `accessToken` to
 `GET /api/v2/riders/fleet-auth-token`, reads the short-lived
 `data.fleetAuthToken`, and sends that value to Fleetmap's unchanged public
