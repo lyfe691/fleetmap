@@ -295,9 +295,15 @@ describe("createDriverSessionHandler", () => {
     const testServer = await startServer()
     try {
       const { request } = openStreamingRequest(testServer.port)
-      await new Promise<void>((resolve) =>
-        request.write(partialSecret, resolve)
-      )
+      await new Promise<void>((resolve, reject) => {
+        request.write(partialSecret, (error) => {
+          if (error) {
+            reject(error)
+            return
+          }
+          resolve()
+        })
+      })
       request.destroy()
 
       await vi.waitFor(() => {
