@@ -26,16 +26,53 @@ export type DriverSessionHttpDeps = {
   ) => void
 }
 
+function pathname(url: string | undefined): string {
+  try {
+    return new URL(url ?? "/", "http://driver-session.internal").pathname
+  } catch {
+    return "/"
+  }
+}
+
+function requestFields(
+  req: IncomingMessage,
+  requestId: number
+): Record<string, unknown> {
+  const fields: Record<string, unknown> = {
+    request_id: requestId,
+    method: req.method ?? "UNKNOWN",
+    path: pathname(req.url),
+  }
+  if (req.headers.origin) fields.origin = req.headers.origin
+  if (req.headers["content-type"]) {
+    fields.content_type = req.headers["content-type"]
+  }
+  if (req.headers["access-control-request-headers"]) {
+    fields.requested_headers = req.headers["access-control-request-headers"]
+  }
+  return fields
+}
+
 export function createDriverSessionHandler(
   deps: DriverSessionHttpDeps
 ): RequestListener {
+  let nextRequestId = 0
+
   return (req, res) => {
+    const fields = requestFields(req, ++nextRequestId)
+    deps.log("info", "request_received", fields)
+
+    const complete = (status: number) => {
+      deps.log("info", "request_completed", { ...fields, status })
+    }
     const respond = (status: number, body: Record<string, unknown>) => {
+      complete(status)
       res.writeHead(status, JSON_HEADERS)
       res.end(JSON.stringify(body))
     }
 
     if (req.method === "OPTIONS") {
+      complete(204)
       res.writeHead(204, CORS_HEADERS)
       res.end()
       return
@@ -51,14 +88,15 @@ export function createDriverSessionHandler(
       return
     }
 
-    handlePost(req, respond, deps)
+    handlePost(req, respond, deps, fields)
   }
 }
 
 function handlePost(
   req: IncomingMessage,
   respond: (status: number, body: Record<string, unknown>) => void,
-  deps: DriverSessionHttpDeps
+  deps: DriverSessionHttpDeps,
+  fields: Record<string, unknown>
 ): void {
   const chunks: Buffer[] = []
   let byteLength = 0
@@ -83,9 +121,11 @@ function handlePost(
 
     let token: unknown
     try {
-      token = (JSON.parse(Buffer.concat(chunks, byteLength).toString()) as {
-        token?: unknown
-      }).token
+      token = (
+        JSON.parse(Buffer.concat(chunks, byteLength).toString()) as {
+          token?: unknown
+        }
+      ).token
     } catch {
       respond(400, { error: "invalid json body" })
       return
@@ -105,7 +145,12 @@ function handlePost(
       })
   })
 
-  req.on("error", () => {
+  const abort = () => {
+    if (finished) return
     finished = true
-  })
+    deps.log("warn", "request_aborted", fields)
+  }
+
+  req.on("aborted", abort)
+  req.on("error", abort)
 }
