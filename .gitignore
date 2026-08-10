@@ -58,3 +58,5 @@ docs/driver-app-handoff.md
 
 # shipped prod images (built locally, scp'd to the VPS)
 fleetmap-images.tar.gz
+/fleetmap-driver-session-diagnostics.tar.gz
+/fleetmap-driver-session-diagnostics.tar.gz.sha256
