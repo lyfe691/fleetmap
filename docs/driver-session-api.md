@@ -4,13 +4,13 @@
 (Supabase) login. Drivers log in only to Bubble Box; Fleetmap returns the
 Supabase session used for GPS exactly as today.
 
-> **Release-proof warning, 2026-07-31.** The production endpoint already has
-> the CORS and liveness update, but the Bubble Box verification-swap image has
-> not been deployed yet. A real-token proof is also blocked by the supplied
-> rider login fixture: Roman's legacy login path returned `404`, and Bubble
-> Box's documented current login rejected the same fixture with `401`. Correct
-> that path or account and complete the controlled proof before releasing the
-> app. Do not send credentials in chat or commit them to this repository.
+> **Production status, 2026-08-10.** The Bubble Box verification cutover in
+> commit `530b117` was deployed as all three images and production services
+> were healthy, including `driver_session` in `/api/health`. The exact
+> TestFlight end-to-end exchange remains unproven: the former logs had no
+> HTTP-boundary visibility, so they could not establish whether the worker
+> route was reached. The request-lifecycle diagnostic image is not deployed.
+> Do not send credentials in chat or commit them to this repository.
 
 ## Five-token glossary
 
@@ -106,6 +106,21 @@ Do not re-exchange per request, per trip, or per shift.
 
 `401` and `500` are deliberately distinct: "the rider token was rejected" and
 "the integration is unavailable" require opposite app behavior.
+
+## Server diagnostics
+
+During a controlled login test, follow the worker with
+`docker compose -f docker-compose.prod.yml logs -f --since=5s driver-session`.
+`request_received` proves that the exact worker route was reached;
+`request_completed` records its status. `OPTIONS` without a following `POST`
+means the browser stopped after preflight. A `POST` ending in `400` means the
+public JSON contract was malformed. `token_rejected`, `unmapped_rider`, and
+`session_minted` remain the verification, mapping, and success outcomes.
+
+Lifecycle logs contain only a process-local request id, method, query-free
+pathname, origin, content type, requested CORS header names, and final status.
+They never contain the token, body, credentials, authorization values, cookies,
+user agent, client IP, query string, or response body.
 
 ## The three app constants
 

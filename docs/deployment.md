@@ -280,12 +280,10 @@ chmod 600 .env.driver-session
 `NEXT_PUBLIC_SUPABASE_URL` is injected by compose from `.env` — don't repeat it
 here.
 
-> **Ordering matters on the next deploy.** Since 2026-07-29 the exchange
-> verifies tokens by calling Bubble Box's
-> `/api/v2/fleet/verify-rider-token`. The production CORS/liveness image does
-> not contain that verification swap yet. **Write all four variables above
-> before loading the cutover image.** With no `BB_API_*` values, the container
-> throws `Missing env` at boot and crash-loops — and
+> **Standing requirement.** Since 2026-07-29 the exchange verifies tokens by
+> calling Bubble Box's `/api/v2/fleet/verify-rider-token`. Keep all four
+> variables above in place before starting or recreating `driver-session`.
+> With no `BB_API_*` values, the container throws `Missing env` at boot and crash-loops — and
 > a crash-looping worker is exactly the failure this project has already
 > missed twice. Check it started: `docker compose -f docker-compose.prod.yml
 > logs --tail=20 driver-session`.
@@ -343,7 +341,9 @@ credentials with the controlled token proof in §9.
 Images are built **locally**, never on the VPS (see "The one rule that
 matters" above):
 
-The 2026-07-31 driver-session cutover requires **no database migration**.
+The Bubble Box verification cutover deployed in commit `530b117` on 2026-08-10
+is live and requires **no database migration**. Build and ship all three images
+for every subsequent application-code deploy.
 
 ```bash
 docker build --platform linux/amd64 -t fleetmap-app:latest --target runner \
@@ -791,10 +791,12 @@ That supersedes the older "just re-point the two constants" instruction: with
 the exchange, driver passwords stop existing (new riders auto-provision on
 first login), so there is nothing left to migrate per driver.
 
-> **Timing:** his release only works after the verification-swap image is
-> deployed and a fresh `fleetAuthToken` completes the controlled production
-> proof. Production currently has the CORS/liveness image, not that cutover
-> artifact. Tell him when the proof is complete.
+> **Timing:** the verification cutover in commit `530b117` is live and was
+> healthy on 2026-08-10. A fresh `fleetAuthToken` must still complete the
+> controlled production proof. The exact TestFlight exchange remains unproven
+> because the former logs had no HTTP-boundary visibility. The request-lifecycle
+> diagnostic image is not deployed; deploy it, then perform the controlled
+> TestFlight retry before treating the client flow as proven.
 
 > Note: `driver-<city>` test accounts are also driven by the fake-GPS
 > simulator. If you run `pnpm fake-gps` locally while Roman tests the same
@@ -889,7 +891,7 @@ down for a rollback.
 | Deploy docs/compose-only changes | `./redeploy.sh` on the VPS (git pull is enough — nothing to load) |
 | App logs | `docker compose -f docker-compose.prod.yml logs -f app` |
 | Sync worker logs | `docker compose -f docker-compose.prod.yml logs -f sync` |
-| Driver-session logs | `docker compose -f docker-compose.prod.yml logs -f driver-session` |
+| Driver-session logs | `docker compose -f docker-compose.prod.yml logs -f --since=5s driver-session` |
 | Rotate Bubble Box credentials | update `/opt/fleetmap/.env` and `/opt/fleetmap/.env.driver-session`; run `docker compose -f docker-compose.prod.yml up -d --no-build --force-recreate sync driver-session`; then check `ps`, `logs --tail=50 sync driver-session`, and `/api/health` |
 | Supabase logs | `docker compose -f supabase-docker/docker-compose.yml logs -f <service>` |
 | Restart app only | `docker compose -f docker-compose.prod.yml restart app` |
@@ -904,6 +906,19 @@ Everything has `restart: unless-stopped`, so both stacks come back on their
 own after a reboot. OSRM data, Caddy's certs, and the Supabase db volume
 persist across redeploys and reboots — nothing gets re-fetched, re-issued,
 or re-migrated on its own.
+
+### Driver-session one-login diagnostics
+
+During a controlled login test, follow the worker with
+`docker compose -f docker-compose.prod.yml logs -f --since=5s driver-session`.
+`request_received` proves that the exact worker route was reached;
+`request_completed` records its status. `OPTIONS` without a following `POST`
+means the browser stopped after preflight. A `POST` ending in `400` means the
+public JSON contract was malformed. `token_rejected`, `unmapped_rider`, and
+`session_minted` remain the verification, mapping, and success outcomes.
+
+No event means the exact worker route was not reached; it must not be
+interpreted as Bubble Box rejecting a token.
 
 ---
 

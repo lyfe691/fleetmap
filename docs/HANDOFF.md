@@ -1,6 +1,6 @@
 # Fleetmap handoff — where things stand and what's next
 
-## Authoritative current state — 2026-07-31
+## Authoritative current state — 2026-08-10
 
 The Bubble Box verification cutover is code-complete locally. Roman's app
 persists its normal rider `loginToken`, sends it as `accessToken` to
@@ -12,21 +12,21 @@ privately sends it to `POST /api/v2/fleet/verify-rider-token` as
 `loginToken` in the `accessToken` header, then returns the Supabase
 `access_token` and `refresh_token`.
 
-Production already has the 2026-07-29 CORS/liveness image. It does **not** yet
-have the verification-swap artifact or the new `driver_session` health
-aggregation image. The next deploy is the three explicit `:latest` images
-built on the dev machine; the VPS must never build. Create
-`.env.driver-session` first with `SUPABASE_SECRET_KEY`, `BB_API_URL`,
-`BB_API_USERNAME`, and `BB_API_PASSWORD`. This cutover has no database
-migration.
+The verification cutover in commit `530b117` was deployed as all three
+explicit `:latest` images on 2026-08-10. The production services were healthy,
+including `driver_session` in `/api/health`; the VPS did not build the images.
+The cutover has no database migration. Keep `.env.driver-session` populated
+with `SUPABASE_SECRET_KEY`, `BB_API_URL`, `BB_API_USERNAME`, and
+`BB_API_PASSWORD` before starting or recreating `driver-session`.
 
-The only missing end-to-end evidence is a fresh real rider token. Roman's
-supplied legacy rider-login path returned `404`, and Bubble Box's documented
-current login rejected the supplied fixture with `401` on 2026-07-31. That
-upstream fixture issue blocks the real-token proof, not local code or artifact
-readiness. The proof can auto-provision a Supabase identity and assign an
-unassigned matching vehicle, so use a controlled rider mapping and clean it up
-afterward. Once proven, Roman can release the client flow in
+The exact TestFlight end-to-end exchange remains unproven. The former logs had
+no HTTP-boundary visibility, so they could not establish whether the
+driver-session worker route was reached; no missing log can be interpreted as
+Bubble Box rejecting a token. The request-lifecycle diagnostic image is not
+deployed. Deploy it, then run one controlled TestFlight retry. The proof can
+auto-provision a Supabase identity and assign an unassigned matching vehicle,
+so use a controlled rider mapping and clean it up afterward. Once proven,
+Roman can release the client flow in
 `docs/driver-session-api.md`: persist Supabase with `setSession`, try Supabase
 refresh first on cold start, and reacquire a new `fleetAuthToken` without an
 interactive login while the rider `loginToken` remains valid.
