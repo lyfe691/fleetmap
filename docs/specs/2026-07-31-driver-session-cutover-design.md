@@ -143,7 +143,8 @@ real-token smoke test remains the readiness proof for a cutover.
 ## Build and deployment safety
 
 - Production currently has the CORS/liveness driver-session image, not the
-  verification-swap artifact described here.
+  verification-swap artifact described here. *(Stale: the swap was deployed
+  2026-08-10 and proven live 2026-08-11 — see `docs/HANDOFF.md`.)*
 - `.dockerignore` excludes the retired `.driver-auth-dev` keypair and
   `fleetmap-images.tar.gz`; neither enters Docker build context or cache.
 - No database migration is required for this cutover.

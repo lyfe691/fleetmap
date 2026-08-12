@@ -4,13 +4,13 @@
 (Supabase) login. Drivers log in only to Bubble Box; Fleetmap returns the
 Supabase session used for GPS exactly as today.
 
-> **Production status, 2026-08-10.** The Bubble Box verification cutover in
-> commit `530b117` was deployed as all three images and production services
-> were healthy, including `driver_session` in `/api/health`. The exact
-> TestFlight end-to-end exchange remains unproven: the former logs had no
-> HTTP-boundary visibility, so they could not establish whether the worker
-> route was reached. The request-lifecycle diagnostic image is not deployed.
-> Do not send credentials in chat or commit them to this repository.
+> **Production status, 2026-08-11.** The Bubble Box verification cutover in
+> commit `530b117` is deployed and healthy (`driver_session` in `/api/health`),
+> and the server-side verification chain is proven end to end from outside
+> with a self-served staging token (`pnpm mint-fleet-auth-token`). What
+> remains unproven is the client flow: no app build with the new exchange
+> exists yet. The request-lifecycle diagnostic image is built but not
+> deployed. Do not send credentials in chat or commit them to this repository.
 
 ## Five-token glossary
 

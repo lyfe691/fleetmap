@@ -31,6 +31,26 @@ Roman can release the client flow in
 refresh first on cold start, and reacquire a new `fleetAuthToken` without an
 interactive login while the rider `loginToken` remains valid.
 
+**Update 2026-08-11.** The Bubble Box side is now fully proven from outside.
+Rider login is `POST {BB_API_URL}/shop/api/v1/en/security/check-login` with a
+JSON `{username, password}` body — Dmytro's chat recipe omitted the `/shop`
+prefix, which produced every CMS 404 including the ones recorded on
+2026-07-31 — and the whole chain (login → `GET /api/v2/riders/fleet-auth-token`
+→ `verify-rider-token` with OUR fleet account) returns `200 {id}`. The fleet
+account's rights were never the issue; every historical 403 was an invalid
+token. `pnpm mint-fleet-auth-token` self-serves fresh 2-minute tokens (staging
+test-rider credentials in the dev `.env`), so the §9 controlled production
+proof no longer waits on TestFlight timing. The deployed cutover image was
+confirmed externally by timing: token rejections include the Bubble Box round
+trip (the first call also shows the fleet-token mint), and the 401-not-500
+shape proves the VPS Bubble Box credentials work. The order sync is live in
+prod with a fresh heartbeat. Roman's side is the remaining gap: the 27.07
+TestFlight build predates the `fleetAuthToken` feature entirely, and until
+2026-08-11 he held only the pre-cutover contract doc (24h token, lazy
+exchange, 401 = re-login); the corrected doc and the go-ahead were sent that
+day. Next: deploy the diagnostic image, run the §9 proof, then the controlled
+TestFlight retry when Roman ships a build with the new flow.
+
 Everything below this section is chronological investigation/history. It is
 useful for rationale and incident lessons, but any older status or operational
 instruction is superseded by this section, `docs/deployment.md`, and

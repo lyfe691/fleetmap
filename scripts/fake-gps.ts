@@ -230,9 +230,9 @@ function makePoster(city: City): Poster {
   }
 }
 
-// Reactivate a van's stops so the next lap is a fresh on-route run; the geofence
-// re-completes them (stamping completed_at) as the van passes. Dev-only, keeps
-// the demo continuously live instead of freezing once every stop is completed.
+// Reactivate a van's stops so the next lap is a fresh on-route run. Dev-only.
+// Nothing re-completes them since the geofence retirement (M19): fake stops
+// stay planned, so only movement- and ETA-driven UI animates during a demo.
 async function reactivateStops(
   admin: SupabaseClient,
   vehicleId: string
@@ -318,9 +318,9 @@ async function driveCity(
     }
 
     const path = buildPath(coords)
-    // Scheduled times for this lap — the geofence stamps actual arrivals
-    // (completed_at) as the van passes, so scheduled-vs-actual and the
-    // late/red route all move live during a demo.
+    // Scheduled times for this lap. Projected-vs-eta lateness (red route,
+    // Late chips) moves live; actual arrivals are no longer stamped since
+    // the geofence retirement (M19).
     await refreshEtas(admin, city, path, stops)
     console.log(
       `[${city.slug}] driving ${(path.total / 1000).toFixed(1)} km loop through ` +

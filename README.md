@@ -62,6 +62,7 @@ For moving demo data: `pnpm fake-gps` once (provisions the city vans), then `pnp
 | `pnpm bb-sync` | Bubble Box route sync worker (fixture mode via `BB_FIXTURE_FILE`) |
 | `pnpm driver-session` | Driver token exchange service (port 3100) |
 | `pnpm verify-live-token` | Safe-stdin diagnostic for a fresh Bubble Box rider token |
+| `pnpm mint-fleet-auth-token` | Self-serve a fresh staging `fleetAuthToken` (pipes into `verify-live-token`) |
 | `pnpm fake-gps` | Dev-only: moving fake GPS feed (dev server must be running) |
 | `pnpm seed-stops` | Dev-only: seed a day of demo orders/stops |
 | `pnpm provision-{dashboard,dispatcher,driver}` | Create the Auth identities |
@@ -93,4 +94,4 @@ Full walkthrough — first-time setup, the OSRM dataset build, the Supabase self
 
 ## Status
 
-Feature-complete locally for V1 (M1–M20): live tracking, the monitoring console with route replay and schedule adherence, Bubble Box order sync, self-hosted Supabase, and passwordless driver-session exchange. The Bubble Box verification cutover in commit `530b117` was deployed as all three images and was healthy in production on 2026-08-10; `/api/health` covers `driver_session`. The exact TestFlight end-to-end exchange remains unproven because the former logs had no HTTP-boundary visibility, so they could not establish whether the worker route was reached. The new request-lifecycle diagnostic image is not deployed. Next is to deploy those diagnostics and run one controlled TestFlight retry; the cutover needs no database migration. See `CLAUDE.md` for the milestone log.
+Feature-complete locally for V1 (M1–M20): live tracking, the monitoring console with route replay and schedule adherence, Bubble Box order sync, self-hosted Supabase, and passwordless driver-session exchange. The Bubble Box verification cutover in commit `530b117` was deployed as all three images and was healthy in production on 2026-08-10; `/api/health` covers `driver_session`. On 2026-08-11 the Bubble Box verification chain was proven end to end from outside with a self-served staging token (`pnpm mint-fleet-auth-token`); the remaining gap is the client flow, since no app build with the new exchange exists yet. The request-lifecycle diagnostic image is built but not deployed. Next is to deploy those diagnostics, run the controlled production proof, and retry TestFlight once a new client build ships; the cutover needs no database migration. See `CLAUDE.md` for the milestone log.

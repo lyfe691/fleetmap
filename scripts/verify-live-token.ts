@@ -1,11 +1,13 @@
 /**
  * Test a real Bubble Box fleetAuthToken before it expires.
  *
- * The token lives 2 minutes and only the rider app can issue one, so there is
- * no time to assemble a curl by hand. This runs the actual production path
- * (lib/bubblebox/client + lib/driver-auth/verify) against the token, and
- * optionally puts it through a running driver-session too.
+ * The token lives 2 minutes, so there is no time to assemble a curl by hand.
+ * This runs the actual production path (lib/bubblebox/client +
+ * lib/driver-auth/verify) against the token, and optionally puts it through a
+ * running driver-session too. Get a token from the rider app, or self-serve
+ * one from the staging test rider:
  *
+ *   pnpm --silent mint-fleet-auth-token | pnpm verify-live-token
  *   Get-Clipboard | pnpm verify-live-token
  *   Get-Clipboard | pnpm verify-live-token https://fleet.ysz.life/api/driver-session
  *   Get-Clipboard | pnpm verify-live-token http://localhost:3100

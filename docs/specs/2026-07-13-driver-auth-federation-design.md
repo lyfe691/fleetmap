@@ -506,10 +506,13 @@ Implementation and deployment state:
   diagnostic, Compose image tags, and `driver_session` health aggregation are
   complete locally.
 - Production has the CORS/liveness image deployed, but not yet the
-  verification-swap artifact.
+  verification-swap artifact. *(Superseded: the cutover shipped 2026-08-10 and
+  the verification chain was proven live 2026-08-11 — see `docs/HANDOFF.md`.)*
 - A real-token proof is blocked by the supplied test fixture, not by code:
   Roman's legacy login path returned `404`, and the documented current login
-  returned `401` on 2026-07-31.
+  returned `401` on 2026-07-31. *(Resolved 2026-08-11: the rider login lives
+  under `/shop` — `POST /shop/api/v1/en/security/check-login` — and
+  `pnpm mint-fleet-auth-token` self-serves tokens.)*
 - The release requires all three explicit `:latest` images built locally and
   the four-variable `.env.driver-session`; the VPS must never build.
 - No database migration is required. A valid exchange may auto-provision and

@@ -18,6 +18,7 @@
     "bb-sync": "tsx --env-file=.env workers/bubblebox-sync.ts",
     "driver-session": "tsx --env-file=.env workers/driver-session.ts",
     "verify-live-token": "tsx --env-file=.env scripts/verify-live-token.ts",
+    "mint-fleet-auth-token": "tsx --env-file=.env scripts/mint-fleet-auth-token.ts",
     "prove-driver-session": "tsx --env-file=.env scripts/prove-driver-session.ts",
     "test": "vitest run",
     "test:watch": "vitest"

@@ -723,7 +723,8 @@ shell open. Its exit trap restarts sync only after guarded cleanup succeeds.
 
 Run this from the local repo with its production public Supabase values and
 Bubble Box fleet credentials in `.env`. Enter the exact rider id printed above
-and paste that rider's fresh `fleetAuthToken` only at the masked prompt. The
+and paste that rider's fresh `fleetAuthToken` only at the masked prompt (for
+the staging test rider, `pnpm --silent mint-fleet-auth-token` prints one). The
 token goes to the helper on stdin. The exchanged and refreshed Supabase tokens
 remain in that process's memory; they never enter argv, a file, logs, or
 output.
@@ -913,16 +914,17 @@ the exchange, driver passwords stop existing (new riders auto-provision on
 first login), so there is nothing left to migrate per driver.
 
 > **Timing:** the verification cutover in commit `530b117` is live and was
-> healthy on 2026-08-10. A fresh `fleetAuthToken` must still complete the
-> controlled production proof. The exact TestFlight exchange remains unproven
-> because the former logs had no HTTP-boundary visibility. The request-lifecycle
-> diagnostic image is not deployed; deploy it, then perform the controlled
-> TestFlight retry before treating the client flow as proven.
+> healthy on 2026-08-10; on 2026-08-11 the Bubble Box verification chain was
+> proven end to end from outside with a self-served staging token
+> (`pnpm mint-fleet-auth-token`), so the controlled production proof (§9) can
+> run at any time. The request-lifecycle diagnostic image is not deployed;
+> deploy it, run the §9 proof, then perform the controlled TestFlight retry
+> once a client build with the new flow exists.
 
-> Note: `driver-<city>` test accounts are also driven by the fake-GPS
-> simulator. If you run `pnpm fake-gps` locally while Roman tests the same
-> city, two vans fight over one marker. Give him a city you're not
-> simulating, or stop the simulator during his test.
+> Note: since the exchange, real riders auto-provision their own identities
+> and map to vehicles by `rider_ref`, so fake-GPS vans (which have no
+> `rider_ref`) no longer fight a real driver over one marker — they just
+> render as extra vans beside the real ones.
 
 ---
 
