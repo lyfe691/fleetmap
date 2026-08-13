@@ -917,9 +917,12 @@ first login), so there is nothing left to migrate per driver.
 > healthy on 2026-08-10; on 2026-08-11 the Bubble Box verification chain was
 > proven end to end from outside with a self-served staging token
 > (`pnpm mint-fleet-auth-token`), so the controlled production proof (§9) can
-> run at any time. The request-lifecycle diagnostic image is not deployed;
-> deploy it, run the §9 proof, then perform the controlled TestFlight retry
-> once a client build with the new flow exists.
+> run at any time. The request-lifecycle diagnostic image has been live since
+> 2026-08-10 10:47 UTC (its verification sequence from §6 is recorded in the
+> worker log at that startup). The §9 proof ran and passed on 2026-08-13, and
+> the same day Roman's client completed a real exchange against the standing
+> rider-6 mapping. What remains is the controlled TestFlight retry once a
+> device build with the new flow exists.
 
 > Note: since the exchange, real riders auto-provision their own identities
 > and map to vehicles by `rider_ref`, so fake-GPS vans (which have no
