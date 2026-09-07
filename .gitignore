@@ -46,17 +46,11 @@ next-env.d.ts
 # ai
 .claude/
 
-# design handoff + scratch assets (reference only — not part of the build)
+# design handoff (reference only — not part of the build)
 /design_handoff_fleetmap/
-/tmp-image/
 # local-only handoff doc (contains client keys; shared privately, never committed)
 docs/driver-app-handoff.md
 /tmp
 
-# dev-only stand-in keypair for the driver-session exchange
-.driver-auth-dev/
-
-# shipped prod images (built locally, scp'd to the VPS)
+# shipped prod images (built locally, scp'd to the server)
 fleetmap-images.tar.gz
-/fleetmap-driver-session-diagnostics.tar.gz
-/fleetmap-driver-session-diagnostics.tar.gz.sha256
