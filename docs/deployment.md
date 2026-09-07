@@ -1,14 +1,13 @@
 # Fleetmap — Deployment
 
-Fleetmap runs on one Docker host per environment (Ubuntu 24.04,
-`/opt/fleetmap`). 4GB RAM is the proven minimum and it is tight (the VPS keeps
-~1 GB in swap); give a new host 8GB so builds are not the only thing it can
-never do. Today the VPS behind `fleet.ysz.life` is the staging environment
-(Bubble Box staging API); production is a fresh install of §0–§9 on the
-company's instance with its own hostnames and secrets. §11 is the runbook for
-moving an existing environment between hosts, kept for when that is wanted.
-Every hostname below is a placeholder for the values in `/opt/fleetmap/.env`
-(`FLEET_HOST`, `SUPABASE_HOST`).
+Fleetmap runs on one Docker host (Ubuntu 24.04+, `/opt/fleetmap`). Since
+2026-09-07 that is the company's Hetzner box (`BB-DashBoard`, 49.13.223.81)
+serving `fleet.ysz.life`; it has 1.9 GB RAM + 2 GB swap, which runs but is
+below the 4 GB proven minimum, so a resize to 4–8 GB is the first thing to
+ask for if anything OOMs. Yanis's old VPS is a cold standby. §11 is the
+runbook that moved it (same-name variant). Every hostname below is a
+placeholder for the values in `/opt/fleetmap/.env` (`FLEET_HOST`,
+`SUPABASE_HOST`).
 
 ## What gets deployed
 
@@ -912,6 +911,26 @@ repo. The move keeps every secret, so the anon key baked into the driver app
 and the TV stays valid, and the old hostnames can be served as aliases from the
 new box until every client has switched — the old-build rider app and the TV
 keep working through the transition with zero changes on their side.
+
+**Same-name variant (done 2026-09-07).** If the new host simply takes over
+the existing hostnames, skip the aliases: stage everything, flip the two `A`
+records, done. Three lessons from that day:
+
+- **Do not start Caddy before DNS points at the new box**, or copy the old
+  host's certificates first. Every failed challenge counts against Let's
+  Encrypt's limit of 5 failed authorizations per hostname per hour, and
+  `box-bringup.sh up` starts Caddy. The fix that worked: stop Caddy, then
+  `rsync -a root@OLD:/var/lib/docker/volumes/fleetmap_caddy_data/_data/ /var/lib/docker/volumes/fleetmap_caddy_data/_data/`
+  (valid certificates plus the ACME account), start Caddy.
+- Lower the DNS TTL to 300 the day before. At 14400 the old host must keep
+  serving for hours, and its app then reads the new box's database (same
+  secrets, same hostname); harmless but confusing. The compose file now pins
+  `SUPABASE_HOST` to the Docker host gateway (`extra_hosts`), so each box's
+  containers always talk to their own Supabase whatever DNS says.
+- The Supabase CLI may refuse to connect through the tunnel while plain psql
+  works. Fallback: apply `supabase/migrations/*.sql` in order with `psql -1
+  -f` and insert `(version, name)` into `supabase_migrations.schema_migrations`
+  yourself (the CLI only compares versions).
 
 Below, `OLD` is the current host and `NEW` the target. Run each block where
 its heading says. Both hosts need root SSH from the dev machine, and `NEW`

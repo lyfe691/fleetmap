@@ -12,8 +12,8 @@ status.
 
 Fleetmap is a live fleet map for Bubble Box (laundry pickup/delivery): the
 office TV shows every van moving, with routes, ETAs, and stop status. All of
-V1 (M1–M20) is built and running in production on Yanis's VPS
-(`fleet.ysz.life`): GPS tracking from Roman's native rider app through the
+V1 (M1–M20) is built and running in production on the company's Hetzner box
+(`fleet.ysz.life`, moved off Yanis's VPS on 2026-09-07): GPS tracking from Roman's native rider app through the
 passwordless driver-session exchange (the §9 production proof passed 2026-08-13,
 Roman's device build proven 2026-08-24), the order
 sync mirroring Bubble Box's rider routes (live, but against their **staging**
@@ -27,8 +27,8 @@ company's server.
 - **Yanis** — owns Fleetmap. Solo project; drafted messages speak as "I".
 - **Roman** — built the native rider app. His current build implements the
   driver-session exchange (`docs/driver-session-api.md`) and is proven against
-  prod. He owes one more release when the hostnames change (§11 of
-  `docs/deployment.md`).
+  prod. Hostnames and key survived the server move, so nothing is pending
+  with him.
 - **Dmytro** — lead developer of the Bubble Box booking backend, the
   integration counterpart for orders and rider-token verification. His fleet
   API and `verify-rider-token` endpoint run on staging
@@ -40,30 +40,35 @@ company's server.
   the flow gets tested with a real rider and their routes. Waiting on that
   deploy is the single blocker for orders go-live.
 
-## What is decided (2026-09-07)
+## What happened on 2026-09-07: production moved to the company box
 
-**Two environments.** Roman's production app will point at a new instance
-that Severin (company infrastructure) creates, with its own hostnames,
-Supabase URL and key. So production is a **fresh install** on the company box
-(`docs/deployment.md` §0–§9, fresh secrets, Bubble Box production
-credentials, production rider mapping), and the VPS (`fleet.ysz.life`) stays
-the **staging environment**: Bubble Box staging API, the staging test riders,
-Roman's test builds. Nothing real needs migrating (prod holds two test vans
-and no orders); §11 stays as the recipe if a data move is ever wanted. The
-deployment is hostname-parametrized (`FLEET_HOST`/`SUPABASE_HOST` in `.env`;
-the VPS `.env` already carries its values).
+Severin provided a Hetzner instance (`BB-DashBoard`, 49.13.223.81, Ubuntu
+26.04, **1 vCPU / 1.9 GB RAM** + 2 GB swap, 38 GB disk). Yanis chose to keep
+the existing hostnames, so the move was `docs/deployment.md` §11 in
+same-name form, executed the same afternoon: Docker installed, `box-bringup.sh
+prep` (OSRM copied from the VPS), the three env files + the three images +
+auth/public data pulled from the VPS unchanged (same secrets, so Roman's app
+and the TV needed no change), schema applied with psql through a tunnel
+(the Supabase CLI could not connect through it), DNS flipped in Hostinger
+(TTL was 14400 at the time; lower it), certificates copied from the VPS's
+Caddy volume after Let's Encrypt rate-limited the pre-flip attempts, smoke
+9/9, backup cron installed. Production is that box now. Lessons are folded
+into §11.
 
-Order: Severin provides the instance (specs in `docs/deployment.md` §0, plus
-8 GB RAM and two DNS records under the company domain) → fresh install and
-smoke tests → Dmytro's production credentials and fleet user → rider mapping
-from the first production tick → Roman's production build gets the three
-constants → §9 proof with a real rider → TV opens the new URL. Go-live
-checklist at the end of `docs/deployment.md`. **No agent SSH access to the
-company box** (policy): Yanis runs the box side himself via
-`scripts/box-bringup.sh` (`prep` / `up` / `smoke`, one paste each) and the
-`scp`s, the agent does the dev-machine side (secrets, env files, migrations
-and identities through a tunnel Yanis opens, image builds). The "Bring-up
-order" at the top of `docs/deployment.md` interleaves the two.
+The VPS (`187.124.1.41`) is a **cold standby**: its workers are stopped, app
++ Caddy + Supabase still run for clients with cached DNS and read the new
+box's database. Stop both stacks there once DNS caches have expired, keep it
+a week as rollback, then wipe or repurpose it. **No agent SSH access to the
+company box** (policy): Yanis pastes box-side commands himself
+(`scripts/box-bringup.sh` phases, `scp`, the tunnel), the agent does the
+dev-machine side. RAM is the known risk: 1.9 GB is below the documented
+minimum; the stack runs with ~80 MB free and swap in use. Ask Severin for a
+resize to 4–8 GB if anything OOMs.
+
+Remaining for orders go-live, unchanged: Dmytro's production deploy and
+fleet user, rider mapping from the first production tick, the §9 proof with
+a real rider, secret rotation, uptime monitor, offsite backups (checklist at
+the end of `docs/deployment.md`). Roman needs no new constants.
 
 VPS facts as of 2026-09-07: 1 vCPU, 3.9 GB RAM with the 2 GB swapfile about
 half used, 48 GB disk (35% used), both stacks up for 6 weeks, schema at 0016,
