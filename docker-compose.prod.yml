@@ -46,6 +46,8 @@ services:
     environment:
       OSRM_URL: http://osrm:5000   # reach OSRM by service name inside the stack
       DRIVER_SESSION_URL: http://driver-session:3100
+    extra_hosts:
+      - "${SUPABASE_HOST}:host-gateway"   # own Supabase via own Caddy, whatever public DNS says
     expose:
       - "3000"           # internal only — Caddy is the public edge
     depends_on:
@@ -60,6 +62,8 @@ services:
     env_file: .env       # BB_* + DISPATCHER_INGEST_SECRET + NEXT_PUBLIC_SUPABASE_*
     environment:
       FLEETMAP_API_URL: http://app:3000   # reach the app by service name
+    extra_hosts:
+      - "${SUPABASE_HOST}:host-gateway"
     depends_on:
       - app
 
@@ -75,6 +79,8 @@ services:
     env_file: .env.driver-session
     environment:
       NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+    extra_hosts:
+      - "${SUPABASE_HOST}:host-gateway"
     expose:
       - "3100"
 
