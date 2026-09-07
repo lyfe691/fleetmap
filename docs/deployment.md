@@ -1,6 +1,8 @@
 # Fleetmap — Deployment
 
-Fleetmap runs on one Docker host (Ubuntu 24.04, 4GB RAM minimum, `/opt/fleetmap`).
+Fleetmap runs on one Docker host (Ubuntu 24.04, `/opt/fleetmap`). 4GB RAM is
+the proven minimum and it is tight (the VPS keeps ~1 GB in swap); give a new
+host 8GB so builds are not the only thing it can never do.
 Today that host is the VPS behind `fleet.ysz.life`; §11 is the runbook for moving
 it to another server. Every hostname below is a placeholder for the values in
 `/opt/fleetmap/.env` (`FLEET_HOST`, `SUPABASE_HOST`).
@@ -744,13 +746,12 @@ rather than fighting over a marker.
 
 Self-hosting means we own durability. A nightly `pg_dump` runs off
 `supabase-docker/backup.sh` (dumps to `/opt/fleetmap-backups/`, outside both
-compose projects, 14-day rotation). Install the cron job on every host:
+compose projects, 14-day rotation). Install the cron job on every host (the
+VPS got it on 2026-09-07; before that only the cutover dump existed):
 
 ```bash
-chmod +x /opt/fleetmap/supabase-docker/backup.sh
-crontab -e
-# add:
-10 2 * * * /opt/fleetmap/supabase-docker/backup.sh
+(crontab -l 2>/dev/null; echo '10 2 * * * sh /opt/fleetmap/supabase-docker/backup.sh') | crontab -
+crontab -l
 ```
 
 Offsite copies are not set up yet — a go-live item for the company box.
@@ -995,6 +996,9 @@ credentials.
   and auto-provisioned `rider-<id>@driver.fleetmap.internal` users.
 - Rotate `DASHBOARD_DISPLAY_CODE` and `DISPATCHER_INGEST_SECRET` in `.env`
   (the TV and the sync are the only consumers; `--force-recreate app sync`).
+- Delete the legacy `driver-roman@fleetmap.app` Auth user (pre-exchange test
+  identity, owns no vehicle) and any other identity that is not the dashboard,
+  the dispatcher, or an auto-provisioned `rider-<id>@driver.fleetmap.internal`.
 - Run the human-gated proof in §9 once with a production rider you control.
 - Point an uptime monitor at `/api/health`; set up an offsite copy of
   `/opt/fleetmap-backups`.

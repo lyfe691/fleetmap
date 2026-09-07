@@ -45,10 +45,20 @@ go-live because both hostnames are baked into Roman's app and the TV; going
 live on `ysz.life` first would cost a second app release and a second driver
 cutover. The company server and hostnames are pending from Yanis; the
 deployment is hostname-parametrized (`FLEET_HOST`/`SUPABASE_HOST` in `.env`)
-so the move is config plus the runbook. **Transitional step:** the VPS's
-`/opt/fleetmap/.env` predates those variables; add `FLEET_HOST=fleet.ysz.life`
-and `SUPABASE_HOST=sb.fleet.ysz.life` there *before* the first `./redeploy.sh`
-that pulls this change, or Caddy reloads with empty site addresses.
+so the move is config plus the runbook (the VPS `.env` already carries
+`FLEET_HOST`/`SUPABASE_HOST`, added 2026-09-07 ahead of the first redeploy that
+needs them).
+
+VPS facts as of 2026-09-07: 1 vCPU, 3.9 GB RAM with the 2 GB swapfile about
+half used, 48 GB disk (35% used), both stacks up for 6 weeks, schema at 0016,
+pg_cron retention job present. Data is tiny (229 MB database, 0 orders/stops
+while staging has no routes, a handful of positions). Auth users: dashboard,
+dispatcher, the legacy `driver-roman@fleetmap.app` (M3-era, owns no vehicle,
+delete at go-live), and the auto-provisioned `rider-6@driver.fleetmap.internal`.
+The nightly backup cron was **not** installed until 2026-09-07 (the only prior
+dump was from the 07-20 cutover); it is now, and one fresh dump was taken.
+The 2026-08-10 rollback images and the never-deployed diagnostics upload were
+removed from the box the same day.
 
 ## The Bubble Box contract, as built
 
