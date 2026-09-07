@@ -987,8 +987,9 @@ next tick.
 The orders and login tracks are independent, but both switch on the same
 credentials.
 
-- Put the production `BB_API_URL`, `BB_API_USERNAME`, and `BB_API_PASSWORD` in
-  both `/opt/fleetmap/.env` (for `sync`) and `/opt/fleetmap/.env.driver-session`
+- Put the production `BB_API_URL` (`https://bubblebox.ch`, per Dmytro
+  2026-09-07), `BB_API_USERNAME`, and `BB_API_PASSWORD` in both
+  `/opt/fleetmap/.env` (for `sync`) and `/opt/fleetmap/.env.driver-session`
   (for rider-token verification), then run the rotation recipe in §6.
 - Read rider ids from the production feed itself (`sync` logs them as
   `unmapped rider`, or query the fleet API with the production credentials).

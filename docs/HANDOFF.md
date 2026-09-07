@@ -32,10 +32,13 @@ company's server.
 - **Dmytro** — lead developer of the Bubble Box booking backend, the
   integration counterpart for orders and rider-token verification. His fleet
   API and `verify-rider-token` endpoint run on staging
-  (`https://upgrade.bubblebox.ch`). **Open with him: when the fleet API runs
-  on production, and the production fleet credentials.** Yanis asked in the
-  original thread; the answer never came (the conversation moved to the token
-  design instead). This is the single blocker for orders go-live.
+  (`https://upgrade.bubblebox.ch`). **2026-09-07:** asked about production; he
+  replied the same day that they are preparing the production deploy (together
+  with Roman's app), that the production base URL is `https://bubblebox.ch`
+  (config only: `BB_API_URL` in both env files), and that he will create a
+  production fleet admin user with the same rights once deployed, after which
+  the flow gets tested with a real rider and their routes. Waiting on that
+  deploy is the single blocker for orders go-live.
 
 ## What is decided (2026-09-07)
 
