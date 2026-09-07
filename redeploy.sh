@@ -5,7 +5,7 @@
 # Images come from ghcr.io (built by GitHub Actions on every push to main);
 # the server never builds (see docs/deployment.md "Deploying new code").
 set -euo pipefail
-
+{
 cd "$(dirname "$0")"
 
 compose="docker compose -f docker-compose.prod.yml"
@@ -33,3 +33,5 @@ docker image prune -f >/dev/null
 
 echo "==> status"
 $compose ps
+exit 0
+}
