@@ -1,11 +1,14 @@
 # Fleetmap — Deployment
 
-Fleetmap runs on one Docker host (Ubuntu 24.04, `/opt/fleetmap`). 4GB RAM is
-the proven minimum and it is tight (the VPS keeps ~1 GB in swap); give a new
-host 8GB so builds are not the only thing it can never do.
-Today that host is the VPS behind `fleet.ysz.life`; §11 is the runbook for moving
-it to another server. Every hostname below is a placeholder for the values in
-`/opt/fleetmap/.env` (`FLEET_HOST`, `SUPABASE_HOST`).
+Fleetmap runs on one Docker host per environment (Ubuntu 24.04,
+`/opt/fleetmap`). 4GB RAM is the proven minimum and it is tight (the VPS keeps
+~1 GB in swap); give a new host 8GB so builds are not the only thing it can
+never do. Today the VPS behind `fleet.ysz.life` is the staging environment
+(Bubble Box staging API); production is a fresh install of §0–§9 on the
+company's instance with its own hostnames and secrets. §11 is the runbook for
+moving an existing environment between hosts, kept for when that is wanted.
+Every hostname below is a placeholder for the values in `/opt/fleetmap/.env`
+(`FLEET_HOST`, `SUPABASE_HOST`).
 
 ## What gets deployed
 
@@ -982,10 +985,10 @@ next tick.
 
 ---
 
-## Go-live checklist (production Bubble Box)
+## Go-live checklist (production instance)
 
-The orders and login tracks are independent, but both switch on the same
-credentials.
+Run on the company's production host after §0–§9. The orders and login
+tracks are independent, but both switch on the same credentials.
 
 - Put the production `BB_API_URL` (`https://bubblebox.ch`, per Dmytro
   2026-09-07), `BB_API_USERNAME`, and `BB_API_PASSWORD` in both
@@ -1005,4 +1008,6 @@ credentials.
 - Run the human-gated proof in §9 once with a production rider you control.
 - Point an uptime monitor at `/api/health`; set up an offsite copy of
   `/opt/fleetmap-backups`.
-- Roman ships the release whose constants point at the final hostnames.
+- Send Roman the three constants of the production instance (`API_BASE_URL`,
+  Supabase URL, publishable key) in `docs/driver-session-api.md`; his
+  production build points there. Staging test builds keep pointing at the VPS.

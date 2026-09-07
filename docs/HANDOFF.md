@@ -42,16 +42,23 @@ company's server.
 
 ## What is decided (2026-09-07)
 
-Order of operations: repo cleanup → move to the company server under company
-hostnames → go-live there (production credentials, rider mapping, Roman's
-release, secret rotation, uptime monitor, offsite backups). Migrate before
-go-live because both hostnames are baked into Roman's app and the TV; going
-live on `ysz.life` first would cost a second app release and a second driver
-cutover. The company server and hostnames are pending from Yanis; the
-deployment is hostname-parametrized (`FLEET_HOST`/`SUPABASE_HOST` in `.env`)
-so the move is config plus the runbook (the VPS `.env` already carries
-`FLEET_HOST`/`SUPABASE_HOST`, added 2026-09-07 ahead of the first redeploy that
-needs them).
+**Two environments.** Roman's production app will point at a new instance
+that Severin (company infrastructure) creates, with its own hostnames,
+Supabase URL and key. So production is a **fresh install** on the company box
+(`docs/deployment.md` §0–§9, fresh secrets, Bubble Box production
+credentials, production rider mapping), and the VPS (`fleet.ysz.life`) stays
+the **staging environment**: Bubble Box staging API, the staging test riders,
+Roman's test builds. Nothing real needs migrating (prod holds two test vans
+and no orders); §11 stays as the recipe if a data move is ever wanted. The
+deployment is hostname-parametrized (`FLEET_HOST`/`SUPABASE_HOST` in `.env`;
+the VPS `.env` already carries its values).
+
+Order: Severin provides the instance (specs in `docs/deployment.md` §0, plus
+8 GB RAM and two DNS records under the company domain) → fresh install and
+smoke tests → Dmytro's production credentials and fleet user → rider mapping
+from the first production tick → Roman's production build gets the three
+constants → §9 proof with a real rider → TV opens the new URL. Go-live
+checklist at the end of `docs/deployment.md`.
 
 VPS facts as of 2026-09-07: 1 vCPU, 3.9 GB RAM with the 2 GB swapfile about
 half used, 48 GB disk (35% used), both stacks up for 6 weeks, schema at 0016,
