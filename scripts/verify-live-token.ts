@@ -9,7 +9,7 @@
  *
  *   pnpm --silent mint-fleet-auth-token | pnpm verify-live-token
  *   Get-Clipboard | pnpm verify-live-token
- *   Get-Clipboard | pnpm verify-live-token https://fleet.ysz.life/api/driver-session
+ *   Get-Clipboard | pnpm verify-live-token https://<FLEET_HOST>/api/driver-session
  *   Get-Clipboard | pnpm verify-live-token http://localhost:3100
  *
  * Reads BB_API_URL / BB_API_USERNAME / BB_API_PASSWORD from .env.

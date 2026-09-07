@@ -13,9 +13,6 @@ import { createClient, type User } from "@supabase/supabase-js"
 import { createBubbleboxClient } from "../lib/bubblebox/client"
 import { verifyRiderToken } from "../lib/driver-auth/verify"
 
-const DEFAULT_EXCHANGE_URL = "https://fleet.ysz.life/api/driver-session"
-const DEFAULT_LOCATION_URL = "https://fleet.ysz.life/api/location"
-
 class ProofFailure extends Error {}
 
 function stop(message: string): never {
@@ -35,6 +32,10 @@ function requiredEnv(name: string): string {
   const value = process.env[name]
   if (!value) stop(`missing required configuration: ${name}`)
   return value
+}
+
+function publicUrl(path: string) {
+  return new URL(path, requiredEnv("FLEETMAP_PUBLIC_URL")).toString()
 }
 
 function parseInputs() {
@@ -105,7 +106,7 @@ async function runProof() {
   }
 
   const exchangeUrl =
-    process.env.DRIVER_SESSION_PROOF_URL ?? DEFAULT_EXCHANGE_URL
+    process.env.DRIVER_SESSION_PROOF_URL ?? publicUrl("/api/driver-session")
   let exchangeResponse: Response
   try {
     exchangeResponse = await fetch(exchangeUrl, {
@@ -192,7 +193,7 @@ async function runProof() {
 
   const recordedAt = new Date().toISOString()
   const locationUrl =
-    process.env.DRIVER_SESSION_LOCATION_URL ?? DEFAULT_LOCATION_URL
+    process.env.DRIVER_SESSION_LOCATION_URL ?? publicUrl("/api/location")
   let locationResponse: Response
   try {
     locationResponse = await fetch(locationUrl, {

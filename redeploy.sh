@@ -10,6 +10,10 @@ cd "$(dirname "$0")"
 
 compose="docker compose -f docker-compose.prod.yml"
 
+for var in FLEET_HOST SUPABASE_HOST; do
+  grep -Eq "^${var}=.+" .env || { echo "STOP: set ${var} in .env (Caddy site address)" >&2; exit 1; }
+done
+
 echo "==> git pull"
 git pull --ff-only
 

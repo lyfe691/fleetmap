@@ -1,8 +1,10 @@
-# Caddy auto-provisions a Let's Encrypt cert for this hostname and reverse-proxies
-# to the Next app. Requires the domain's DNS to point at this VPS and ports 80/443
-# open. Change the hostname if you move off the Hostinger subdomain.
+# Caddy auto-provisions Let's Encrypt certs for every hostname and reverse-proxies
+# to the stack. FLEET_HOST / SUPABASE_HOST (and the optional space-separated
+# *_ALIASES, served identically during a host move) come from .env via
+# docker-compose.prod.yml; DNS for each must point at this server and ports
+# 80/443 must be open.
 
-fleet.ysz.life {
+{$FLEET_HOST} {$FLEET_HOST_ALIASES} {
 	encode zstd gzip
 	# Driver token exchange lives in its own internal service (the sanctioned
 	# secret-key holder) — one route, everything else goes to the app.
@@ -14,6 +16,6 @@ fleet.ysz.life {
 	}
 }
 
-sb.fleet.ysz.life {
+{$SUPABASE_HOST} {$SUPABASE_HOST_ALIASES} {
 	reverse_proxy kong:8000
 }

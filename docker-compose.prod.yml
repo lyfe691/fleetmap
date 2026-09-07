@@ -22,6 +22,11 @@ services:
       - ./caddy:/etc/caddy:ro
       - caddy_data:/data
       - caddy_config:/config
+    environment:
+      FLEET_HOST: ${FLEET_HOST}
+      FLEET_HOST_ALIASES: ${FLEET_HOST_ALIASES:-}
+      SUPABASE_HOST: ${SUPABASE_HOST}
+      SUPABASE_HOST_ALIASES: ${SUPABASE_HOST_ALIASES:-}
     depends_on:
       - app
     networks:
