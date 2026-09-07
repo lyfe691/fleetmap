@@ -74,6 +74,37 @@ enough.
 
 ---
 
+## Bring-up order for a fresh instance
+
+Everything below in the order it actually happens. `[box]` runs on the new
+server, `[dev]` on the dev machine. About two hours end to end, most of it
+waiting for the OSRM copy and certificates.
+
+**Inputs:** root SSH to the box and its public IP (from Severin); two `A`
+records under the company domain pointing at it; the Bubble Box production
+fleet user from Dmytro (can arrive later: the sync and the exchange simply
+wait for it).
+
+1. `[box]` §0: swap, firewall, git, and the dev machine's SSH key in
+   `~/.ssh/authorized_keys`. Confirm the two hostnames resolve to the box.
+2. `[box]` §1 clone, §3 edge network, then the OSRM dataset: build it (§2) or
+   copy the VPS's (`rsync -a root@fleet.ysz.life:/opt/fleetmap/osrm/ /opt/fleetmap/osrm/`).
+3. `[dev]` §4: generate the Supabase secrets. New instance, new secrets.
+4. `[box]` §4: `supabase-docker/.env` with those secrets and the hostnames,
+   `docker compose up -d`, wait for healthy.
+5. `[box]` §6: `/opt/fleetmap/.env` (hostnames, `NEXT_PUBLIC_*`, fresh
+   `DASHBOARD_*`/`DISPATCHER_*` values, `BB_API_*` production or blank) and
+   `.env.driver-session`. Bring up Caddy (§4 "Wire Caddy"), check the cert.
+6. `[dev]` §5 migrations through the tunnel, then §5b the two identities.
+7. `[dev]` §7 build the three images with the new `NEXT_PUBLIC_*` values,
+   `scp` the tar.
+8. `[box]` §8 `./redeploy.sh`, then §9 smoke tests. Install the backup cron.
+9. When Dmytro's production user exists: the go-live checklist at the end.
+10. Send Roman the three constants (§10); someone opens the dashboard on the
+    TV with the display code; point an uptime monitor at `/api/health`.
+
+---
+
 ## 0. Prerequisites on the server
 
 Docker + compose installed. Confirm, add git:
@@ -243,6 +274,28 @@ docker run --rm --network host postgres:17 psql "postgresql://postgres.fleetmap:
 
 Data (auth users + the public tables) is restored separately — §11 has the
 dump/restore recipe.
+
+## 5b. Provision the dashboard and dispatcher identities (dev machine)
+
+A fresh instance has no Auth users. `scripts/provision-dashboard.ts` and
+`scripts/provision-dispatcher.ts` create the two role-claimed identities
+(idempotent) with the service-role key. Drivers need nothing: they
+auto-provision on their first login through the exchange. Run once from the
+dev machine; variables set in the shell override the dev `.env`:
+
+```powershell
+$env:NEXT_PUBLIC_SUPABASE_URL = 'https://<SUPABASE_HOST>'
+$env:SUPABASE_SECRET_KEY = '<SERVICE_ROLE_KEY from supabase-docker/.env>'
+$env:DASHBOARD_EMAIL = 'dashboard@fleetmap.internal'
+$env:DASHBOARD_PASSWORD = '<same value as the box .env>'
+$env:DISPATCHER_EMAIL = 'dispatcher@fleetmap.internal'
+$env:DISPATCHER_PASSWORD = '<same value as the box .env>'
+pnpm provision-dashboard
+pnpm provision-dispatcher
+Remove-Item Env:NEXT_PUBLIC_SUPABASE_URL, Env:SUPABASE_SECRET_KEY, Env:DASHBOARD_PASSWORD, Env:DISPATCHER_PASSWORD
+```
+
+Both scripts print the created user; a second run reports it already exists.
 
 ---
 
