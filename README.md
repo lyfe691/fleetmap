@@ -12,7 +12,7 @@ Real-time map of a delivery fleet. Each van's phone streams GPS to the backend; 
 | Routing + ETA | OSRM, self-hosted (Docker, Switzerland extract) |
 | Orders | Sync worker polling the Bubble Box fleet API (their optimizer owns assignment, ordering, and status) |
 | Driver client | Bubblebox native rider app → `POST /api/driver-session` → Supabase session → `POST /api/location` |
-| Deployment | Docker on one VPS: Caddy (TLS) → Next + internal driver-session service → OSRM + sync, beside the self-hosted Supabase stack (see [`docs/deployment.md`](docs/deployment.md)) |
+| Deployment | Docker on one host: Caddy (TLS) → Next + internal driver-session service → OSRM + sync, beside the self-hosted Supabase stack; hostnames are config (see [`docs/deployment.md`](docs/deployment.md)) |
 
 ## Architecture
 
@@ -70,7 +70,7 @@ For moving demo data: `pnpm fake-gps` once (provisions the city vans), then `pnp
 
 ## Deployment
 
-Two compose stacks on one VPS: the app stack (`docker-compose.prod.yml` — Caddy → Next + driver-session → OSRM + sync) and the self-hosted Supabase stack (`supabase-docker/`). All three Fleetmap images are **built locally and shipped as a tar** — the box never builds:
+Two compose stacks on one host: the app stack (`docker-compose.prod.yml` — Caddy → Next + driver-session → OSRM + sync) and the self-hosted Supabase stack (`supabase-docker/`). Public hostnames come from `FLEET_HOST`/`SUPABASE_HOST` in the server's `.env`. All three Fleetmap images are **built locally and shipped as a tar** — the box never builds:
 
 ```bash
 docker build --platform linux/amd64 -t fleetmap-app:latest --target runner \
@@ -82,11 +82,12 @@ scp fleetmap-images.tar.gz root@<host>:/opt/fleetmap/
 ssh root@<host> "cd /opt/fleetmap && ./redeploy.sh"   # git pull + load tar + restart, no build
 ```
 
-Full walkthrough — first-time setup, the OSRM dataset build, the Supabase self-host, TLS, backups, smoke tests — in [`docs/deployment.md`](docs/deployment.md).
+Full walkthrough — first-time setup, the OSRM dataset build, the Supabase self-host, TLS, backups, smoke tests, moving to a new host, the go-live checklist — in [`docs/deployment.md`](docs/deployment.md).
 
 ## Docs
 
 - [`CLAUDE.md`](CLAUDE.md) — working brief: stack decisions, conventions, layout, milestone log.
+- [`docs/HANDOFF.md`](docs/HANDOFF.md) — current state, the people, invariants and traps.
 - [`docs/deployment.md`](docs/deployment.md) — VPS deployment guide.
 - [`docs/driver-session-api.md`](docs/driver-session-api.md) — rider-app session exchange contract.
 - [`docs/specs/live-tracking-spec.md`](docs/specs/live-tracking-spec.md) — full design doc.
@@ -94,4 +95,11 @@ Full walkthrough — first-time setup, the OSRM dataset build, the Supabase self
 
 ## Status
 
-Feature-complete locally for V1 (M1–M20): live tracking, the monitoring console with route replay and schedule adherence, Bubble Box order sync, self-hosted Supabase, and passwordless driver-session exchange. The Bubble Box verification cutover in commit `530b117` was deployed as all three images and was healthy in production on 2026-08-10; `/api/health` covers `driver_session`. On 2026-08-11 the Bubble Box verification chain was proven end to end from outside with a self-served staging token (`pnpm mint-fleet-auth-token`); the remaining gap is the client flow, since no app build with the new exchange exists yet. The request-lifecycle diagnostic image is built but not deployed. Next is to deploy those diagnostics, run the controlled production proof, and retry TestFlight once a new client build ships; the cutover needs no database migration. See `CLAUDE.md` for the milestone log.
+V1 (M1–M20) is complete and running in production: live tracking through the
+passwordless driver-session exchange (proven end to end with the rider app on
+2026-08-24), the monitoring console with route replay and schedule adherence,
+the Bubble Box order sync (live against their staging fleet API), and the
+self-hosted Supabase stack. Remaining work is operational: moving the stack to
+the company server, then production Bubble Box credentials and rider mapping
+(`docs/deployment.md` §11 and the go-live checklist). See `CLAUDE.md` for the
+milestone log and `docs/HANDOFF.md` for the current state.

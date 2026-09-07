@@ -4,13 +4,11 @@
 (Supabase) login. Drivers log in only to Bubble Box; Fleetmap returns the
 Supabase session used for GPS exactly as today.
 
-> **Production status, 2026-08-11.** The Bubble Box verification cutover in
-> commit `530b117` is deployed and healthy (`driver_session` in `/api/health`),
-> and the server-side verification chain is proven end to end from outside
-> with a self-served staging token (`pnpm mint-fleet-auth-token`). What
-> remains unproven is the client flow: no app build with the new exchange
-> exists yet. The request-lifecycle diagnostic image is built but not
-> deployed. Do not send credentials in chat or commit them to this repository.
+> **Status, 2026-09-07.** Live and proven end to end with the rider app build
+> of 2026-08-24. Verification currently runs against Bubble Box **staging**;
+> the app constants below change once when Fleetmap moves to the company
+> server (a new `API_BASE_URL` and Supabase URL, same publishable key). Do
+> not send credentials in chat or commit them to this repository.
 
 ## Five-token glossary
 
@@ -130,13 +128,13 @@ request body, or credentials.
 
 ## The three app constants
 
-Fleetmap moved off managed Supabase onto its own server. All three constants
-are safe to keep in the app bundle: the publishable key is an anon-role key,
-and row-level security is the authorization boundary.
+All three constants are safe to keep in the app bundle: the publishable key
+is an anon-role key, and row-level security is the authorization boundary.
+The two URLs are the current hosts; the publishable key survives a host move.
 
 | Constant | Value |
 |---|---|
-| `API_BASE_URL` | `https://fleet.ysz.life` (unchanged) |
+| `API_BASE_URL` | `https://fleet.ysz.life` |
 | Supabase URL | `https://sb.fleet.ysz.life` |
 | Supabase publishable key | `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzg0NTM4MjE0LCJleHAiOjIwOTk4OTgyMTR9.WNVIZcMYo01TVYVAoqUdiMaxgE43tE8apjxkasLg3oM` |
 
