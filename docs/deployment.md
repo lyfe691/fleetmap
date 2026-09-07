@@ -886,11 +886,11 @@ the fleet is empty — that is expected until the data restore below.
 ### 2. Cutover (minutes of downtime)
 
 Tell Roman and the office first: GPS ingest and the sync pause for the length
-of the copy. Rider apps recover on their own afterwards (their persisted
-Supabase refresh tokens do not survive the copy; the documented cold-start
-path in `docs/driver-session-api.md` re-mints a `fleetAuthToken` without an
-interactive login). The TV keeps working against the old hostnames until it is
-re-pointed.
+of the copy. Driver logins survive it: the copy includes `auth.sessions` and
+`auth.refresh_tokens`, so the rider app's persisted Supabase session keeps
+refreshing against `NEW` (the cold-start re-mint in `docs/driver-session-api.md`
+is the fallback, not the plan). The TV keeps working against the old hostnames
+until it is re-pointed.
 
 **On `OLD`** — freeze writes, dump auth users and the public tables:
 
@@ -900,7 +900,7 @@ cd /opt/fleetmap
 docker compose -f docker-compose.prod.yml stop sync driver-session app
 db() { docker compose -f supabase-docker/docker-compose.yml "$@"; }
 db exec -T db pg_dump -U postgres --data-only --column-inserts \
-  -t auth.users -t auth.identities postgres > /root/auth-data.sql
+  -t auth.users -t auth.identities -t auth.sessions -t auth.refresh_tokens postgres > /root/auth-data.sql
 db exec -T db pg_dump -U postgres --data-only \
   -t public.operational_areas -t public.vehicles -t public.orders \
   -t public.stops -t public.vehicle_positions -t public.sync_state postgres > /root/public-data.sql
@@ -910,8 +910,8 @@ ls -la /root/auth-data.sql /root/public-data.sql
 **On `NEW`** — restore into the empty schema and fix the one sequence. (If
 you rehearsed a restore during staging, empty the target first: `truncate
 public.stops, public.orders, public.vehicle_positions, public.vehicles,
-public.operational_areas, public.sync_state; delete from auth.identities;
-delete from auth.users;`.)
+public.operational_areas, public.sync_state; delete from auth.refresh_tokens;
+delete from auth.sessions; delete from auth.identities; delete from auth.users;`.)
 
 ```bash
 set -euo pipefail
