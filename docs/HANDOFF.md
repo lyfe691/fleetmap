@@ -14,7 +14,8 @@ Fleetmap is a live fleet map for Bubble Box (laundry pickup/delivery): the
 office TV shows every van moving, with routes, ETAs, and stop status. All of
 V1 (M1–M20) is built and running in production on Yanis's VPS
 (`fleet.ysz.life`): GPS tracking from Roman's native rider app through the
-passwordless driver-session exchange (proven end to end 2026-08-24), the order
+passwordless driver-session exchange (the §9 production proof passed 2026-08-13,
+Roman's device build proven 2026-08-24), the order
 sync mirroring Bubble Box's rider routes (live, but against their **staging**
 fleet API), the monitoring console, and the self-hosted Supabase stack. What
 is left is operational, not code: production Bubble Box credentials, the
@@ -57,8 +58,8 @@ dispatcher, the legacy `driver-roman@fleetmap.app` (M3-era, owns no vehicle,
 delete at go-live), and the auto-provisioned `rider-6@driver.fleetmap.internal`.
 The nightly backup cron was **not** installed until 2026-09-07 (the only prior
 dump was from the 07-20 cutover); it is now, and one fresh dump was taken.
-The 2026-08-10 rollback images and the never-deployed diagnostics upload were
-removed from the box the same day.
+The 2026-08-10 rollback images and the leftover diagnostics upload (that image
+has been live since 2026-08-10) were removed from the box the same day.
 
 ## The Bubble Box contract, as built
 

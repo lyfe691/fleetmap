@@ -463,7 +463,9 @@ below, run once at go-live and after any Bubble Box credential rotation.
 
 This controlled proof mutates production: it creates one temporary vehicle,
 may auto-provision one Auth user, writes one GPS point, then removes all three.
-Use a rider you control who will stay logged out except for this proof.
+Use a rider you control who will stay logged out except for this proof. It
+passed on 2026-08-13 against the staging credentials; run it once more with
+the production credentials at go-live.
 
 Keep one server shell open from preflight through cleanup. The read-only
 preflight must show that both the rider mapping and deterministic Auth email
