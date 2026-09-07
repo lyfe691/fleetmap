@@ -76,32 +76,51 @@ enough.
 
 ## Bring-up order for a fresh instance
 
-Everything below in the order it actually happens. `[box]` runs on the new
-server, `[dev]` on the dev machine. About two hours end to end, most of it
-waiting for the OSRM copy and certificates.
+Everything below in the order it actually happens. `[box]` runs in your own
+SSH session on the new server (no agent access there), `[dev]` on the dev
+machine. `scripts/box-bringup.sh` packages the box side into three phases so
+each `[box]` step is one paste. About two hours end to end, most of it waiting
+for the OSRM copy and certificates.
 
-**Inputs:** root SSH to the box and its public IP (from Severin); two `A`
-records under the company domain pointing at it; the Bubble Box production
-fleet user from Dmytro (can arrive later: the sync and the exchange simply
-wait for it).
+**Inputs:** root SSH to the box and its public IP; two `A` records under the
+company domain pointing at it; the Bubble Box production fleet user from
+Dmytro (can arrive later: the sync and the exchange simply wait for it).
 
-1. `[box]` §0: swap, firewall, git, and the dev machine's SSH key in
-   `~/.ssh/authorized_keys`. Confirm the two hostnames resolve to the box.
-2. `[box]` §1 clone, §3 edge network, then the OSRM dataset: build it (§2) or
-   copy the VPS's (`rsync -a root@fleet.ysz.life:/opt/fleetmap/osrm/ /opt/fleetmap/osrm/`).
-3. `[dev]` §4: generate the Supabase secrets. New instance, new secrets.
-4. `[box]` §4: `supabase-docker/.env` with those secrets and the hostnames,
-   `docker compose up -d`, wait for healthy.
-5. `[box]` §6: `/opt/fleetmap/.env` (hostnames, `NEXT_PUBLIC_*`, fresh
-   `DASHBOARD_*`/`DISPATCHER_*` values, `BB_API_*` production or blank) and
-   `.env.driver-session`. Bring up Caddy (§4 "Wire Caddy"), check the cert.
-6. `[dev]` §5 migrations through the tunnel, then §5b the two identities.
-7. `[dev]` §7 build the three images with the new `NEXT_PUBLIC_*` values,
-   `scp` the tar.
-8. `[box]` §8 `./redeploy.sh`, then §9 smoke tests. Install the backup cron.
-9. When Dmytro's production user exists: the go-live checklist at the end.
-10. Send Roman the three constants (§10); someone opens the dashboard on the
-    TV with the display code; point an uptime monitor at `/api/health`.
+1. `[box]` fetch the script and run `prep`. It installs git/rsync, adds swap,
+   opens 80/443 if ufw is active, checks both hostnames resolve to the box,
+   clones the repo, creates the edge network, and copies the OSRM dataset
+   from the VPS (or builds it):
+
+   ```bash
+   curl -fsSL https://raw.githubusercontent.com/lyfe691/fleetmap/main/scripts/box-bringup.sh -o box-bringup.sh
+   bash box-bringup.sh prep <FLEET_HOST> <SUPABASE_HOST> fleet.ysz.life
+   ```
+
+2. `[dev]` §4: generate the Supabase secrets (new instance, new secrets) and
+   write the three env files locally, filled in: `supabase-docker/.env` (§4),
+   `.env` (§6, with fresh `DASHBOARD_*`/`DISPATCHER_*` values and `BB_API_*`
+   production or blank), `.env.driver-session` (§6).
+3. `[box]` copy them over from your machine, then `up`. It validates the
+   files, starts the Supabase stack, brings up Caddy, and waits for the auth
+   health check to answer over TLS:
+
+   ```bash
+   scp supabase-docker.env root@<FLEET_HOST>:/opt/fleetmap/supabase-docker/.env
+   scp app.env root@<FLEET_HOST>:/opt/fleetmap/.env
+   scp driver-session.env root@<FLEET_HOST>:/opt/fleetmap/.env.driver-session
+   bash box-bringup.sh up
+   ```
+
+4. `[you]` open the tunnel `ssh -N -L 6544:127.0.0.1:5432 root@<FLEET_HOST>`
+   and leave it; `[dev]` §5 migrations through it, then §5b the two
+   identities.
+5. `[dev]` §7 build the three images with the new `NEXT_PUBLIC_*` values;
+   `[you]` `scp fleetmap-images.tar.gz root@<FLEET_HOST>:/opt/fleetmap/`.
+6. `[box]` `cd /opt/fleetmap && ./redeploy.sh`, then `bash box-bringup.sh smoke`
+   (the §9 checks as PASS/FAIL lines; it also installs the backup cron).
+7. When Dmytro's production user exists: the go-live checklist at the end.
+8. Send Roman the three constants (§10); someone opens the dashboard on the
+   TV with the display code; point an uptime monitor at `/api/health`.
 
 ---
 
@@ -473,8 +492,11 @@ Set `FLEET_HOST`/`SUPABASE_HOST` in your shell first (or read them from
 
   ```bash
   curl -s -H "apikey: <ANON_KEY>" "https://$SUPABASE_HOST/auth/v1/health"
-  curl -s -H "apikey: <ANON_KEY>" "https://$SUPABASE_HOST/rest/v1/"
-  # both: 200 + JSON
+  # 200 + GoTrue JSON
+  curl -s -w ' HTTP:%{http_code}
+' -H "apikey: <ANON_KEY>" "https://$SUPABASE_HOST/rest/v1/"
+  # 403 with a PostgREST JSON error: the OpenAPI root is admin-only, and the
+  # 403 (not Kong's 401 "No API key") proves Kong routed to PostgREST
   ```
 
 - **Studio:** `https://$SUPABASE_HOST/` is fronted by Kong; Studio sits behind

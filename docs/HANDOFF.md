@@ -58,7 +58,12 @@ Order: Severin provides the instance (specs in `docs/deployment.md` §0, plus
 smoke tests → Dmytro's production credentials and fleet user → rider mapping
 from the first production tick → Roman's production build gets the three
 constants → §9 proof with a real rider → TV opens the new URL. Go-live
-checklist at the end of `docs/deployment.md`.
+checklist at the end of `docs/deployment.md`. **No agent SSH access to the
+company box** (policy): Yanis runs the box side himself via
+`scripts/box-bringup.sh` (`prep` / `up` / `smoke`, one paste each) and the
+`scp`s, the agent does the dev-machine side (secrets, env files, migrations
+and identities through a tunnel Yanis opens, image builds). The "Bring-up
+order" at the top of `docs/deployment.md` interleaves the two.
 
 VPS facts as of 2026-09-07: 1 vCPU, 3.9 GB RAM with the 2 GB swapfile about
 half used, 48 GB disk (35% used), both stacks up for 6 weeks, schema at 0016,
