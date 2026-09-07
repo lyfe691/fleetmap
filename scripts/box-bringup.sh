@@ -147,13 +147,13 @@ EOF
     check "edge (landing)"   200 "$(curl -s -o /dev/null -w '%{http_code}' -m 15 "https://$FLEET_HOST/")"
     check "ingest rejects anon" 401 "$(curl -s -o /dev/null -w '%{http_code}' -m 15 -X POST "https://$FLEET_HOST/api/location" -H 'Content-Type: application/json' -d '{"lat":47.37,"lng":8.54,"recorded_at":"2026-06-25T00:00:00Z"}')"
     check "supabase auth"    200 "$(curl -s -o /dev/null -w '%{http_code}' -m 15 -H "apikey: $ANON" "https://$SUPABASE_HOST/auth/v1/health")"
-    rest=$(curl -s -o /dev/null -w '%{http_code}' -m 15 -H "apikey: $ANON" "https://$SUPABASE_HOST/rest/v1/")
+    rest=$(curl -s -o /dev/null -w '%{http_code}' -m 15 -H "apikey: $ANON" "https://$SUPABASE_HOST/rest/v1/" || true)
     case "$rest" in 200|403) printf 'PASS supabase rest (%s)\n' "$rest" ;; *) printf 'FAIL supabase rest (got %s)\n' "$rest"; fail=1 ;; esac
     check "driver-session liveness" '{"ok":true}' "$(curl -s -m 15 "https://$FLEET_HOST/api/driver-session")"
     check "driver-session preflight" 204 "$(curl -s -o /dev/null -w '%{http_code}' -m 15 -X OPTIONS -H 'Origin: https://rider-proof.invalid' -H 'Access-Control-Request-Method: POST' -H 'Access-Control-Request-Headers: content-type' "https://$FLEET_HOST/api/driver-session")"
     check "driver-session rejects junk" 401 "$(curl -s -o /dev/null -w '%{http_code}' -m 30 -X POST "https://$FLEET_HOST/api/driver-session" -H 'Content-Type: application/json' -d '{"token":"not-a-jwt"}')"
     check "osrm from app"    200 "$(docker compose -f docker-compose.prod.yml exec -T app node -e "fetch('http://osrm:5000/route/v1/driving/8.5,47.3;8.55,47.35').then(r=>console.log(r.status))" 2>/dev/null | tail -1)"
-    health=$(curl -s -m 15 "https://$FLEET_HOST/api/health")
+    health=$(curl -s -m 15 "https://$FLEET_HOST/api/health" || true)
     printf 'health: %s\n' "$health"
     case "$health" in *'"ok":true'*) printf 'PASS health\n' ;; *) printf 'FAIL health\n'; fail=1 ;; esac
     say "cron"
