@@ -158,7 +158,7 @@ EOF
     case "$health" in *'"ok":true'*) printf 'PASS health\n' ;; *) printf 'FAIL health\n'; fail=1 ;; esac
     say "cron"
     if crontab -l 2>/dev/null | grep -q backup.sh; then echo "backup cron present"; else
-      (crontab -l 2>/dev/null; echo "10 2 * * * sh $DIR/supabase-docker/backup.sh") | crontab -
+      { crontab -l 2>/dev/null || true; echo "10 2 * * * sh $DIR/supabase-docker/backup.sh"; } | crontab -
       echo "backup cron installed"
     fi
     [ "$fail" = 0 ] && say "smoke passed" || die "smoke failed"
