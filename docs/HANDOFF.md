@@ -31,6 +31,23 @@ Roman can release the client flow in
 refresh first on cold start, and reacquire a new `fleetAuthToken` without an
 interactive login while the rider `loginToken` remains valid.
 
+**Update 2026-08-24 — M20 is done.** Roman shipped a TestFlight build with the
+new exchange flow and it is proven end-to-end in production. His first attempt
+returned `403 {"error":"no vehicle mapped for this rider"}` for rider 6 — that
+error only fires after our service verified the `fleetAuthToken` with Bubble
+Box and extracted the rider id, so it was already proof of the verify round
+trip. Yanis mapped the staging test riders (Zurich id 6, Basel id 13) each to
+a vehicle, Roman confirmed "works now", and his GPS renders live on the
+dashboard. Consequences: the request-boundary diagnostic image is obsolete —
+never deployed, no longer needed (its lifecycle logging is on main and ships
+incidentally with the next routine image build); the deployment.md §9
+controlled proof is superseded as an M20 verification step, though the
+"Post-cutover manual checklist" in deployment.md still runs it once at
+production cutover. The remaining work is orders go-live only: production
+Bubble Box credentials on the VPS (both `.env` and `.env.driver-session`) and
+a production rider-id → vehicle mapping (today's mappings are the staging
+test riders; staging ids must not be carried into production).
+
 **Update 2026-08-11.** The Bubble Box side is now fully proven from outside.
 Rider login is `POST {BB_API_URL}/shop/api/v1/en/security/check-login` with a
 JSON `{username, password}` body — Dmytro's chat recipe omitted the `/shop`
@@ -640,7 +657,8 @@ paths fail silently until someone finally uses them.
   punctuation, short sentences, colleague tone that *asks* rather than
   specifies ("would X be a problem?" not "the response should contain X"),
   no greeting when mid-thread, and never make him sound like he's ordering
-  teammates around.
+  teammates around. Fleetmap is **his solo project** — drafted messages
+  speak as "I", never "we" or "our side".
 - **Don't push without his say-so** during iterative work; when he says
   "push to be safe," push everything.
 - Verify with `pnpm exec tsc --noEmit` + `pnpm test` before calling anything
