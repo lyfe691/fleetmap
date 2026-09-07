@@ -11,7 +11,7 @@ Full design doc: `docs/specs/live-tracking-spec.md` — that's the source of tru
 - **MapLibre GL** (`react-map-gl`) for the map. Tiles from **OpenFreeMap** (free, keyless, no request limits; `liberty` light / `dark`) — **never the public OSM tile server** (against their usage policy).
 - **OSRM**, self-hosted (Docker, Switzerland extract) for route lines + ETA — M4.
 - **Driver client:** PWA for V1 (`watchPosition` + Screen Wake Lock). Native Expo is the escape hatch if phones go in pockets or run nav up front — not now.
-- **Deployment:** Docker on a single host (since 2026-09-07 the company's Hetzner box, 49.13.223.81, serving `fleet.ysz.life`; Yanis's old VPS is a cold standby). Hostnames are config (`FLEET_HOST`/`SUPABASE_HOST` in `.env`, Caddy site addresses). Two compose stacks joined by the `fleetmap-edge` network: Caddy (auto-TLS) → standalone Next image → internal OSRM, plus the internal `sync` and `driver-session` workers (`docker-compose.prod.yml`), beside the self-hosted Supabase (`supabase-docker/`, Kong behind `sb.fleet.ysz.life`). Three images (`fleetmap-app`, `fleetmap-sync`, `fleetmap-driver-session`) build locally and ship as one tar — the 4GB box must never build. Full guide: `docs/deployment.md`.
+- **Deployment:** Docker on a single host (since 2026-09-07 the company's Hetzner box, 49.13.223.81, serving `fleet.ysz.life`; Yanis's old VPS is a cold standby). Hostnames are config (`FLEET_HOST`/`SUPABASE_HOST` in `.env`, Caddy site addresses). Two compose stacks joined by the `fleetmap-edge` network: Caddy (auto-TLS) → standalone Next image → internal OSRM, plus the internal `sync` and `driver-session` workers (`docker-compose.prod.yml`), beside the self-hosted Supabase (`supabase-docker/`, Kong behind `sb.fleet.ysz.life`). Three images (`ghcr.io/lyfe691/fleetmap-{app,sync,driver-session}`) are built by GitHub Actions on every push to `main` (`.github/workflows/images.yml`; the app's `NEXT_PUBLIC_*` come from repository variables) and pulled by `./redeploy.sh` — the box never builds. Full guide: `docs/deployment.md`.
 
 ## Architecture
 
@@ -50,7 +50,8 @@ docker-compose.yml          OSRM routing container (Switzerland extract) — dev
 Dockerfile                  standalone Next image (prod build)
 docker-compose.prod.yml     prod stack — Caddy → app + driver-session → OSRM + sync (internal)
 caddy/Caddyfile             reverse proxy + auto-TLS; site addresses from FLEET_HOST/SUPABASE_HOST (+ optional *_ALIASES)
-redeploy.sh                 server: check hostnames in .env + git pull + load the shipped three-image archive + restart with --no-build
+redeploy.sh                 server: check hostnames in .env + git pull + docker compose pull + restart with --no-build + caddy reload
+.github/workflows/images.yml  CI: build the three Dockerfile targets on push to main → ghcr.io (latest + sha-<short>)
 docs/deployment.md          deploy guide: bring-up, smoke tests, host move (§11), go-live checklist
 lib/supabase/server.ts      request-scoped Supabase client (runs as the user)
 lib/supabase/browser.ts     browser client (publishable key) — dashboard read/Realtime
@@ -144,7 +145,7 @@ pnpm test                         # vitest unit suite (route-slice, translate, i
 docker compose up -d osrm         # routing engine (build the dataset first — see docker-compose.yml)
 
 # Prod (on the server, from /opt/fleetmap)
-./redeploy.sh                     # hostname check + git pull + load shipped images + restart (never builds on the box)
+./redeploy.sh                     # hostname check + git pull + pull images from ghcr.io + restart (never builds on the box)
 ```
 
 Env: `.env.example` — `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`; prod-only `FLEET_HOST`/`SUPABASE_HOST` (+ `*_ALIASES`) and `FLEETMAP_PUBLIC_URL`.

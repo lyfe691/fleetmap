@@ -70,16 +70,11 @@ For moving demo data: `pnpm fake-gps` once (provisions the city vans), then `pnp
 
 ## Deployment
 
-Two compose stacks on one host: the app stack (`docker-compose.prod.yml` — Caddy → Next + driver-session → OSRM + sync) and the self-hosted Supabase stack (`supabase-docker/`). Public hostnames come from `FLEET_HOST`/`SUPABASE_HOST` in the server's `.env`. All three Fleetmap images are **built locally and shipped as a tar** — the box never builds:
+Two compose stacks on one host: the app stack (`docker-compose.prod.yml` — Caddy → Next + driver-session → OSRM + sync) and the self-hosted Supabase stack (`supabase-docker/`). Public hostnames come from `FLEET_HOST`/`SUPABASE_HOST` in the server's `.env`. The three Fleetmap images are **built by GitHub Actions on every push to `main`** and published to `ghcr.io/lyfe691/fleetmap-{app,sync,driver-session}` — the box never builds:
 
 ```bash
-docker build --platform linux/amd64 -t fleetmap-app:latest --target runner \
-  --build-arg NEXT_PUBLIC_SUPABASE_URL=... --build-arg NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=... .
-docker build --platform linux/amd64 -t fleetmap-sync:latest --target sync .
-docker build --platform linux/amd64 -t fleetmap-driver-session:latest --target driver-session .
-docker save fleetmap-app:latest fleetmap-sync:latest fleetmap-driver-session:latest | gzip > fleetmap-images.tar.gz
-scp fleetmap-images.tar.gz root@<host>:/opt/fleetmap/
-ssh root@<host> "cd /opt/fleetmap && ./redeploy.sh"   # git pull + load tar + restart, no build
+git push origin main            # .github/workflows/images.yml builds + publishes the images
+ssh root@<host> "cd /opt/fleetmap && ./redeploy.sh"   # git pull + docker compose pull + restart
 ```
 
 Full walkthrough — first-time setup, the OSRM dataset build, the Supabase self-host, TLS, backups, smoke tests, moving to a new host, the go-live checklist — in [`docs/deployment.md`](docs/deployment.md).

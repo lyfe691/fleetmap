@@ -1,13 +1,10 @@
 # Production FleetMap stack: Caddy (TLS) -> Next app -> OSRM (internal),
-# deployed beside the self-hosted Supabase stack on the same VPS.
+# deployed beside the self-hosted Supabase stack on the same host.
 #
-# Build the three FleetMap images locally, ship/load their release archive, then:
-#   docker compose -f docker-compose.prod.yml up -d --no-build
-#
-# The build blocks remain as local metadata; production consumes the explicit
-# image tags below and never builds on the VPS. Reads .env in this directory for
-# build args (NEXT_PUBLIC_*) and runtime env. Build the OSRM dataset once before
-# first `up` (see docs/deployment.md).
+# The three FleetMap images are built by GitHub Actions (.github/workflows/images.yml)
+# and pulled from ghcr.io; the server never builds. `./redeploy.sh` pulls + restarts.
+# Reads .env in this directory for the runtime env. Build the OSRM dataset once
+# before the first `up` (see docs/deployment.md).
 
 services:
   caddy:
@@ -34,13 +31,7 @@ services:
       - fleetmap-edge
 
   app:
-    image: fleetmap-app:latest
-    build:
-      context: .
-      args:
-        # NEXT_PUBLIC_* must be present at build time (inlined into the client bundle).
-        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
-        NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY}
+    image: ghcr.io/lyfe691/fleetmap-app:latest
     restart: unless-stopped
     env_file: .env       # server-only secrets read at runtime (DASHBOARD_*, DISPATCHER_*, OSRM_URL)
     environment:
@@ -54,10 +45,7 @@ services:
       - osrm
 
   sync:
-    image: fleetmap-sync:latest
-    build:
-      context: .
-      target: sync
+    image: ghcr.io/lyfe691/fleetmap-sync:latest
     restart: unless-stopped
     env_file: .env       # BB_* + DISPATCHER_INGEST_SECRET + NEXT_PUBLIC_SUPABASE_*
     environment:
@@ -68,10 +56,7 @@ services:
       - app
 
   driver-session:
-    image: fleetmap-driver-session:latest
-    build:
-      context: .
-      target: driver-session
+    image: ghcr.io/lyfe691/fleetmap-driver-session:latest
     restart: unless-stopped
     # Deliberately NOT env_file: .env — this service is the only sanctioned
     # holder of the Supabase secret key outside scripts/, and its secrets live

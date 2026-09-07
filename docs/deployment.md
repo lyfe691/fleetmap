@@ -63,13 +63,13 @@ running has already taken prod down once (load average 91 during a `docker
 build`, the app stack starved of memory and stopped answering). **Never run
 `docker compose ... up -d --build` on the server.**
 
-Instead: build the app images on your dev machine, ship them as a tar,
-`docker load` on the server, `up -d --no-build`. `redeploy.sh` does the load +
-up half automatically. This applies to any change that touches app code
-(`app/`, `components/`, `lib/`, `workers/`, `Dockerfile`, `package.json`,
-etc). Docs-only or compose-only changes (this file, `docker-compose.prod.yml`,
-`caddy/Caddyfile`) don't need an image rebuild — `./redeploy.sh` alone is
-enough.
+Instead: GitHub Actions builds the three images on every push to `main` and
+publishes them to `ghcr.io` (§7); `./redeploy.sh` pulls them and restarts.
+Any change that touches app code (`app/`, `components/`, `lib/`, `workers/`,
+`Dockerfile`, `package.json`, etc) is a push followed by `./redeploy.sh` once
+the workflow is green. Docs-only or compose-only changes (this file,
+`docker-compose.prod.yml`, `caddy/Caddyfile`) skip the build — `./redeploy.sh`
+alone is enough.
 
 ---
 
@@ -113,10 +113,11 @@ Dmytro (can arrive later: the sync and the exchange simply wait for it).
 4. `[you]` open the tunnel `ssh -N -L 6544:127.0.0.1:5432 root@<FLEET_HOST>`
    and leave it; `[dev]` §5 migrations through it, then §5b the two
    identities.
-5. `[dev]` §7 build the three images with the new `NEXT_PUBLIC_*` values;
-   `[you]` `scp fleetmap-images.tar.gz root@<FLEET_HOST>:/opt/fleetmap/`.
-6. `[box]` `cd /opt/fleetmap && ./redeploy.sh`, then `bash box-bringup.sh smoke`
-   (the §9 checks as PASS/FAIL lines; it also installs the backup cron).
+5. `[dev]` §7: set the two repository variables to the new instance's
+   Supabase URL and anon key, run the `images` workflow, wait for green.
+6. `[box]` `cd /opt/fleetmap && ./redeploy.sh` (pulls the images), then
+   `bash box-bringup.sh smoke` (the §9 checks as PASS/FAIL lines; it also
+   installs the backup cron).
 7. When Dmytro's production user exists: the go-live checklist at the end.
 8. Send Roman the three constants (§10); someone opens the dashboard on the
    TV with the display code; point an uptime monitor at `/api/health`.
@@ -404,39 +405,52 @@ credentials with the controlled token proof in §9.
 
 ---
 
-## 7. Build & ship the app images (dev machine)
+## 7. Images: GitHub Actions → ghcr.io
 
-Images are built **locally**, never on the server. Build all three for every
-application-code deploy:
+`.github/workflows/images.yml` builds the three Dockerfile targets on every
+push to `main` that touches anything but docs, and publishes them as
+
+| Image | Target |
+|---|---|
+| `ghcr.io/lyfe691/fleetmap-app` | `runner` |
+| `ghcr.io/lyfe691/fleetmap-sync` | `sync` |
+| `ghcr.io/lyfe691/fleetmap-driver-session` | `driver-session` |
+
+each tagged `latest` and `sha-<short commit>`. Layers are cached in GitHub, so
+a rebuild takes a few minutes. The app image bakes two public values into the
+browser bundle; they live as **repository variables** (Settings → Secrets and
+variables → Actions → Variables), set once and changed only when the Supabase
+hostname changes:
 
 ```bash
-docker build --platform linux/amd64 -t fleetmap-app:latest --target runner \
-  --build-arg NEXT_PUBLIC_SUPABASE_URL=https://<SUPABASE_HOST> \
-  --build-arg NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<ANON_KEY> .
-docker build --platform linux/amd64 -t fleetmap-sync:latest --target sync .
-docker build --platform linux/amd64 -t fleetmap-driver-session:latest --target driver-session .
-docker save fleetmap-app:latest fleetmap-sync:latest fleetmap-driver-session:latest | gzip > fleetmap-images.tar.gz
-
-# Inspect before upload: all three tags must be present and linux/amd64.
-tar -xOzf fleetmap-images.tar.gz index.json
-docker image inspect fleetmap-app:latest fleetmap-sync:latest \
-  fleetmap-driver-session:latest \
-  --format '{{index .RepoTags 0}} {{.Os}}/{{.Architecture}} {{.Id}}'
-
-scp fleetmap-images.tar.gz root@<FLEET_HOST>:/opt/fleetmap/
+gh variable set NEXT_PUBLIC_SUPABASE_URL --body "https://<SUPABASE_HOST>"
+gh variable set NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY --body "<ANON_KEY>"
+gh workflow run images.yml && gh run watch    # rebuild on demand, e.g. after a variable change
 ```
 
-All three tags must be in the tar. `redeploy.sh` runs `up -d --no-build`, so a
-service whose image is missing fails the whole `up` rather than silently
-building.
+The workflow refuses to build the app image while either variable is empty.
+Check what was published: `docker manifest inspect ghcr.io/lyfe691/fleetmap-app:latest`.
+The packages must be **public** (package settings on GitHub, one-time) or the
+server needs `docker login ghcr.io` with a read-only token.
 
 The two workers are esbuild-bundled to a single `.mjs` and run on a bare
 `node:22-bookworm-slim` as the non-root `node` user — no pnpm, no
-`node_modules`, no TypeScript at runtime. That keeps them at ~327MB and the
-whole tar under 100MB.
+`node_modules`, no TypeScript at runtime (~327MB each; the app is ~413MB).
 
-`--platform linux/amd64` matters if you're building on Apple Silicon or
-another non-x86 dev machine — the server is x86_64.
+**Fallback without CI** (registry down, or a hotfix that must not wait): build
+on the dev machine with the registry names so compose finds them, ship as a
+tar, load on the server, then `docker compose -f docker-compose.prod.yml up -d --no-build`
+(not `./redeploy.sh`, which would pull `latest` again):
+
+```bash
+docker build --platform linux/amd64 -t ghcr.io/lyfe691/fleetmap-app:latest --target runner \
+  --build-arg NEXT_PUBLIC_SUPABASE_URL=https://<SUPABASE_HOST> \
+  --build-arg NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<ANON_KEY> .
+docker build --platform linux/amd64 -t ghcr.io/lyfe691/fleetmap-sync:latest --target sync .
+docker build --platform linux/amd64 -t ghcr.io/lyfe691/fleetmap-driver-session:latest --target driver-session .
+docker save ghcr.io/lyfe691/fleetmap-app:latest ghcr.io/lyfe691/fleetmap-sync:latest ghcr.io/lyfe691/fleetmap-driver-session:latest | gzip > fleetmap-images.tar.gz
+scp fleetmap-images.tar.gz root@<FLEET_HOST>:/opt/fleetmap/    # then on the server: docker load < fleetmap-images.tar.gz
+```
 
 ---
 
@@ -448,10 +462,10 @@ cd /opt/fleetmap
 ./redeploy.sh
 ```
 
-`redeploy.sh` checks `.env` carries the hostnames, git-pulls, loads
-`fleetmap-images.tar.gz` if present (then deletes it), runs `up -d --no-build`,
-and reloads Caddy (its config is bind-mounted, so `up` alone would leave it on
-the old routes). It never invokes `docker build`. Watch it come up:
+`redeploy.sh` checks `.env` carries the hostnames, git-pulls, pulls the three
+images from `ghcr.io`, runs `up -d --no-build`, reloads Caddy (its config is
+bind-mounted, so `up` alone would leave it on the old routes), and prunes the
+superseded images. It never invokes `docker build`. Watch it come up:
 
 ```bash
 docker compose -f docker-compose.prod.yml ps
@@ -839,28 +853,25 @@ Offsite copies are not set up yet — a go-live item for the company box.
 
 ## Rollback (images)
 
-Immediately before loading a new archive, preserve the currently running tags
-outside the deployment directory:
-
-```bash
-set -euo pipefail
-install -d -m 700 /opt/fleetmap-rollbacks
-docker save fleetmap-app:latest fleetmap-sync:latest fleetmap-driver-session:latest \
-  | gzip > /opt/fleetmap-rollbacks/fleetmap-images-$(date -u +%Y%m%dT%H%M%SZ).tar.gz
-```
-
-If startup or health fails after the load, restore those tags and recreate
-only their consumers without building:
+Every build is also tagged with its commit (`sha-<short>`), so rolling back is
+pulling the previous one and retagging it as `latest` on the server. Find the
+short sha of the last good build in the Actions run list (or `git log`), then:
 
 ```bash
 set -euo pipefail
 cd /opt/fleetmap
-docker load < /opt/fleetmap-rollbacks/fleetmap-images-<timestamp>.tar.gz
+GOOD=sha-<short>
+for i in app sync driver-session; do
+  docker pull -q "ghcr.io/lyfe691/fleetmap-$i:$GOOD"
+  docker tag "ghcr.io/lyfe691/fleetmap-$i:$GOOD" "ghcr.io/lyfe691/fleetmap-$i:latest"
+done
 docker compose -f docker-compose.prod.yml up -d --no-build --force-recreate app sync driver-session
 docker compose -f docker-compose.prod.yml ps app sync driver-session
-docker compose -f docker-compose.prod.yml logs --tail=50 app sync driver-session
 curl -fsS "https://$(grep ^FLEET_HOST= .env | cut -d= -f2)/api/health"
 ```
+
+The next `./redeploy.sh` pulls `latest` from the registry again, so fix
+forward on `main` (or revert the commit) rather than staying on the retag.
 
 ---
 
@@ -868,8 +879,8 @@ curl -fsS "https://$(grep ^FLEET_HOST= .env | cut -d= -f2)/api/health"
 
 | Task | Command (from `/opt/fleetmap`) |
 |---|---|
-| Deploy app-code changes | Build + ship locally (§7), then `./redeploy.sh` on the server |
-| Deploy docs/compose-only changes | `./redeploy.sh` on the server (git pull is enough — nothing to load) |
+| Deploy app-code changes | push to `main`, wait for the `images` workflow (§7), then `./redeploy.sh` on the server |
+| Deploy docs/compose-only changes | `./redeploy.sh` on the server (git pull is enough — nothing new to pull) |
 | App logs | `docker compose -f docker-compose.prod.yml logs -f app` |
 | Sync worker logs | `docker compose -f docker-compose.prod.yml logs -f sync` |
 | Driver-session logs | `docker compose -f docker-compose.prod.yml logs -f --since=5s driver-session` |
